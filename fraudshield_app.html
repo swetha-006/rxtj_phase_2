@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudShield — RXT-J+ Risk Scoring Engine</title>
+    <style>
+        /* ─── Variables & Base ─── */
+        :root {
+            --bg: #f0f4f8; --surface: #ffffff; --border: #e2e8f0;
+            --text: #0f172a; --muted: #64748b; --blue: #1d4ed8;
+            --blue2: #2563eb; --dblue: #1e3a5f; --green: #15803d;
+            --lgreen: #f0fdf4; --red: #b91c1c; --lred: #fef2f2;
+            --radius: 12px; --shadow: 0 4px 16px rgba(0,0,0,.06);
+            --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif;
+        }
+        body { font-family: var(--sans); background: var(--bg); color: var(--text); margin: 0; padding-bottom: 50px; }
+        
+        /* ─── Navigation ─── */
+        nav { background: var(--dblue); padding: 0 1.5rem; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+        .nav-brand { color: white; font-weight: 700; font-size: 16px; }
+        .api-status { display: flex; align-items: center; gap: 8px; color: #93c5fd; font-size: 11px; font-family: var(--mono); }
+        .dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; animation: blink 2s infinite; }
+        @keyframes blink { 0%,100% {opacity:1} 50% {opacity:0.4} }
+
+        /* ─── Hero ─── */
+        .hero { background: linear-gradient(135deg, var(--dblue) 0%, #1a3660 100%); padding: 2.5rem 2rem; color: white; text-align: center; }
+        .hero h1 span { color: #60a5fa; }
+
+        /* ─── Layout ─── */
+        .main { max-width: 1000px; margin: -30px auto 0; padding: 0 20px; display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+        .card-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+        .card-body { padding: 1.25rem; }
+
+        /* ─── Forms ─── */
+        .field-grid { display: grid; gap: 15px; margin-bottom: 15px; }
+        .three { grid-template-columns: 1fr 1fr 1fr; }
+        .two { grid-template-columns: 1fr 1fr; }
+        label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; }
+        input, select { width: 100%; padding: 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; }
+        input:focus { border-color: var(--blue); }
+        .submit-btn { width: 100%; padding: 12px; background: var(--blue); color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .submit-btn:hover { background: var(--blue2); transform: translateY(-1px); }
+        .submit-btn:disabled { background: var(--muted); cursor: not-allowed; }
+
+        /* ─── Results & Pipeline ─── */
+        .result-box { padding: 1.5rem; border-radius: 10px; border: 2px solid var(--border); display: none; margin-top: 10px; }
+        .result-box.fraud { background: var(--lred); border-color: #fecaca; }
+        .result-box.legit { background: var(--lgreen); border-color: #bbf7d0; }
+        .risk-score { font-size: 32px; font-weight: 800; margin-bottom: 5px; }
+        .flag { background: rgba(185,28,28,0.1); color: var(--red); padding: 5px 10px; border-radius: 6px; font-size: 11px; margin-bottom: 5px; }
+        
+        /* ─── Pipeline Visual ─── */
+        .pipeline { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .step { text-align: center; flex: 1; font-size: 10px; color: var(--muted); font-weight: 700; }
+        .step.active { color: var(--blue); }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-brand">RXT-J+ FraudShield</div>
+    <div class="api-status"><div class="dot"></div> API LIVE: 127.0.0.1:8000</div>
+</nav>
+
+<div class="hero">
+    <h1>FraudShield <span>Real-Time Engine</span></h1>
+    <p>Enterprise Risk Scoring via EARN+ Feature Extraction</p>
+</div>
+
+<div class="main">
+    <div class="card">
+        <div class="card-head">TRANSACTION DATA ENTRY</div>
+        <div class="card-body">
+            <form id="fraud-form">
+                <div class="field-grid two">
+                    <div>
+                        <label>Transaction ID</label>
+                        <input type="text" id="transaction_id" placeholder="TXN_99999" value="TXN_ALPHA_01">
+                    </div>
+                    <div>
+                        <label>Amount ($)</label>
+                        <input type="number" id="amount" step="0.01" value="1250.00" required>
+                    </div>
+                </div>
+
+                <div class="field-grid three">
+                    <div>
+                        <label>Card Type</label>
+                        <select id="card_type">
+                            <option value="VISA">Visa</option>
+                            <option value="MASTERCARD">Mastercard</option>
+                            <option value="AMEX">Amex</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Merchant</label>
+                        <select id="merchant_category">
+                            <option value="ONLINE">Online Retail</option>
+                            <option value="ATM">ATM / Cash</option>
+                            <option value="TRAVEL">International Travel</option>
+                            <option value="FOOD">Dining/Food</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Hour (0-23)</label>
+                        <input type="number" id="hour_of_day" value="3" min="0" max="23">
+                    </div>
+                </div>
+
+                <div class="field-grid two">
+                    <div>
+                        <label>Avg Amount (30d)</label>
+                        <input type="number" id="avg_amount_30d" value="150.00">
+                    </div>
+                    <div>
+                        <label>Days Since Last</label>
+                        <input type="number" id="days_since_last" value="0.02" step="0.01">
+                    </div>
+                </div>
+
+                <div class="field-grid two">
+                    <div>
+                        <label>Location</label>
+                        <select id="is_foreign">
+                            <option value="false">Domestic</option>
+                            <option value="true">International (High Risk)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Customer Age</label>
+                        <input type="number" id="customer_age" value="28">
+                    </div>
+                </div>
+
+                <input type="hidden" id="day_of_week" value="2">
+                <input type="hidden" id="is_online" value="true">
+
+                <button type="submit" class="submit-btn" id="sub-btn">ANALYZE RISK</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">MODEL INFERENCE & PIPELINE</div>
+        <div class="card-body">
+            <div class="pipeline">
+                <div class="step" id="p1">NYSTROEM</div>
+                <div class="step" id="p2">IPCA</div>
+                <div class="step" id="p3">RXT-J+</div>
+            </div>
+
+            <div id="idle-msg" style="text-align: center; color: var(--muted); padding: 40px 0;">
+                <p>Waiting for transaction data...</p>
+            </div>
+
+            <div id="result-box" class="result-box">
+                <div id="decision-lbl" style="font-size: 12px; font-weight: 700; text-transform: uppercase;">Decision</div>
+                <div id="res-decision" class="risk-score">--</div>
+                
+                <div style="margin: 15px 0;">
+                    <label>Risk Score</label>
+                    <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                        <div id="risk-bar" style="height: 100%; width: 0%; transition: 1s;"></div>
+                    </div>
+                </div>
+
+                <div id="flags-container">
+                    <label>Risk Flags</label>
+                    <div id="flag-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('fraud-form');
+    const btn = document.getElementById('sub-btn');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // UI Feedback
+        btn.innerText = "PROCESSING...";
+        btn.disabled = true;
+        document.getElementById('idle-msg').style.display = 'none';
+        
+        // Animate Pipeline
+        const steps = ['p1', 'p2', 'p3'];
+        for(let s of steps) {
+            document.getElementById(s).classList.add('active');
+            await new Promise(r => setTimeout(r, 200));
+        }
+
+        const payload = {
+            transaction_id: document.getElementById('transaction_id').value,
+            amount: parseFloat(document.getElementById('amount').value),
+            card_type: document.getElementById('card_type').value,
+            merchant_category: document.getElementById('merchant_category').value,
+            hour_of_day: parseInt(document.getElementById('hour_of_day').value),
+            day_of_week: parseInt(document.getElementById('day_of_week').value),
+            is_foreign: document.getElementById('is_foreign').value === "true",
+            is_online: document.getElementById('is_online').value === "true",
+            customer_age: parseInt(document.getElementById('customer_age').value),
+            days_since_last: parseFloat(document.getElementById('days_since_last').value),
+            avg_amount_30d: parseFloat(document.getElementById('avg_amount_30d').value)
+        };
+
+        try {
+            const response = await fetch('/score/form', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+
+            // Render Results
+            const resBox = document.getElementById('result-box');
+            resBox.style.display = 'block';
+            resBox.className = 'result-box ' + data.decision.toLowerCase();
+            
+            document.getElementById('res-decision').innerText = data.decision;
+            document.getElementById('res-decision').style.color = data.decision === 'FRAUD' ? 'var(--red)' : 'var(--green)';
+            
+            // Update Progress Bar
+            const bar = document.getElementById('risk-bar');
+            bar.style.width = (data.risk_score * 100) + '%';
+            bar.style.backgroundColor = data.decision === 'FRAUD' ? 'var(--red)' : 'var(--green)';
+
+            // Risk Flags
+            const flagList = document.getElementById('flag-list');
+            flagList.innerHTML = '';
+            if(data.risk_flags.length > 0) {
+                data.risk_flags.forEach(f => {
+                    flagList.innerHTML += `<div class="flag">⚠️ ${f}</div>`;
+                });
+            } else {
+                flagList.innerHTML = '<div style="font-size: 11px; color: var(--green);">No risk flags triggered.</div>';
+            }
+
+        } catch (err) {
+            alert("Connection to backend failed. Make sure app.py is running!");
+        } finally {
+            btn.innerText = "ANALYZE RISK";
+            btn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "W_MODEL": 0.5342960077804467,
+  "W_IFM": 0.4657039916852572,
+  "THRESHOLD": 0.4999999999999998,
+  "final_auc": 0.9624399631394758,
+  "final_mcc": 0.8426196473448768,
+  "fiscal_cost": 0.11213083749575675,
+  "false_positives": 2748,
+  "false_negatives": 3753,
+  "true_positives": 37489,
+  "true_negatives": 38494,
+  "throughput_tps": 51351.761002670246,
+  "latency_ms": 0.01947352886199951,
+  "cost_fp_weight": 2.0,
+  "cost_fn_weight": 1.0
+}

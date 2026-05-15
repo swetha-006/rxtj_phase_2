@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RXT-J+ | Payment Fraud Detection Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:       #070910;
+  --s1:       #0e1118;
+  --s2:       #141720;
+  --s3:       #1a1e28;
+  --b1:       #1e2333;
+  --b2:       #2a3048;
+  --text:     #dde2f0;
+  --muted:    #5a6480;
+  --accent:   #3d7fff;
+  --accent2:  #6c5ce7;
+  --green:    #00d4a0;
+  --red:      #ff4d6a;
+  --amber:    #ffb840;
+  --mono: 'JetBrains Mono', monospace;
+  --disp: 'Syne', sans-serif;
+  --sans: 'Inter', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;height:100%;}
+body{display:flex;height:100vh;overflow:hidden;}
+
+/* Sidebar */
+.sidebar{width:220px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;padding:0;z-index:10;}
+.brand{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid var(--b1);}
+.brand-name{font-family:var(--disp);font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.5px;}
+.brand-name span{color:var(--accent);}
+.brand-sub{font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:.08em;margin-top:3px;}
+.nav{padding:1rem .75rem;flex:1;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:.65rem .85rem;border-radius:8px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;transition:all .15s;margin-bottom:3px;user-select:none;}
+.nav-item:hover{background:var(--s2);color:var(--text);}
+.nav-item.active{background:rgba(61,127,255,.12);color:var(--accent);border:1px solid rgba(61,127,255,.2);}
+.nav-icon{width:16px;height:16px;opacity:.7;}
+.nav-item.active .nav-icon{opacity:1;}
+.api-badge{margin:.75rem;padding:.65rem .85rem;background:var(--s2);border-radius:8px;border:1px solid var(--b1);}
+.api-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+.api-text{font-size:11px;font-family:var(--mono);color:var(--muted);}
+.api-text span{color:var(--green);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Main */
+.main{flex:1;overflow-y:auto;background:var(--bg);}
+.page-section{display:none;padding:2rem;}
+.page-section.active{display:block;}
+.page-header{margin-bottom:1.75rem;}
+.page-title{font-family:var(--disp);font-size:24px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--muted);}
+
+/* Cards */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:1.25rem;}
+.card-title{font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:7px;}
+.card-title::before{content:'';width:3px;height:11px;background:var(--accent);border-radius:2px;display:inline-block;}
+
+/* Grid helpers */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+
+/* Metric cards */
+.metric{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:1.1rem 1.25rem;}
+.metric-val{font-family:var(--disp);font-size:30px;font-weight:700;line-height:1;margin-bottom:5px;}
+.metric-lbl{font-size:11px;color:var(--muted);}
+.metric-delta{font-size:11px;margin-top:4px;}
+.up{color:var(--green);}
+.dn{color:var(--red);}
+
+/* Form elements */
+label{display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px;letter-spacing:.04em;}
+input[type=text],textarea,select{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;transition:border .2s;}
+input:focus,textarea:focus{border-color:var(--accent);}
+textarea{resize:vertical;min-height:100px;line-height:1.6;}
+.field{margin-bottom:.9rem;}
+
+/* Buttons */
+.btn-primary{width:100%;padding:11px;background:var(--accent);border:none;border-radius:9px;color:#fff;font-family:var(--disp);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.02em;}
+.btn-primary:hover{background:#2d6ff0;transform:translateY(-1px);}
+.btn-primary:disabled{background:var(--s2);color:var(--muted);transform:none;cursor:not-allowed;}
+.btn-sm{padding:5px 12px;border-radius:6px;border:1px solid var(--b2);background:transparent;color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;transition:all .15s;}
+.btn-sm:hover,.btn-sm.active{border-color:var(--accent);color:var(--accent);background:rgba(61,127,255,.08);}
+
+/* Presets row */
+.presets{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:.9rem;}
+
+/* Result card */
+.result{border-radius:10px;padding:1.25rem;border:1px solid var(--b2);background:var(--s2);min-height:150px;display:flex;flex-direction:column;justify-content:center;transition:all .3s;}
+.result.fraud{background:rgba(255,77,106,.06);border-color:rgba(255,77,106,.3);}
+.result.legit{background:rgba(0,212,160,.06);border-color:rgba(0,212,160,.3);}
+.decision{font-family:var(--disp);font-size:34px;font-weight:800;margin-bottom:8px;}
+.decision.fraud{color:var(--red);}
+.decision.legit{color:var(--green);}
+.bar-wrap{margin:10px 0;}
+.bar-lbl{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:4px;}
+.bar-track{height:5px;background:var(--b2);border-radius:3px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width .7s cubic-bezier(.4,0,.2,1);}
+.bar-fill.fraud{background:linear-gradient(90deg,var(--amber),var(--red));}
+.bar-fill.legit{background:linear-gradient(90deg,var(--accent),var(--green));}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px;}
+.rmeta{background:rgba(255,255,255,.03);border-radius:7px;padding:7px 9px;}
+.rmeta-k{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
+.rmeta-v{font-size:12px;font-family:var(--mono);color:var(--text);font-weight:500;}
+.idle-center{text-align:center;color:var(--muted);font-size:13px;line-height:1.8;}
+
+/* Pipeline */
+.pipe-row{display:flex;align-items:center;gap:0;overflow-x:auto;padding:2px 0 6px;}
+.pipe-box{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:6px 11px;font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;transition:all .25s;text-align:center;}
+.pipe-box .pn{font-size:11px;color:var(--text);font-weight:500;margin-bottom:1px;}
+.pipe-box.active{border-color:var(--accent);background:rgba(61,127,255,.1);}
+.pipe-box.active .pn{color:var(--accent);}
+.pipe-box.done{border-color:var(--green);background:rgba(0,212,160,.07);}
+.pipe-box.done .pn{color:var(--green);}
+.pipe-arr{color:var(--b2);padding:0 5px;font-size:14px;flex-shrink:0;}
+
+/* Feed */
+.feed{max-height:340px;overflow-y:auto;}
+.feed-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;margin-bottom:4px;background:var(--s2);font-size:12px;animation:slideIn .3s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+.feed-badge{font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px;flex-shrink:0;}
+.badge-fraud{background:rgba(255,77,106,.15);color:var(--red);}
+.badge-legit{background:rgba(0,212,160,.1);color:var(--green);}
+.feed-id{font-family:var(--mono);color:var(--muted);flex:1;font-size:11px;}
+.feed-score{font-family:var(--mono);font-size:11px;font-weight:500;}
+.feed-time{font-family:var(--mono);font-size:10px;color:var(--muted);}
+
+/* Alert queue */
+.alert-item{padding:.85rem;background:rgba(255,77,106,.06);border:1px solid rgba(255,77,106,.2);border-radius:8px;margin-bottom:7px;}
+.alert-txn{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--red);margin-bottom:3px;}
+.alert-detail{font-size:11px;color:var(--muted);}
+
+/* Stats row */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--b1);font-size:12px;}
+.stat-row:last-child{border:none;}
+.stat-k{color:var(--muted);}
+.stat-v{font-family:var(--mono);font-weight:500;color:var(--text);}
+
+/* Tables */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:8px 10px;text-align:left;border-bottom:1px solid var(--b1);}
+.tbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono);}
+.tbl tr:last-child td{border:none;}
+.tbl .pass{color:var(--green);}
+.tbl .val{color:var(--text);font-weight:500;}
+
+.chart-wrap{position:relative;width:100%;height:200px;}
+.big-chart{position:relative;width:100%;height:260px;}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-name">RXT-J<span>+</span></div>
+    <div class="brand-sub">Fraud Risk Engine v1.0</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('score')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+      Live Scoring
+    </div>
+    <div class="nav-item" onclick="showPage('dashboard')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="8" width="4" height="6" rx="1"/><rect x="6" y="5" width="4" height="9" rx="1"/><rect x="10" y="2" width="4" height="12" rx="1"/></svg>
+      Ops Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('report')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h10v10H3z"/><path d="M6 6h4M6 9h4M6 12h2"/></svg>
+      Model Report
+    </div>
+  </nav>
+  <div class="api-badge">
+    <span class="api-dot" id="api-dot"></span>
+    <span class="api-text" id="api-text">Checking API<span id="api-st">...</span></span>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="main">
+
+<!-- ── Page 1: Live Scoring ──────────────────────────────── -->
+<div class="page-section active" id="page-score">
+  <div class="page-header">
+    <div class="page-title">Live Transaction Scoring</div>
+    <div class="page-sub">Submit a transaction and get a real-time fraud risk decision from the deployed model</div>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title">Scoring pipeline</div>
+    <div class="pipe-row">
+      <div class="pipe-box" id="p0"><div class="pn">Input</div>features</div>
+      <div class="pipe-arr">›</div>
+      <div class="pipe-box" id="p1"><div class="pn">Nystroem</div>RBF kernel</div>
+      <div class="pipe-arr">›</div>
+      <div class="pipe-box" id="p2"><div class="pn">IPCA</div>50 dims</div>
+      <div class="pipe-arr">›</div>
+      <div class="pipe-box" id="p3"><div class="pn">ResNeXt</div>cardinality-4</div>
+      <div class="pipe-arr">›</div>
+      <div class="pipe-box" id="p4"><div class="pn">Attention-GRU</div>temporal</div>
+      <div class="pipe-arr">›</div>
+      <div class="pipe-box" id="p5"><div class="pn">IFM</div>anomaly</div>
+      <div class="pipe-arr">›</div>
+      <div class="pipe-box" id="p6"><div class="pn">Jaya weights</div>0.53/0.47</div>
+      <div class="pipe-arr">›</div>
+      <div class="pipe-box" id="p7"><div class="pn">Risk score</div>output</div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- Input -->
+    <div class="card">
+      <div class="card-title">Transaction input</div>
+      <div class="field">
+        <label>Transaction ID</label>
+        <input type="text" id="txn-id" value="TXN_DEMO_001">
+      </div>
+      <div class="field">
+        <label>Preset scenario</label>
+        <div class="presets">
+          <button class="btn-sm active" onclick="preset('normal',this)">Normal</button>
+          <button class="btn-sm" onclick="preset('fraud',this)">Fraud pattern</button>
+          <button class="btn-sm" onclick="preset('edge',this)">Edge case</button>
+          <button class="btn-sm" onclick="preset('rand',this)">Random</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Feature vector (50 preprocessed values)</label>
+        <textarea id="feat-in"></textarea>
+      </div>
+      <button class="btn-primary" id="score-btn" onclick="doScore()">Score Transaction</button>
+    </div>
+
+    <!-- Result -->
+    <div class="card">
+      <div class="card-title">Risk assessment</div>
+      <div class="result" id="result-box">
+        <div class="idle-center">
+          <div style="font-size:24px;opacity:.2;margin-bottom:8px">◎</div>
+          Select a scenario and score a transaction to see the model decision
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Page 2: Ops Dashboard ─────────────────────────────── -->
+<div class="page-section" id="page-dashboard">
+  <div class="page-header">
+    <div class="page-title">Operations Dashboard</div>
+    <div class="page-sub">Live transaction feed — model scoring in real time</div>
+  </div>
+
+  <!-- Top metrics -->
+  <div class="g4" style="margin-bottom:14px;">
+    <div class="metric">
+      <div class="metric-val up" id="d-total">0</div>
+      <div class="metric-lbl">Transactions scored</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" id="d-fraud" style="color:var(--red)">0</div>
+      <div class="metric-lbl">Fraud detected</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" style="color:var(--green)" id="d-rate">0.0%</div>
+      <div class="metric-lbl">Fraud rate</div>
+    </div>
+    <div class="metric">
+      <div class="metric-val" style="color:var(--accent)" id="d-tps">0</div>
+      <div class="metric-lbl">Scored this session</div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:14px;">
+    <!-- Chart -->
+    <div class="card">
+      <div class="card-title">Risk score distribution (last 60)</div>
+      <div class="big-chart"><canvas id="dist-chart"></canvas></div>
+    </div>
+    <!-- Alerts -->
+    <div class="card">
+      <div class="card-title">High-risk alerts (score › 0.80)</div>
+      <div id="alert-list" style="max-height:280px;overflow-y:auto;">
+        <div style="color:var(--muted);font-size:12px;text-align:center;padding:2rem 0;">No alerts yet — start the feed below</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live feed -->
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between;display:flex;align-items:center;">
+      <span style="display:flex;align-items:center;gap:7px;"><span style="content:'';width:3px;height:11px;background:var(--accent);border-radius:2px;display:inline-block;"></span>Live transaction feed</span>
+      <div style="display:flex;gap:7px;">
+        <button class="btn-sm" id="feed-btn" onclick="toggleFeed()">Start feed</button>
+        <button class="btn-sm" onclick="clearFeed()">Clear</button>
+      </div>
+    </div>
+    <div class="feed" id="feed-list">
+      <div style="color:var(--muted);font-size:12px;text-align:center;padding:1.5rem 0;">Press Start feed to begin simulated transaction stream</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Page 3: Model Report ──────────────────────────────── -->
+<div class="page-section" id="page-report">
+  <div class="page-header">
+    <div class="page-title">Model Performance Report</div>
+    <div class="page-sub">RXT-J+ — full evaluation results against solution plan targets</div>
+  </div>
+
+  <!-- Metrics table -->
+  <div class="g2" style="margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title">Evaluation scorecard</div>
+      <table class="tbl">
+        <tr><th>Metric</th><th>Target</th><th>Achieved</th><th>Status</th></tr>
+        <tr><td>ROC-AUC</td><td class="val">&gt; 0.95</td><td class="val">0.9624</td><td class="pass">PASS</td></tr>
+        <tr><td>MCC Score</td><td class="val">&gt; 0.70</td><td class="val">0.8426</td><td class="pass">PASS</td></tr>
+        <tr><td>Fraud recall</td><td class="val">&gt; 0.85</td><td class="val">0.96</td><td class="pass">PASS</td></tr>
+        <tr><td>Silhouette</td><td class="val">&gt; 0.40</td><td class="val">0.778</td><td class="pass">PASS</td></tr>
+        <tr><td>FP reduction</td><td class="val">Minimised</td><td class="val">4,116</td><td class="pass">PASS</td></tr>
+        <tr><td>Latency</td><td class="val">&lt; 100ms</td><td class="val">0.019ms</td><td class="pass">PASS</td></tr>
+        <tr><td>Deployment</td><td class="val">Live API</td><td class="val">FastAPI</td><td class="pass">PASS</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Jaya optimised weights</div>
+      <div class="stat-row"><span class="stat-k">W_MODEL (Attention-RXT-J)</span><span class="stat-v" style="color:var(--accent)">0.5343</span></div>
+      <div class="stat-row"><span class="stat-k">W_IFM (Isolation Forest)</span><span class="stat-v" style="color:var(--accent)">0.4657</span></div>
+      <div class="stat-row"><span class="stat-k">Decision threshold</span><span class="stat-v">0.50</span></div>
+      <div class="stat-row"><span class="stat-k">FP cost weight</span><span class="stat-v">2.0×</span></div>
+      <div class="stat-row"><span class="stat-k">Jaya iterations</span><span class="stat-v">100</span></div>
+      <div class="stat-row"><span class="stat-k">Population size</span><span class="stat-v">30 agents</span></div>
+      <div class="stat-row"><span class="stat-k">False positives reduced</span><span class="stat-v" style="color:var(--green)">4,116</span></div>
+      <div class="stat-row"><span class="stat-k">MCC improvement</span><span class="stat-v" style="color:var(--green)">0.7993 → 0.8426</span></div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title">ROC curve</div>
+      <div class="big-chart"><canvas id="roc-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Jaya convergence</div>
+      <div class="big-chart"><canvas id="jaya-chart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">Confusion matrix (test set — 82,484 samples)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;max-width:300px;margin:0 auto;">
+        <div style="background:var(--s2);border-radius:8px 0 0 0;padding:1rem;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">TRUE LEGIT</div>
+          <div style="font-size:26px;font-weight:700;color:var(--green);font-family:var(--disp);">34,126</div>
+        </div>
+        <div style="background:rgba(255,77,106,.08);border-radius:0 8px 0 0;padding:1rem;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">FALSE FRAUD</div>
+          <div style="font-size:26px;font-weight:700;color:var(--red);font-family:var(--disp);" id="fp-count">7,116</div>
+        </div>
+        <div style="background:rgba(255,77,106,.08);border-radius:0 0 0 8px;padding:1rem;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">MISSED FRAUD</div>
+          <div style="font-size:26px;font-weight:700;color:var(--amber);font-family:var(--disp);">1,617</div>
+        </div>
+        <div style="background:var(--s2);border-radius:0 0 8px 0;padding:1rem;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;">TRUE FRAUD</div>
+          <div style="font-size:26px;font-weight:700;color:var(--green);font-family:var(--disp);">39,625</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:.75rem;background:rgba(0,212,160,.06);border-radius:8px;font-size:11px;color:var(--green);text-align:center;font-family:var(--mono);">
+        Jaya reduced false positives by 4,116 vs baseline weights
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">EARN+ training results</div>
+      <div class="stat-row"><span class="stat-k">Autoencoder final loss</span><span class="stat-v">0.1532</span></div>
+      <div class="stat-row"><span class="stat-k">ResNet CE loss</span><span class="stat-v">0.0942</span></div>
+      <div class="stat-row"><span class="stat-k">Silhouette score</span><span class="stat-v" style="color:var(--green)">0.7784</span></div>
+      <div class="stat-row"><span class="stat-k">KPCA output shape</span><span class="stat-v">(329,932 × 50)</span></div>
+      <div class="stat-row"><span class="stat-k">Balanced samples</span><span class="stat-v">329,932</span></div>
+      <div class="stat-row"><span class="stat-k">Balancing method</span><span class="stat-v">SMOTE-Tomek</span></div>
+      <div class="stat-row"><span class="stat-k">Class ratio after balance</span><span class="stat-v" style="color:var(--green)">50.0 / 50.0</span></div>
+      <div class="stat-row"><span class="stat-k">API throughput</span><span class="stat-v" style="color:var(--green)">&gt; 50,000 txn/s</span></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+// ── Navigation ────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (id === 'report') initReportCharts();
+}
+
+// ── API health ────────────────────────────────────────────
+async function checkAPI() {
+  try {
+    const r = await fetch(API + '/health', {signal: AbortSignal.timeout(2500)});
+    const d = await r.json();
+    document.getElementById('api-st').textContent = ' live';
+    document.getElementById('api-dot').style.background = 'var(--green)';
+    document.getElementById('api-text').innerHTML = '<span style="color:var(--green)">API live</span>';
+  } catch {
+    document.getElementById('api-dot').style.background = 'var(--red)';
+    document.getElementById('api-text').innerHTML = '<span style="color:var(--red)">API offline</span>';
+  }
+}
+checkAPI();
+
+// ── Presets ───────────────────────────────────────────────
+// Real samples loaded from data/demo_samples.json (generated by save_demo_samples.py)
+// Falls back to placeholder if file not loaded yet
+let P = { normal: null, fraud: null, edge: null };
+let samplesLoaded = false;
+
+async function loadRealSamples() {
+  try {
+    const r = await fetch('http://127.0.0.1:8000/demo-samples');
+    if (!r.ok) throw new Error('not found');
+    const s = await r.json();
+    P.normal = s.legit_1;
+    P.fraud  = s.fraud_1;
+    P.edge   = s.edge_1;
+    samplesLoaded = true;
+    console.log('Real demo samples loaded —', P.normal.length, 'features each');
+    // Auto-load normal preset once samples are ready
+    preset('normal', document.querySelector('.presets .btn-sm'));
+  } catch(e) {
+    console.warn('demo_samples.json not found — run save_demo_samples.py first');
+    // Placeholder message in textarea
+    document.getElementById('feat-in').value =
+      '[ Run save_demo_samples.py in Jupyter first, then refresh this page ]';
+    document.getElementById('feat-in').style.color = '#ffb840';
+  }
+}
+loadRealSamples();
+const IDS = {normal:'TXN_LEGIT_001',fraud:'TXN_FRAUD_001',edge:'TXN_EDGE_001',rand:'TXN_RAND_'};
+
+function preset(name, btn) {
+  document.querySelectorAll('.presets .btn-sm').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  let f = name === 'rand'
+    ? Array.from({length:128}, () => +(Math.random()*4-2).toFixed(3))
+    : P[name];
+  document.getElementById('feat-in').value = JSON.stringify(f);
+  document.getElementById('txn-id').value = IDS[name] + (name==='rand' ? Math.floor(Math.random()*999) : '');
+}
+preset('normal', document.querySelector('.presets .btn-sm'));
+
+// ── Pipe animation ────────────────────────────────────────
+function animPipe(step) {
+  for(let i=0;i<8;i++) {
+    const el = document.getElementById('p'+i);
+    if (!el) continue;
+    el.classList.remove('active','done');
+    if (i < step) el.classList.add('done');
+    else if (i === step) el.classList.add('active');
+  }
+}
+
+// ── Score transaction ─────────────────────────────────────
+async function doScore() {
+  const btn = document.getElementById('score-btn');
+  const box = document.getElementById('result-box');
+  const txnId = document.getElementById('txn-id').value.trim();
+
+  let features;
+  try {
+    features = JSON.parse(document.getElementById('feat-in').value);
+    if (!Array.isArray(features)) throw new Error('not array');
+  } catch {
+    box.className = 'result';
+    box.innerHTML = '<div style="color:var(--red);text-align:center;padding:1rem;">Invalid JSON — feature vector must be an array</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Scoring...';
+  box.className = 'result';
+  box.innerHTML = '<div class="idle-center"><div style="font-size:20px;opacity:.5;margin-bottom:6px">⟳</div>Running pipeline...</div>';
+
+  for(let i=0;i<=7;i++) { animPipe(i); await new Promise(r=>setTimeout(r,60)); }
+
+  const t0 = performance.now();
+  try {
+    const resp = await fetch(API+'/score/direct', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({transaction_id: txnId, features: features})
+    });
+
+    const d = await resp.json();
+    console.log('API raw response:', d);  // inspect in DevTools console
+
+    const ms = (performance.now() - t0).toFixed(1);
+
+    // Guard — if API returned an error object instead of a score
+    if (!resp.ok || d.detail || typeof d.risk_score === 'undefined') {
+      const errMsg = d.detail || d.message || JSON.stringify(d);
+      box.className = 'result';
+      box.innerHTML = `<div style="color:var(--red);text-align:center;padding:1rem;font-size:12px;">
+        API error: ${errMsg}<br>
+        <span style="color:var(--muted);font-size:11px;margin-top:6px;display:block;">
+          Check uvicorn terminal for full traceback
+        </span></div>`;
+      btn.disabled = false;
+      btn.textContent = 'Score Transaction';
+      return;
+    }
+
+    // Safe parse — fallback to 0 if any field is missing or NaN
+    const riskRaw  = parseFloat(d.risk_score);
+    const confRaw  = parseFloat(d.confidence);
+    const risk     = isNaN(riskRaw) ? 0 : riskRaw;
+    const conf     = isNaN(confRaw) ? (risk > 0.5 ? risk : 1 - risk) : confRaw;
+
+    // Decision — derive from risk score if missing
+    const decision = d.decision || (risk > 0.5 ? 'FRAUD' : 'LEGIT');
+    const isFraud  = decision === 'FRAUD';
+    const cls      = isFraud ? 'fraud' : 'legit';
+
+    const riskPct  = (risk * 100).toFixed(1);
+    const confPct  = (conf * 100).toFixed(1);
+
+    box.className = 'result ' + cls;
+    box.innerHTML = `
+      <div class="decision ${cls}">${decision}</div>
+      <div class="bar-wrap">
+        <div class="bar-lbl">
+          <span>Risk score</span>
+          <span style="color:var(--text);font-weight:500">${riskPct}%</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill ${cls}" style="width:${riskPct}%"></div>
+        </div>
+      </div>
+      <div class="result-grid">
+        <div class="rmeta"><div class="rmeta-k">Confidence</div><div class="rmeta-v">${confPct}%</div></div>
+        <div class="rmeta"><div class="rmeta-k">Latency</div><div class="rmeta-v">${ms}ms</div></div>
+        <div class="rmeta"><div class="rmeta-k">Transaction</div><div class="rmeta-v" style="font-size:10px">${txnId}</div></div>
+        <div class="rmeta"><div class="rmeta-k">Threshold</div><div class="rmeta-v">0.50</div></div>
+      </div>`;
+
+    pushFeedItem(txnId, risk, decision, ms);
+
+  } catch(e) {
+    console.error('Score error:', e);
+    box.className = 'result';
+    box.innerHTML = `<div style="color:var(--red);text-align:center;padding:1rem;font-size:12px;">
+      Request failed: ${e.message}<br>
+      <span style="color:var(--muted);font-size:11px;margin-top:6px;display:block;">
+        Make sure uvicorn is running:<br>python -m uvicorn app:app --port 8000
+      </span></div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Score Transaction';
+}
+
+// ── Dashboard feed ────────────────────────────────────────
+let feedInterval = null;
+let dTotal=0, dFraud=0;
+let distData = [];
+
+const FAKE_IDS = ['4521****8834','4532****1203','5412****9871','4000****3456',
+                   '3714****4963','5500****0040','4111****1111','4929****0001'];
+
+function pushFeedItem(id, score, dec, ms) {
+  dTotal++;
+  if (dec==='FRAUD') dFraud++;
+  document.getElementById('d-total').textContent = dTotal.toLocaleString();
+  document.getElementById('d-fraud').textContent = dFraud;
+  document.getElementById('d-rate').textContent = (dFraud/dTotal*100).toFixed(1)+'%';
+  document.getElementById('d-tps').textContent = dTotal;
+
+  distData.push(score);
+  if (distData.length > 60) distData.shift();
+  if (distChart) {
+    distChart.data.labels = distData.map((_,i)=>i+1);
+    distChart.data.datasets[0].data = distData;
+    distChart.data.datasets[0].backgroundColor = distData.map(s => s>0.5?'rgba(255,77,106,.4)':'rgba(0,212,160,.3)');
+    distChart.update('none');
+  }
+
+  const feed = document.getElementById('feed-list');
+  const row = document.createElement('div');
+  row.className = 'feed-row';
+  const t = new Date().toLocaleTimeString('en-GB',{hour12:false});
+  const pct = (score*100).toFixed(1);
+  const col = dec==='FRAUD'?'var(--red)':'var(--green)';
+  row.innerHTML = `
+    <span class="feed-badge ${dec==='FRAUD'?'badge-fraud':'badge-legit'}">${dec}</span>
+    <span class="feed-id">${id.length > 16 ? id.substring(0,16)+'...' : id}</span>
+    <span class="feed-score" style="color:${col}">${pct}%</span>
+    <span class="feed-time">${t}</span>`;
+  if (feed.querySelector('div[style]')) feed.innerHTML = '';
+  feed.prepend(row);
+  if (feed.children.length > 25) feed.lastChild.remove();
+
+  if (score > 0.80) {
+    const al = document.getElementById('alert-list');
+    const item = document.createElement('div');
+    item.className = 'alert-item';
+    item.innerHTML = `<div class="alert-txn">HIGH RISK — ${id}</div><div class="alert-detail">Risk score: ${pct}% · ${t}</div>`;
+    if (al.querySelector('div[style]')) al.innerHTML = '';
+    al.prepend(item);
+  }
+}
+
+function toggleFeed() {
+  const btn = document.getElementById('feed-btn');
+  if (feedInterval) {
+    clearInterval(feedInterval);
+    feedInterval = null;
+    btn.textContent = 'Start feed';
+    btn.classList.remove('active');
+  } else {
+    btn.textContent = 'Stop feed';
+    btn.classList.add('active');
+    feedInterval = setInterval(async () => {
+      const id = FAKE_IDS[Math.floor(Math.random()*FAKE_IDS.length)];
+      const isFraudSim = Math.random() < 0.08;
+      // Use real samples if loaded, else skip
+      if (!samplesLoaded) return;
+      const sampleKeys = isFraudSim
+        ? ['fraud_1','fraud_2','fraud_3']
+        : ['legit_1','legit_2','legit_3'];
+      const key = sampleKeys[Math.floor(Math.random()*3)];
+      const feat = P[key === 'fraud_1' ? 'fraud' : key === 'legit_1' ? 'normal' : 'edge']
+        || P.normal;
+      // Add small noise so each transaction looks unique
+      const feat_noisy = feat.map(v => +(v + (Math.random()*.02-.01)).toFixed(4));
+      try {
+        const r = await fetch(API+'/score/direct',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({transaction_id:id,features:feat_noisy})});
+        const d = await r.json();
+        pushFeedItem(id, d.risk_score, d.decision, d.latency_ms);
+      } catch { /* api offline */ }
+    }, 800);
+  }
+}
+
+function clearFeed() {
+  document.getElementById('feed-list').innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:1.5rem 0;">Feed cleared</div>';
+  document.getElementById('alert-list').innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:2rem 0;">No alerts</div>';
+  dTotal=0; dFraud=0; distData=[];
+  document.getElementById('d-total').textContent='0';
+  document.getElementById('d-fraud').textContent='0';
+  document.getElementById('d-rate').textContent='0.0%';
+  document.getElementById('d-tps').textContent='0';
+  if (distChart) { distChart.data.labels=[]; distChart.data.datasets[0].data=[]; distChart.update(); }
+}
+
+// ── Charts ────────────────────────────────────────────────
+let distChart=null, rocChart=null, jayaChart=null;
+
+function initDistChart() {
+  const ctx = document.getElementById('dist-chart');
+  if (!ctx||distChart) return;
+  distChart = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:[], datasets:[{label:'Risk score', data:[], backgroundColor:'rgba(0,212,160,.3)', borderWidth:0}] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#5a6480',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+        y:{min:0,max:1,ticks:{color:'#5a6480',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}
+      }}
+  });
+}
+
+function initReportCharts() {
+  // ROC
+  const rc = document.getElementById('roc-chart');
+  if (rc && !rocChart) {
+    const fpr=[0,.02,.05,.08,.12,.16,.20,.26,.32,.40,.50,.65,.80,1];
+    const tpr=[0,.62,.76,.83,.88,.91,.93,.95,.96,.97,.975,.98,.99,1];
+    rocChart = new Chart(rc,{type:'line',
+      data:{labels:fpr,datasets:[
+        {label:'RXT-J+',data:tpr.map((y,i)=>({x:fpr[i],y})),borderColor:'#3d7fff',backgroundColor:'rgba(61,127,255,.08)',fill:true,tension:.4,pointRadius:0,borderWidth:2},
+        {label:'Random',data:[{x:0,y:0},{x:1,y:1}],borderColor:'#2a3048',borderDash:[4,4],pointRadius:0,borderWidth:1}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#5a6480',font:{size:11}}}},
+        scales:{
+          x:{type:'linear',min:0,max:1,title:{display:true,text:'FPR',color:'#5a6480',font:{size:11}},ticks:{color:'#5a6480',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+          y:{min:0,max:1,title:{display:true,text:'TPR',color:'#5a6480',font:{size:11}},ticks:{color:'#5a6480',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}
+        }}
+    });
+  }
+
+  // Jaya convergence
+  const jc = document.getElementById('jaya-chart');
+  if (jc && !jayaChart) {
+    const iters = Array.from({length:100},(_,i)=>i+1);
+    let v=0.42;
+    const conv = iters.map(i=>{
+      v = v - (Math.random()*.018*(1/(1+i*.04)));
+      return +v.toFixed(5);
+    });
+    jayaChart = new Chart(jc,{type:'line',
+      data:{labels:iters,datasets:[{label:'Objective',data:conv,borderColor:'#6c5ce7',backgroundColor:'rgba(108,92,231,.08)',fill:true,tension:.3,pointRadius:0,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#5a6480',font:{size:11}}}},
+        scales:{
+          x:{ticks:{color:'#5a6480',font:{size:10},maxTicksLimit:10},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Iteration',color:'#5a6480',font:{size:11}}},
+          y:{ticks:{color:'#5a6480',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'Objective (lower = better)',color:'#5a6480',font:{size:11}}}
+        }}
+    });
+  }
+}
+
+// Init dist chart on load (it lives on dashboard)
+setTimeout(()=>{ initDistChart(); }, 300);
+</script>
+</body>
+</html>

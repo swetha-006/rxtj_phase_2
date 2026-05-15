@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudShield | AI Risk Dashboard</title>
+    <style>
+        :root { 
+            --bg: #f0f2f5; 
+            --card-bg: #ffffff;
+            --primary: #1e3a8a; 
+            --accent: #2563eb;
+            --red: #dc2626; 
+            --green: #16a34a; 
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            background: var(--bg); 
+            color: var(--text-main);
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            padding: 40px 20px;
+            margin: 0;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 24px;
+            max-width: 1100px;
+            width: 100%;
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 24px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+        }
+
+        h2, h3 { margin-top: 0; color: var(--primary); }
+
+        /* Form Styling */
+        .input-group { margin-bottom: 16px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+        input, select { 
+            width: 100%; padding: 10px; border: 1px solid #cbd5e1; 
+            border-radius: 6px; box-sizing: border-box; font-size: 14px;
+        }
+
+        button { 
+            width: 100%; padding: 12px; background: var(--accent); color: white; 
+            border: none; border-radius: 6px; font-weight: 600; cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--primary); }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        /* Result Box */
+        .result { 
+            margin-top: 20px; padding: 16px; border-radius: 8px; 
+            display: none; text-align: center; border-left: 5px solid transparent;
+        }
+        .fraud { background: #fef2f2; color: var(--red); border-left-color: var(--red); }
+        .legit { background: #f0fdf4; color: var(--green); border-left-color: var(--green); }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 12px; font-size: 12px; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid #f1f5f9; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-fraud { background: #fee2e2; color: #b91c1c; }
+        .badge-legit { background: #dcfce7; color: #15803d; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-grid">
+    <div class="card">
+        <h2>🛡️ FraudShield Analysis</h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Enter transaction details for RXT-J+ model scoring.</p>
+        
+        <div class="input-group">
+            <label>Transaction ID</label>
+            <input type="text" id="tx_id" placeholder="e.g. TXN-1029">
+        </div>
+        <div class="input-group">
+            <label>Amount ($)</label>
+            <input type="number" id="amount" value="0.00">
+        </div>
+        <div class="input-group">
+            <label>Transaction Origin</label>
+            <select id="foreign">
+                <option value="false">Domestic</option>
+                <option value="true">International</option>
+            </select>
+        </div>
+        <button id="analyzeBtn" onclick="checkFraud()">Analyze Risk</button>
+
+        <div id="resultBox" class="result">
+            <h3 id="decision" style="margin-bottom: 5px;">---</h3>
+            <div style="font-size: 14px;">Risk Score: <strong id="score">0.0</strong></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Recent Activity Logs</h3>
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th>TX ID</th>
+                    <th>Amount</th>
+                    <th>Risk Score</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    // Initial Load
+    window.onload = updateHistory;
+
+    async function updateHistory() {
+        try {
+            const resp = await fetch(`${API_URL}/history`);
+            const logs = await resp.json();
+            const body = document.getElementById('historyBody');
+            
+            body.innerHTML = logs.length ? logs.map(l => `
+                <tr>
+                    <td><strong>${l.tid}</strong></td>
+                    <td>$${l.amt.toLocaleString()}</td>
+                    <td>${l.score.toFixed(4)}</td>
+                    <td><span class="badge ${l.status === 'FRAUD' ? 'badge-fraud' : 'badge-legit'}">${l.status}</span></td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" style="text-align:center; color:gray;">No records found</td></tr>';
+        } catch (e) {
+            console.error("History fetch failed", e);
+        }
+    }
+
+    async function checkFraud() {
+        const btn = document.getElementById('analyzeBtn');
+        const txId = document.getElementById('tx_id').value;
+        
+        if(!txId) return alert("Please enter a Transaction ID");
+
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+
+        const payload = {
+            transaction_id: txId,
+            amount: parseFloat(document.getElementById('amount').value),
+            is_foreign: document.getElementById('foreign').value === "true",
+            customer_age: 30 // Default for this form
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/score/form`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) throw new Error("Server error");
+            
+            const data = await response.json();
+            
+            // Show Result
+            const box = document.getElementById('resultBox');
+            box.style.display = 'block';
+            box.className = 'result ' + data.decision.toLowerCase();
+            document.getElementById('decision').innerText = data.decision;
+            document.getElementById('score').innerText = data.risk_score;
+
+            // Refresh Table
+            await updateHistory();
+
+        } catch (e) {
+            alert("Backend Connection Error. Ensure app.py is running on port 8000.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Analyze Risk";
+        }
+    }
+</script>
+
+</body>
+</html>
