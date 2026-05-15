@@ -264,21 +264,6 @@ The preprocessed balanced arrays (`data/Cleaned/X_balanced.npy`, `y_balanced.npy
 
 ---
 
-## 👥 Team
-
-**Team No. 13 | Department of CSE (CYS), SKCT**
-
-| Name | Roll Number |
-|------|-------------|
-| Deepak B | 727822TUCY004 |
-| Joselin Jennilia A | 727822TUCY020 |
-| Swetha M | 727822TUCY049 |
-
-**Guide:** Ms. Soundarya, Assistant Professor, Department of AIML  
-**Institution:** Sri Krishna College of Technology, Coimbatore  
-*(Autonomous Institution | Accredited by NAAC with 'A' Grade)*
-
----
 
 ## 📄 Base Paper
 
