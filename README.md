@@ -13,7 +13,7 @@
 
 ## 📌 Overview
 
-This project presents an **end-to-end Machine Learning transaction risk scoring system** designed to detect payment fraud in real time. Built as a Capstone Project by Team 13, Department of CSE (CYS), SKCT, the system leverages a novel deep learning architecture called **RXT-J+** — combining **ResNeXt feature extraction**, a **Self-Attention GRU classifier**, and **Jaya-optimized ensemble weighting** — to achieve sub-millisecond fraud detection with high accuracy and minimal false positives.
+This project presents an **end-to-end Machine Learning transaction risk scoring system** designed to detect payment fraud in real time. Built as a Capstone Project, Department of CSE (CYS), SKCT, the system leverages a novel deep learning architecture called **RXT-J+** — combining **ResNeXt feature extraction**, a **Self-Attention GRU classifier**, and **Jaya-optimized ensemble weighting** — to achieve sub-millisecond fraud detection with high accuracy and minimal false positives.
 
 The system is deployed as a **FastAPI REST backend** with an interactive **HTML dashboard frontend**, supporting live transaction scoring and behavioral anomaly detection.
 
