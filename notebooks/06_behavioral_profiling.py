@@ -211,6 +211,8 @@ diag = {
 with open(os.path.join(DATA_DIR, "profile_stats.json"), "w") as f:
     json.dump(diag, f, indent=2)
 
+# output summary
+
 print("\n[NB06] ✓ Done. Summary:")
 for k, v in diag.items():
     print(f"  {k}: {v}")
