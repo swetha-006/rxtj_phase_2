@@ -332,3 +332,5 @@ for i, name in enumerate(FEATURE_NAMES):
     print(f"  {name:<25} {sign}{abs(corr):.4f}  {bar}")
 
 print(f"\n[NB07] ✓ Done. NEXT STEP → run notebooks/08_fusion_model_training.py")
+
+# done
