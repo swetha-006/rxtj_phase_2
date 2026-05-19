@@ -352,4 +352,4 @@ print(f"[NB08] fusion_config.json saved → {config_path}")
 
 print("\n[NB08] ✓ Phase 2 model training complete!")
 print(f"  AUC={auc:.4f}  MCC={mcc:.4f}  threshold={OPTIMAL_THRESHOLD:.4f}")
-print(f"\n[NB08] NEXT STEP → add Phase 2 endpoints to app.py")
+print(f"\n[NB08] NEXT STEP → add Phase 2 endpoints to app.py/")
