@@ -1,0 +1,10 @@
+[
+  "amount_z_score",
+  "merchant_novelty",
+  "geo_displacement",
+  "hour_deviation",
+  "device_novelty",
+  "velocity_ratio",
+  "behavioral_drift",
+  "p1_risk_score"
+]

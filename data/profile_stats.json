@@ -1,0 +1,14 @@
+{
+  "total_transactions": 590540,
+  "unique_accounts": 13553,
+  "fraud_count": 20663,
+  "fraud_rate_pct": 3.499,
+  "profile_coverage": {
+    "total_accounts": 13553,
+    "accounts_5plus": 6512,
+    "coverage_pct": 48.0,
+    "avg_txn_count": 43.6
+  },
+  "snapshot_path": "F:\\rxtj_phase_2\\data\\tx_snapshot.parquet",
+  "generated_at": "2026-05-18T20:48:48"
+}

@@ -1,0 +1,38 @@
+{
+  "input_dim": 8,
+  "fusion_threshold": 0.551364,
+  "high_threshold": 0.701364,
+  "elevated_threshold": 0.451364,
+  "fusion_auc": 0.744554,
+  "fusion_mcc": 0.168662,
+  "fusion_precision": 0.10123,
+  "fusion_recall": 0.484663,
+  "fusion_f1": 0.167479,
+  "true_positives": 1185,
+  "false_positives": 10521,
+  "true_negatives": 65217,
+  "false_negatives": 1260,
+  "feature_names": [
+    "amount_z_score",
+    "merchant_novelty",
+    "geo_displacement",
+    "hour_deviation",
+    "device_novelty",
+    "velocity_ratio",
+    "behavioral_drift",
+    "p1_risk_score"
+  ],
+  "optimal_attn_weights": [
+    0.165343,
+    0.123238,
+    0.075544,
+    0.094763,
+    0.108207,
+    0.111277,
+    0.260803,
+    0.060824
+  ],
+  "pos_weight_used": 26.1462,
+  "training_epochs": 37,
+  "best_val_loss": 1.089575
+}
