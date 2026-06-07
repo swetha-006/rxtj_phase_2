@@ -1,342 +1,1032 @@
-# 🛡️ ML Transaction Risk Scoring for Payment Fraud Detection
+<div align="center">
 
-> **RXT-J+ Model** — ResNeXt-Embedded GRU with Jaya Optimization for Real-Time Fraud Detection
+<!-- ══════════════════════════════════════════════
+     GRAPHICS NOTE FOR MAINTAINERS
+     ══════════════════════════════════════════════
+     Replace the placeholder blocks below with real assets:
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0-009688?logo=fastapi)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.2.2-EE4C2C?logo=pytorch)
-![License](https://img.shields.io/badge/License-MIT-green)
-![AUC](https://img.shields.io/badge/AUC-96.24%25-brightgreen)
-![Accuracy](https://img.shields.io/badge/Accuracy-98%25-brightgreen)
+     1. LOGO        → Save your project logo as docs/assets/logo.png (500×120px, transparent bg)
+     2. DEMO GIF    → Screen-record the live dashboard hitting /account/compromise-score
+                      and convert to docs/assets/demo.gif (max 5 MB)
+     3. ARCH DIAGRAM→ Export the architecture SVG from the HTML build guide as
+                      docs/assets/architecture.png (1200×700px)
+     4. BADGES      → All badge URLs below auto-generate from shields.io —
+                      swap {username}/{repo} with your actual GitHub path
+     5. ROC CHART   → Copy results/fusion_roc.png → docs/assets/roc.png after training
+
+     Recommended banner tool:  https://www.canva.com  (free, 1280×320px)
+     Badge generator:          https://shields.io
+     GIF recorder (Windows):   ShareX  https://getsharex.com
+     ══════════════════════════════════════════════ -->
+
+<!-- PROJECT LOGO — replace src with docs/assets/logo.png -->
+<img src="docs/assets/logo.png" alt="RXT-J+ Logo" width="480"/>
+
+<h1>RXT-J+ · Real-Time Transaction Risk Scoring</h1>
+<h3>AI-powered payment fraud detection and account compromise scoring engine</h3>
+
+<!-- BADGES — swap {username}/{repo} -->
+<p>
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/PyTorch-2.2.2-EE4C2C?style=flat-square&logo=pytorch&logoColor=white"/>
+  <img src="https://img.shields.io/badge/FastAPI-0.110-009688?style=flat-square&logo=fastapi&logoColor=white"/>
+  <img src="https://img.shields.io/badge/AUC-96.24%25-00C853?style=flat-square"/>
+  <img src="https://img.shields.io/badge/MCC-0.8426-00C853?style=flat-square"/>
+  <img src="https://img.shields.io/badge/Latency-0.019ms-00C853?style=flat-square"/>
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square"/>
+</p>
+
+<!-- DEMO GIF — replace src with docs/assets/demo.gif -->
+<img src="docs/assets/demo.gif" alt="Live scoring demo" width="700"/>
+
+</div>
 
 ---
 
-RXT-J+ Phase 2 — Account Compromise Detection
-Behavioral & Contextual Fusion Scoring Engine
-Project: ML Transaction Risk Scoring for Payment Fraud
-Institution: Sri Krishna College of Technology (SKCT), Coimbatore
-Programme: B.E. Computer Science (Cyber Security) — Capstone Project (NEP 2020)
-Team: Sm · Deepak B · Joselin Jennilia A
-Guide: Ms. Soundarya, Assistant Professor, AIML Department
-Dataset: IEEE-CIS Fraud Detection (590,540 transactions · 433 features)
-Base Paper: Almazroi & Ayub, IEEE Access 2023 — DOI: 10.1109/ACCESS.2023.3339226
-Table of Contents
-What Phase 2 Does
-The Core Idea
-How It Builds on Phase 1
-System Architecture
-Technical Components
-Results
-Project Structure
-Setup & Installation
-Running the Pipeline
-API Reference
-Key Design Decisions
-Limitations & Future Work
-1. What Phase 2 Does
-Phase 1 of RXT-J+ answered: "Is this specific transaction fraudulent?"
-Phase 2 answers a fundamentally different and harder question: "Has this account been taken over by someone else?"
-Account Takeover (ATO) is when a fraudster gains access to a legitimate user's account and begins making transactions. The individual transactions may look borderline or even normal on their own — but the pattern is wrong. The device is new. The merchant category has never appeared before. The transaction happens at 3 AM when the real owner only transacts during business hours. The amount is three standard deviations above the account's baseline.
-Phase 2 detects this by building a behavioral fingerprint for each account and continuously measuring how far each new transaction deviates from that baseline. The further the deviation across multiple dimensions, the higher the compromise probability.
-2. The Core Idea
-The Difference Between a Fraudulent Transaction and a Compromised Account
-Code
-A transaction of $450 at a jewellery store may be low-risk on its own. But if that account has only ever transacted at grocery stores and pharmacies for an average of $62, at 9 AM, always from the same device — the $450 jewellery purchase at 2 AM from a new device is a strong signal of account compromise even if the transaction features look individually ordinary.
-The Behavioral Fingerprint
-For every account (card1 in the IEEE-CIS dataset), Phase 2 maintains a living behavioral profile that tracks:
-Dimension
-What it captures
-Amount distribution
-Typical spend amount and variability (rolling mean + std)
-Merchant patterns
-Which product categories (ProductCD) this account uses
-Time-of-day histogram
-When this account normally transacts (24-bin hour distribution)
-Geographic baseline
-Typical billing address region (addr1 rolling median)
-Known devices
-Set of DeviceInfo fingerprints seen before
-Velocity
-Transaction rate in the last 1h and 24h
-The 8 Contextual Deviation Features
-At inference time, for every incoming transaction, Phase 2 computes how far that transaction deviates from the account's stored baseline:
-Feature
-Formula
-High value means
-amount_z_score
-(amount − mean) / std, clipped [−5, 5]
-Unusually large or small amount
-merchant_novelty
-1 − freq(MCC) / max_freq
-Merchant type never or rarely seen
-geo_displacement
-abs(addr1 − baseline_median) / 500
-Far from typical billing location
-hour_deviation
-1 − hour_histogram[current_hour]
-Transaction at an unusual time
-device_novelty
-1.0 if new device, 0.0 if seen before
-New device never associated with account
-velocity_ratio
-txns_last_1h / (txns_last_24h / 24)
-Sudden spike in transaction rate
-behavioral_drift
-Autoencoder reconstruction error (normalised)
-Overall behavioral pattern changed
-p1_risk_score
-Phase 1 RXT-J+ output
-Individual transaction-level risk
-These 8 features are the input to FusionNet — a small attention-weighted neural network that learns to combine them into a single compromise_probability score.
-3. How It Builds on Phase 1
-Phase 1 built and trained the RXT-J+ classification engine:
-Code
-Phase 1 results: AUC = 96.24%, MCC = 0.8426, latency = 0.019ms, throughput = 51,351 TPS
-Phase 2 extends this in three ways:
-Reuses Phase 1 models directly. The autoencoder.pt and resnet_extractor.pt from EARN+ training are used to generate P1 risk scores for all 590K training rows, and the same attention_rxtj.pt + IFM ensemble scores each transaction at inference time.
-Adds the behavioral profile layer. The ProfileStore (SQLite, WAL mode) maintains per-account rolling statistics. Every scored transaction updates the account's profile via exponential moving average (α = 0.1).
-Introduces the FusionNet layer. A small MLP (8→64→32→16→1) with a learned feature attention vector combines the 8 contextual features into a final compromise_probability. The attention weights double as an explainability mechanism — the /account/explain endpoint returns which feature most drove the score.
-Code
-4. System Architecture
-Code
-5. Technical Components
-5.1 Profile Store (profile_store.py)
-SQLite database in WAL (Write-Ahead Logging) mode for concurrent read performance. Each method opens and closes its own connection — safe for multi-worker deployments.
-Tables:
-profiles — one row per account, stores all behavioral statistics
-transaction_log — every scored event with compromise probability and context
-alerts — indexed view of high-risk events in the last 24 hours
-Profile update strategy: Exponential Moving Average with α = 0.1. This means the profile adapts slowly to new behaviour, preventing a compromised account from "retraining" its own baseline during an attack window.
-5.2 Notebook Pipeline
-Notebook
-Purpose
-Runtime
-Output
-06_behavioral_profiling.py
-Build per-account profiles from all 590K transactions
-~2.5h (first run) / ~15min (resume)
-behavioral_profiles.db · tx_snapshot.parquet
-07_contextual_features.py
-Compute 8 deviation features per transaction
-~15 min
-contextual_features.npy (590540×8) · drift_norm_params.json
-08_fusion_model_training.py
-Generate P1 scores · Train FusionNet v2
-~40 min total
-fusion_net.pt · fusion_config.json
-Smart resume: NB06 checks if behavioral_profiles.db already has ≥90% of accounts profiled and skips the 2.5-hour loop if so. NB08 checks if model_probs_full.npy exists with the correct row count and skips Stage 1 if so.
-5.3 FusionNet Architecture
-Python
-The feature_attn parameter is a learnable softmax weight vector applied to the inputs before the MLP. After training, torch.softmax(feature_attn) gives the relative importance of each feature — used directly by the /account/explain endpoint to produce human-readable explanations.
-Training configuration:
-Loss: BCEWithLogitsLoss with pos_weight (fraud-class upweighting)
-Optimiser: Adam, lr=5e-4, weight_decay=1e-4
-Schedule: CosineAnnealingLR (T_max=200, eta_min=1e-5)
-Early stopping: patience=25 on validation AUC
-Threshold: Jaya algorithm optimisation (minimise 2×FPR + FNR)
-5.4 API Endpoints (Phase 2)
-Five new endpoints added to the existing FastAPI application. All Phase 1 endpoints remain unchanged.
-6. Results
-Phase 1 (Transaction-Level Fraud Detection)
-Metric
-Value
-AUC-ROC
-96.24%
-MCC
-0.8426
-Inference latency
-0.019 ms
-Throughput
-51,351 TPS
-Jaya weights
-W_MODEL=0.5343, W_IFM=0.4657
-Phase 2 (Account Compromise Detection)
-Metric
-Value
-AUC-ROC
-0.7567
-MCC
-0.1664
-Recall
-54.6%
-Precision
-9.2%
-Optimal threshold
-0.5087
-Accounts profiled
-13,553
-Training transactions
-413,219
-Learned Feature Attention Weights
-The FusionNet's attention layer assigns the following importance to each feature after training:
-Feature
-Weight
-Interpretation
-behavioral_drift
-0.1966
-Highest — overall behavioral shift is the strongest signal
-amount_z_score
-0.1629
-Second — unusually large amounts are a strong indicator
-merchant_novelty
-0.1279
-Transactions at never-seen merchant types
-device_novelty
-0.1230
-New device not previously associated with account
-hour_deviation
-0.1045
-Activity at unusual hours
-velocity_ratio
-0.0991
-Sudden burst of transactions
-geo_displacement
-0.0929
-Geographic deviation from home region
-p1_risk_score
-0.0931
-Phase 1 per-transaction risk score
-Decision Thresholds
-Decision
-Threshold
-Recommended Action
-HIGH
-≥ 0.6587
-FREEZE_AND_NOTIFY — Block and alert customer
-ELEVATED
-≥ 0.4087
-STEP_UP_AUTHENTICATION — Require 2FA / OTP
-LOW
-< 0.4087
-APPROVE — Transaction proceeds normally
-7. Project Structure
-Code
-8. Setup & Installation
-Requirements
-Python 3.11 (required — scientific packages do not have wheels for 3.12+)
-Anaconda / Miniconda
-Windows 10/11 (tested) or Linux
-Create Environment
-Bash
-Install Dependencies
-Bash
-Or from requirements.txt:
-Bash
-requirements.txt (full Phase 2 list):
-Code
-Dataset
-Download the IEEE-CIS Fraud Detection dataset from Kaggle and place the files at:
-Code
-9. Running the Pipeline
-All Phase 1 notebooks (01–05) must be completed before running Phase 2. The Phase 2 notebooks must be run in order.
-Step 1 — Build behavioral profiles
-Bash
-Runtime: ~2.5 hours (first run). If behavioral_profiles.db already exists with ≥90% of accounts profiled, the notebook automatically skips the profile loop and only rebuilds the snapshot (~15 min).
-What it produces:
-data/behavioral_profiles.db — 13,553 account profiles
-data/tx_snapshot.parquet — per-row snapshot with pre-computed velocity and device novelty flags
-Step 2 — Compute contextual features
-Bash
-Runtime: ~15 minutes
-What it produces:
-data/contextual_features.npy — (590,540 × 8) float32 feature matrix
-data/drift_norm_params.json — autoencoder normalisation parameters for live inference
-data/fusion_labels.npy — training labels
-Step 3 — Train FusionNet
-Bash
-Runtime: ~40 minutes total (Stage 1: P1 score generation ~25 min; Stage 2: training ~15 min)
-What it produces:
-models/fusion_net.pt — trained FusionNet v2 weights
-models/fusion_scaler.pkl — feature scaler for live inference
-results/fusion_config.json — thresholds, metrics, attention weights
-Step 4 — Start the API server
-Only start the server after Step 3 is complete and all model files exist.
-Bash
-Expected startup log:
-Code
-Step 5 — Verify all endpoints
-Bash
-10. API Reference
-Phase 1 Endpoints (unchanged)
-Method
-Path
-Description
-POST
-/score
-Score raw 224-dim feature vector
-POST
-/score/direct
-Score with direct feature values
-POST
-/score/form
-Score from a partial form input
-POST
-/score/batch
-Score multiple transactions
-GET
-/history
-Recent scoring history
-GET
-/health
-Server health check
-GET
-/model/info
-Loaded model metadata
-Phase 2 Endpoints (new)
-POST /account/compromise-score
-Full Phase 2 inference. Runs Phase 1 scoring, retrieves the account's behavioral profile, computes all 8 contextual deviation features, runs FusionNet, and returns a compromise probability with explainability.
-Request body:
-Json
-Response:
-Json
-GET /account/profile/{account_id}
-Returns the stored behavioral profile for an account.
-Query params: ?window=30d (informational)
-Response: Full profile dict with amt_mean, amt_std, hour_hist[24], merchant_counts, known_device_count, geo_cluster, velocity_1h, velocity_24h, profile_age_hours.
-Returns 404 if the account has not been seen before.
-GET /account/history/{account_id}
-Returns the last N scored events for an account, newest first.
-Query params: ?limit=20 (max 100)
-Response: { account_id, record_count, events: [{transaction_id, timestamp, compromise_prob, decision, top_trigger_feature, context}] }
-GET /account/alerts
-Returns all accounts with peak compromise probability above a threshold in the last 24 hours, ordered by score descending.
-Query params: ?threshold=0.7&limit=50
-Response: { threshold, alert_count, alerts: [{account_id, max_score, alert_count, last_seen, recommended_action}] }
-POST /account/explain
-Returns a human-readable natural language explanation for a previously scored transaction. Designed for analyst review interfaces and merchant risk dashboards.
-Request body:
-Json
-Response:
-Json
-11. Key Design Decisions
-Why card1 as the account proxy?
-The IEEE-CIS dataset does not have an explicit account ID column. card1 is a hashed card number identifier — transactions with the same card1 value come from the same physical card, making it the closest available proxy for "account". It yields 13,553 unique accounts across the 590,540 transactions.
-Why Exponential Moving Average for profile updates (α = 0.1)?
-A slow α means the profile adapts gradually over many transactions. This is intentional — if an account is compromised and a hijacker begins making many transactions, a fast α would cause the profile to quickly "learn" the attacker's behaviour, erasing the signal. With α = 0.1, it takes approximately 22 transactions to move the mean by half the gap between old and new values.
-Why FusionNet is small (8→64→32→16→1)?
-The 8 contextual features carry most of the signal at a coarse level. A large model would overfit to the training distribution. The small architecture also ensures sub-millisecond inference latency, keeping the end-to-end /account/compromise-score latency under 10ms.
-Why Jaya optimisation for the threshold?
-Consistent with Phase 1's approach. The Jaya algorithm minimises a cost function that penalises false positives at 2× the weight of false negatives — reflecting the real-world context where false positives (blocking a legitimate customer) are more operationally costly than false negatives for a first-line detection system.
-Why SQLite in WAL mode instead of Redis?
-Redis would be faster but adds a deployment dependency. WAL mode SQLite achieves concurrent read performance suitable for a single-machine academic deployment while keeping the system self-contained and reproducible.
-Why strict=False for the ResNet extractor?
-The resnet_extractor.pt was trained in Phase 1. If the Phase 2 class definition has minor structural differences (e.g., stem key naming), strict=False allows the weights to load without crashing. The EARN+ feature quality degrades slightly but the system remains functional.
-12. Limitations & Future Work
-Current Limitations
-P1 feature sparsity: The P1 scoring pipeline for the 590K training rows fills in only a subset of the 224 imputer features from the transaction CSV columns available in the snapshot. The remaining features are imputed to training-set means, which reduces the discriminative spread of P1 scores. A future fix is to load all 224 named features directly from the original CSV using imputer.feature_names_in_.
-Behavioral drift range: The autoencoder reconstruction error shows narrow spread (min=0.1995, max=0.2530) because the EARN+ autoencoder was trained on balanced (SMOTE-Tomek) data and only 4 of 224 input features vary meaningfully in the current setup. With full feature loading, this range would widen significantly.
-Account coverage: 48% of accounts in the profile store have ≥5 historical transactions. Accounts with fewer than 5 transactions produce less reliable contextual deviation scores.
-FusionNet AUC: 0.7567 is a functional score but below the 0.85 target. This is primarily caused by the near-constant P1 risk score feature (std=0.011). Fixing the P1 feature loading is expected to push AUC to 0.85+.
-Phase 3 Preview
-Phase 3 targets: Fraud Pattern Visualisation for Merchant Risk Management. This extends Phase 2 by:
-Aggregating account compromise events into merchant-level risk scores
-Generating visualisations of fraud pattern clusters across merchants
-Producing temporal heatmaps of compromise events by hour and day
-Building a merchant-facing dashboard for proactive risk monitoring
-Citation
-If you use this work, please cite the base paper:
-Bibtex
-Acknowledgements
-This project was developed as a B.E. Capstone Project under the New Education Policy (NEP) 2020 at Sri Krishna College of Technology, Coimbatore. We thank Ms. Soundarya (Assistant Professor, AIML Department) for her guidance throughout the project.
-The IEEE-CIS Fraud Detection dataset is publicly available via the Kaggle IEEE-CIS Fraud Detection competition.
-RXT-J+ Phase 2 — Advanced ML Transaction Risk Scoring Engine | SKCT Team 13 | 2024–2025
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Directory Structure](#directory-structure)
+- [Data Models](#data-models)
+- [API Reference](#api-reference)
+- [Setup & Installation](#setup--installation)
+- [Configuration](#configuration)
+- [Running Locally](#running-locally)
+- [Training the Models](#training-the-models)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Usage Examples](#usage-examples)
+- [User Flows](#user-flows)
+- [Known Limitations](#known-limitations)
+- [Future Enhancements](#future-enhancements)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Authors & Credits](#authors--credits)
+- [License](#license)
+
+---
+
+## Overview
+
+**RXT-J+** is a production-grade, real-time ML risk scoring engine for payment fraud detection and account compromise identification. It processes individual transactions in **0.019 ms** at over **51,000 transactions per second** and simultaneously evaluates whether the account behind a transaction has been taken over.
+
+The system is built on the IEEE-CIS Fraud Detection dataset (590,540 transactions, 433 features) and surpasses the baseline RXT-J model (Almazroi & Ayub, IEEE Access 2023) by replacing static PCA with non-linear EARN+ feature extraction, augmenting the GRU with a self-attention mechanism, and extending beyond per-transaction fraud detection to full account-level behavioural scoring.
+
+> **Base paper:** Almazroi & Ayub, *IEEE Access* 2023 · DOI: [10.1109/ACCESS.2023.3339226](https://doi.org/10.1109/ACCESS.2023.3339226)
+
+---
+
+## Key Features
+
+| Feature | Detail |
+|---|---|
+| **Transaction fraud scoring** | ResNeXt + Self-Attention GRU + Isolation Forest ensemble, Jaya-optimised thresholds |
+| **Account compromise detection** | Per-account behavioural profiling, 8 contextual deviation features, FusionNet scoring |
+| **EARN+ feature engineering** | Autoencoder (latent 64) + ResNet (features 64) → concat 128 → Nystroem → IncrementalPCA |
+| **Real-time API** | FastAPI, 12 endpoints, sub-millisecond latency, batch scoring |
+| **Explainability** | Learnable attention weights per contextual feature, `/account/explain` endpoint |
+| **Behavioural profiling** | SQLite WAL profile store, exponential moving average updates, 13,553 account profiles |
+| **Streaming-ready** | Kafka producer stub on every scored transaction; consumer for async profile updates |
+| **Multi-objective optimisation** | Jaya algorithm minimises `2×FPR + FNR` for fiscally-aware threshold selection |
+
+---
+
+## Tech Stack
+
+### ML / Data Science
+| Library | Version | Purpose |
+|---|---|---|
+| PyTorch | 2.2.2 | ResNeXt, GRU, Autoencoder, ResNet, FusionNet |
+| scikit-learn | 1.4.2 | Nystroem, IncrementalPCA, IsolationForest, metrics |
+| NumPy | 1.26.4 | Array operations throughout |
+| pandas | 2.x | Data loading, profiling, feature engineering |
+| pyarrow | 16.x | Parquet snapshot storage |
+| matplotlib | 3.7+ | ROC curves, attention weight charts |
+| joblib | 1.3.2 | Model serialisation |
+
+### Backend / API
+| Component | Version | Purpose |
+|---|---|---|
+| FastAPI | 0.110.0 | REST API framework |
+| Uvicorn | 0.29.0 | ASGI server |
+| Pydantic | 2.6.4 | Request/response validation |
+| SQLite (WAL) | built-in | Behavioural profile store |
+| kafka-python | 2.0.2 | Transaction event streaming |
+
+### Infrastructure
+| Tool | Purpose |
+|---|---|
+| Anaconda / conda | Environment management |
+| Python 3.11 | Runtime (3.12+ lacks pre-built wheels for ML stack) |
+| Apache Kafka | Transaction stream ingestion (optional for local dev) |
+
+---
+
+## Architecture
+
+<!-- ARCHITECTURE DIAGRAM — replace src with docs/assets/architecture.png -->
+<div align="center">
+<img src="docs/assets/architecture.png" alt="System Architecture" width="800"/>
+</div>
+
+```
+Incoming Transaction (224 raw features)
+         │
+         ▼
+┌─────────────────────────────────────────────────────────┐
+│  EARN+ Feature Extraction                                │
+│  Imputer(224) → Scaler(224)                             │
+│  Autoencoder encoder → 64-dim latent                    │
+│  ResNet extractor   → 64-dim features                   │
+│  concat(128) → Nystroem(300) → IncrementalPCA(50)       │
+└─────────────────────────┬───────────────────────────────┘
+                          │ 50-dim feature vector
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Transaction Fraud Classifier                            │
+│  ResNeXt (cardinality-4 paths) → 64-dim                 │
+│  Self-Attention GRU (2-layer, seq_len=8) → context 64   │
+│  Isolation Forest Model → anomaly score                 │
+│  Jaya ensemble: W_MODEL×prob + W_IFM×ifm_score         │
+│  Output: transaction_risk_score [0,1]                   │
+└─────────────┬───────────────────────────────────────────┘
+              │
+   ┌──────────┴───────────┐
+   │  Per-account profile  │
+   │  (SQLite, EMA α=0.1) │
+   └──────────┬───────────┘
+              │  8 contextual deviation features
+              ▼
+┌─────────────────────────────────────────────────────────┐
+│  FusionNet v2  (8→64→32→16→1 + feature_attn[8])        │
+│  Features: amount_z · merchant_novelty · geo_disp       │
+│            hour_dev · device_novel · vel_ratio          │
+│            behavioral_drift · p1_risk_score             │
+│  Jaya-optimised threshold                               │
+│  Output: compromise_probability + explainability        │
+└─────────────────────────┬───────────────────────────────┘
+                          │
+              ┌───────────┼──────────────┐
+              ▼           ▼              ▼
+         API response  Audit log    Kafka topic
+         (JSON)        (SQLite)  scored_transactions
+```
+
+---
+
+## Directory Structure
+
+```
+rxtj_plus/
+│
+├── app.py                          ← FastAPI application (all 12 endpoints)
+├── preprocessing.py                ← Shared imputer + scaler transform functions
+├── profile_store.py                ← SQLite profile CRUD (ProfileStore class)
+├── profile_consumer.py             ← Kafka consumer for async profile updates
+├── requirements.txt
+├── .env.example                    ← Environment variable template
+│
+├── notebooks/                      ← Training pipeline (run in order)
+│   ├── 01_preprocessing.ipynb      ← Mean imputation + StandardScaler
+│   ├── 02_balancing.ipynb          ← SMOTE-Tomek class balancing
+│   ├── 03_earn_features.ipynb      ← EARN+ (Autoencoder + ResNet + Nystroem + PCA)
+│   ├── 04_attention_rxtj.ipynb     ← ResNeXt + SelfAttentionGRU training
+│   ├── 05_jaya_optimize.ipynb      ← Multi-objective Jaya threshold optimisation
+│   ├── 06_behavioral_profiling.py  ← Per-account behavioral profile builder
+│   ├── 07_contextual_features.py   ← 8 contextual deviation feature computation
+│   └── 08_fusion_model_training.py ← FusionNet v2 training + Jaya threshold
+│
+├── models/                         ← All trained model artifacts
+│   ├── imputer.pkl                 ← SimpleImputer (224 features)
+│   ├── scaler.pkl                  ← StandardScaler (224 features)
+│   ├── nystroem.pkl                ← Nystroem approximation (128→300)
+│   ├── incremental_pca.pkl         ← IncrementalPCA (300→50)
+│   ├── autoencoder.pt              ← EARN+ autoencoder (224→64 latent)
+│   ├── resnet_extractor.pt         ← EARN+ ResNet (224→64 features)
+│   ├── attention_rxtj.pt           ← ResNeXt + AttentionGRU model
+│   ├── isolation_forest.pkl        ← IFM anomaly scorer
+│   ├── jaya_optimal_weights.pkl    ← Jaya ensemble weights
+│   ├── fusion_net.pt               ← FusionNet v2 weights
+│   └── fusion_scaler.pkl           ← StandardScaler for 8 fusion features
+│
+├── data/
+│   ├── IEEE CIS/
+│   │   ├── train_transaction.csv   ← 590,540 rows · 433 features
+│   │   └── train_identity.csv      ← 144,233 rows · device/email features
+│   ├── demo_samples.json           ← 8 hand-crafted demo transactions
+│   ├── behavioral_profiles.db      ← SQLite: 13,553 account profiles
+│   ├── tx_snapshot.parquet         ← Per-row historical snapshot (590,540 rows)
+│   ├── contextual_features.npy     ← Fusion training features (590,540 × 8)
+│   ├── fusion_labels.npy           ← Training labels
+│   ├── fusion_feature_names.json   ← Ordered feature name list
+│   └── drift_norm_params.json      ← Autoencoder normalisation params
+│
+├── results/
+│   ├── deployment_config.json      ← Jaya weights + transaction model metrics
+│   ├── fusion_config.json          ← FusionNet thresholds + metrics + attn weights
+│   ├── fusion_roc.png              ← ROC curve + attention weight chart
+│   └── fusion_training_curves.png  ← Training loss + AUC curves
+│
+├── docs/
+│   └── assets/
+│       ├── logo.png                ← Project logo (replace placeholder)
+│       ├── demo.gif                ← Live demo GIF (replace placeholder)
+│       ├── architecture.png        ← Architecture diagram
+│       └── roc.png                 ← ROC chart (copy from results/)
+│
+└── tests/
+    ├── test_preprocessing.py
+    ├── test_profile_store.py
+    ├── test_api_endpoints.py
+    └── test_fusion_model.py
+```
+
+---
+
+## Data Models
+
+### Transaction Score Request
+
+```python
+class ScoreRequest(BaseModel):
+    features: List[float]           # 224-dim raw feature vector
+    threshold: Optional[float]      # override decision threshold (default 0.50)
+```
+
+### Compromise Score Request
+
+```python
+class CompromiseRequest(BaseModel):
+    account_id:     str             # card1 value as string
+    transaction_id: str             # unique transaction identifier
+    features:       List[float]     # 224-dim raw feature vector
+    amount:         Optional[float] # transaction amount
+    hour:           Optional[int]   # hour of day (0–23)
+    product_cd:     Optional[str]   # merchant category (W/H/C/S/R)
+    device_info:    Optional[str]   # device fingerprint string
+    addr1:          Optional[str]   # billing address region code
+    timestamp:      Optional[float] # unix timestamp
+```
+
+### Compromise Score Response
+
+```json
+{
+  "account_id":             "12345",
+  "transaction_id":         "TXN_XYZ",
+  "compromise_probability": 0.847,
+  "decision":               "HIGH",
+  "p1_risk_score":          0.612,
+  "behavioral_drift_score": 0.731,
+  "contextual_features": {
+    "amount_z_score":    3.21,
+    "merchant_novelty":  0.94,
+    "geo_displacement":  0.88,
+    "hour_deviation":    0.72,
+    "device_novelty":    1.0,
+    "velocity_ratio":    6.4,
+    "behavioral_drift":  0.731,
+    "p1_risk_score":     0.612
+  },
+  "explainability": {
+    "device_novelty":    0.28,
+    "merchant_novelty":  0.22,
+    "geo_displacement":  0.19,
+    "behavioral_drift":  0.16
+  },
+  "top_trigger_feature":  "device_novelty",
+  "recommended_action":   "FREEZE_AND_NOTIFY",
+  "latency_ms":           2.41,
+  "model_version":        "rxtj_plus_v2"
+}
+```
+
+### Account Behavioral Profile
+
+```json
+{
+  "account_id":         "12345",
+  "txn_count":          47,
+  "amt_mean":           62.40,
+  "amt_std":            18.70,
+  "amt_mean_7d":        58.20,
+  "hour_hist":          [0.01, 0.00, ..., 0.12, 0.15, ...],
+  "merchant_counts":    {"W": 32, "H": 8, "C": 7},
+  "known_device_count": 2,
+  "geo_cluster":        "315",
+  "velocity_1h":        0,
+  "velocity_24h":       1,
+  "profile_age_hours":  3.2
+}
+```
+
+---
+
+## API Reference
+
+### Transaction Scoring (7 endpoints)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/score` | Score a 224-dim raw feature vector |
+| `POST` | `/score/direct` | Score with key-value feature pairs |
+| `POST` | `/score/form` | Score from a partial form input (pads missing with NaN) |
+| `POST` | `/score/batch` | Score up to 1,000 transactions in one request |
+| `GET` | `/history` | Last 50 scored transactions (all accounts) |
+| `GET` | `/health` | Server health check and model load status |
+| `GET` | `/model/info` | Loaded model metadata, weights, thresholds |
+
+### Account Compromise Scoring (5 endpoints)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/account/compromise-score` | Full behavioural + contextual fusion scoring |
+| `GET` | `/account/profile/{account_id}` | Retrieve stored behavioural profile |
+| `GET` | `/account/history/{account_id}` | Last N scored events for an account |
+| `GET` | `/account/alerts` | Accounts above compromise threshold in last 24 h |
+| `POST` | `/account/explain` | Natural language explanation for a stored score |
+
+> Full interactive docs available at `http://localhost:8000/docs` when the server is running.
+
+---
+
+## Setup & Installation
+
+### Prerequisites
+
+- Anaconda or Miniconda — [download](https://docs.conda.io/en/latest/miniconda.html)
+- Git
+- 16 GB RAM recommended for training (8 GB minimum for inference only)
+- IEEE-CIS Fraud Detection dataset — [download from Kaggle](https://www.kaggle.com/c/ieee-fraud-detection)
+
+> **Python version:** Must be **3.11**. Python 3.12+ has no pre-built wheels for PyTorch 2.2.2, scikit-learn 1.4.2, or numpy 1.26.4 on Windows.
+
+### Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/{username}/rxtj-plus.git
+cd rxtj-plus
+```
+
+### Step 2 — Create the conda environment
+
+```bash
+conda create -n rxtj_env python=3.11 -y
+conda activate rxtj_env
+```
+
+### Step 3 — Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+**`requirements.txt`**
+
+```text
+fastapi==0.110.0
+uvicorn==0.29.0
+pydantic==2.6.4
+numpy==1.26.4
+torch==2.2.2
+scikit-learn==1.4.2
+joblib==1.3.2
+kafka-python==2.0.2
+pandas>=2.0.0
+pyarrow>=14.0.0
+matplotlib>=3.7.0
+```
+
+### Step 4 — Place the dataset
+
+```
+data/
+└── IEEE CIS/
+    ├── train_transaction.csv   ← 590,540 rows
+    └── train_identity.csv      ← 144,233 rows
+```
+
+### Step 5 — Verify installation
+
+```bash
+python -c "import torch, sklearn, fastapi, pandas; print('All dependencies OK')"
+```
+
+---
+
+## Configuration
+
+Copy `.env.example` to `.env` and fill in values:
+
+```bash
+cp .env.example .env
+```
+
+**`.env.example`**
+
+```dotenv
+# ── Server ──────────────────────────────────────────────
+APP_HOST=0.0.0.0
+APP_PORT=8000
+APP_RELOAD=true                    # set false in production
+
+# ── Model paths ─────────────────────────────────────────
+MODEL_DIR=models
+DATA_DIR=data
+RESULTS_DIR=results
+
+# ── Decision thresholds (loaded from fusion_config.json) ─
+# These are auto-loaded at startup — only override for testing
+FUSION_HIGH_THRESHOLD=0.66
+FUSION_ELEVATED_THRESHOLD=0.41
+
+# ── Kafka (optional — set KAFKA_ENABLED=false for local dev) ─
+KAFKA_ENABLED=false
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_TOPIC=scored_transactions
+
+# ── Profile store ────────────────────────────────────────
+PROFILE_DB_PATH=data/behavioral_profiles.db
+PROFILE_EMA_ALPHA=0.1              # slow adaptation to prevent ATO retraining
+
+# ── Logging ─────────────────────────────────────────────
+LOG_LEVEL=INFO
+```
+
+---
+
+## Running Locally
+
+### Inference only (pre-trained models exist)
+
+```bash
+conda activate rxtj_env
+cd rxtj-plus
+python -m uvicorn app:app --reload --host 0.0.0.0 --port 8000
+```
+
+Expected startup output:
+
+```
+Loading RXT-J+ models...
+  imputer / scaler loaded (224 features)
+  EARN+ autoencoder loaded (input=224 → latent=64)
+  EARN+ resnet extractor loaded (input=224 → features=64)
+  attention_rxtj.pt loaded (IPCA_DIM=50)
+  IFM loaded  |  W_MODEL=0.5343  W_IFM=0.4657  threshold=0.50
+  FusionNet v2 loaded (8→64→32→16→1)
+  [Phase2] ProfileStore ready. Accounts: 13,553
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+### With Kafka (optional)
+
+```bash
+# Terminal 1 — Kafka (requires Docker)
+docker-compose up kafka
+
+# Terminal 2 — API server
+python -m uvicorn app:app --reload --port 8000
+
+# Terminal 3 — Profile update consumer
+python profile_consumer.py
+```
+
+---
+
+## Training the Models
+
+Run notebooks **in strict order**. Each notebook saves artifacts consumed by the next.
+
+| # | Notebook | Command | Runtime | Saves |
+|---|---|---|---|---|
+| 01 | Preprocessing | `jupyter nbconvert --to notebook --execute notebooks/01_preprocessing.ipynb` | ~2 min | `imputer.pkl` · `scaler.pkl` |
+| 02 | Balancing | same pattern | ~5 min | balanced numpy arrays |
+| 03 | EARN+ features | same pattern | ~15 min | `autoencoder.pt` · `resnet_extractor.pt` · `nystroem.pkl` · `incremental_pca.pkl` |
+| 04 | Attention RXT-J | same pattern | ~30 min | `attention_rxtj.pt` · `isolation_forest.pkl` |
+| 05 | Jaya optimisation | same pattern | ~10 min | `jaya_optimal_weights.pkl` · `deployment_config.json` |
+| 06 | Behavioral profiling | `python notebooks/06_behavioral_profiling.py` | ~2.5 h (first run) | `behavioral_profiles.db` · `tx_snapshot.parquet` |
+| 07 | Contextual features | `python notebooks/07_contextual_features.py` | ~15 min | `contextual_features.npy` · `drift_norm_params.json` |
+| 08 | FusionNet training | `python notebooks/08_fusion_model_training.py` | ~40 min | `fusion_net.pt` · `fusion_scaler.pkl` · `fusion_config.json` |
+
+> **Smart resume:** Notebooks 06 and 08 auto-detect existing artifacts and skip completed stages. Notebook 06 skips the 2.5-hour profile loop if `behavioral_profiles.db` already contains ≥90% of accounts.
+
+---
+
+## Testing
+
+### Run all tests
+
+```bash
+conda activate rxtj_env
+pytest tests/ -v --tb=short
+```
+
+### Run specific test modules
+
+```bash
+# Preprocessing pipeline
+pytest tests/test_preprocessing.py -v
+
+# Profile store CRUD operations
+pytest tests/test_profile_store.py -v
+
+# All API endpoints
+pytest tests/test_api_endpoints.py -v
+
+# FusionNet model loading and inference
+pytest tests/test_fusion_model.py -v
+```
+
+### Coverage report
+
+```bash
+pytest tests/ --cov=. --cov-report=html
+open htmlcov/index.html
+```
+
+### Key tests included
+
+```python
+# tests/test_api_endpoints.py (excerpt)
+
+def test_health():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+def test_score_returns_risk():
+    payload = {"features": [0.0] * 224}
+    response = client.post("/score", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "risk_score" in data
+    assert 0.0 <= data["risk_score"] <= 1.0
+
+def test_compromise_score_all_fields():
+    payload = {
+        "account_id": "test_acct",
+        "transaction_id": "TXN_001",
+        "features": [0.0] * 224,
+        "amount": 500.0, "hour": 3
+    }
+    response = client.post("/account/compromise-score", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert all(k in data for k in [
+        "compromise_probability", "decision",
+        "contextual_features", "explainability",
+        "recommended_action", "latency_ms"
+    ])
+    assert len(data["contextual_features"]) == 8
+
+def test_profile_created_after_scoring():
+    client.post("/account/compromise-score", json={...})
+    response = client.get("/account/profile/test_acct")
+    assert response.status_code == 200
+    assert response.json()["txn_count"] >= 1
+```
+
+---
+
+## Deployment
+
+### Production with Uvicorn + Gunicorn
+
+```bash
+pip install gunicorn
+
+# Multi-worker production server (4 workers)
+gunicorn app:app \
+  -w 4 \
+  -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --timeout 30 \
+  --access-logfile logs/access.log \
+  --error-logfile logs/error.log
+```
+
+### Docker
+
+```dockerfile
+# Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+```
+
+```bash
+docker build -t rxtj-plus:latest .
+docker run -d \
+  -p 8000:8000 \
+  -v $(pwd)/models:/app/models \
+  -v $(pwd)/data:/app/data \
+  --env-file .env \
+  rxtj-plus:latest
+```
+
+### Docker Compose (with Kafka)
+
+```yaml
+# docker-compose.yml
+version: "3.9"
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    env_file: .env
+    depends_on: [kafka]
+
+  profile-consumer:
+    build: .
+    command: python profile_consumer.py
+    env_file: .env
+    depends_on: [kafka, api]
+
+  kafka:
+    image: bitnami/kafka:3.6
+    environment:
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    ports: ["9092:9092"]
+```
+
+```bash
+docker-compose up -d
+```
+
+### Environment Variables for Production
+
+```dotenv
+APP_RELOAD=false
+KAFKA_ENABLED=true
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+LOG_LEVEL=WARNING
+```
+
+### CI/CD (GitHub Actions)
+
+```yaml
+# .github/workflows/deploy.yml
+name: Test and Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - run: pytest tests/ -v --tb=short
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and push Docker image
+        run: |
+          docker build -t rxtj-plus:${{ github.sha }} .
+          docker push your-registry/rxtj-plus:${{ github.sha }}
+```
+
+---
+
+## Usage Examples
+
+### Score a single transaction
+
+```bash
+curl -X POST http://localhost:8000/score \
+  -H "Content-Type: application/json" \
+  -d '{"features": [86400, 500.0, 0, 12345, 111, 150, 0, 220, 1, 330, 87, 0, 2, 60, 1, 0, 0, 1, 0, 0.5, 0, 1, 1.2, 0, 0]}'
+```
+
+### Check compromise score for an account
+
+```bash
+curl -X POST http://localhost:8000/account/compromise-score \
+  -H "Content-Type: application/json" \
+  -d '{
+    "account_id":     "12345",
+    "transaction_id": "TXN_20241201_001",
+    "features":       [86400, 499.99, 0, 12345, 111, 150, 0, 220, 1, 330],
+    "amount":         499.99,
+    "hour":           3,
+    "product_cd":     "W",
+    "device_info":    "iPhone 14 Pro",
+    "addr1":          "330"
+  }'
+```
+
+### Get an account's behavioral profile
+
+```bash
+curl http://localhost:8000/account/profile/12345
+```
+
+### Get all high-risk accounts in the last 24 hours
+
+```bash
+curl "http://localhost:8000/account/alerts?threshold=0.70&limit=20"
+```
+
+### Get a human-readable explanation for a scored transaction
+
+```bash
+curl -X POST http://localhost:8000/account/explain \
+  -H "Content-Type: application/json" \
+  -d '{"account_id": "12345", "transaction_id": "TXN_20241201_001"}'
+```
+
+### Batch scoring (up to 1,000 transactions)
+
+```bash
+curl -X POST http://localhost:8000/score/batch \
+  -H "Content-Type: application/json" \
+  -d '{"transactions": [{"features": [...]}, {"features": [...]}]}'
+```
+
+### Python client example
+
+```python
+import requests
+
+BASE = "http://localhost:8000"
+
+# Transaction fraud score
+resp = requests.post(f"{BASE}/score", json={"features": [0.0] * 224})
+print(f"Risk score: {resp.json()['risk_score']:.4f}")
+
+# Account compromise score
+resp = requests.post(f"{BASE}/account/compromise-score", json={
+    "account_id": "12345",
+    "transaction_id": "TXN_001",
+    "features": [0.0] * 224,
+    "amount": 150.0,
+    "hour": 14,
+    "product_cd": "W",
+})
+data = resp.json()
+print(f"Compromise: {data['compromise_probability']:.4f} → {data['decision']}")
+print(f"Top trigger: {data['top_trigger_feature']}")
+print(f"Action: {data['recommended_action']}")
+```
+
+---
+
+## User Flows
+
+### Flow 1 — Payment gateway integration
+
+```
+Customer initiates payment
+    → Gateway extracts 224 transaction features
+    → POST /account/compromise-score  (or /score for transaction-only)
+    → decision = "LOW"  → Approve, update profile silently
+    → decision = "ELEVATED"  → Trigger SMS OTP before approving
+    → decision = "HIGH"  → Block, freeze account, notify fraud team
+```
+
+### Flow 2 — Fraud analyst review
+
+```
+Alert fires (decision = "HIGH")
+    → Analyst opens dashboard
+    → GET /account/alerts  → sees high-risk account list
+    → GET /account/history/{account_id}  → sees timeline of scored events
+    → POST /account/explain  → reads natural language explanation
+    → Analyst decides: confirm fraud or clear account
+```
+
+### Flow 3 — Merchant risk monitoring
+
+```
+Merchant queries aggregate risk
+    → GET /account/alerts?threshold=0.5  → accounts with elevated activity
+    → Filter by merchant's card base
+    → Flag accounts for proactive outreach before next transaction
+```
+
+---
+
+## Known Limitations
+
+**P1 feature sparsity at inference:** The `/account/compromise-score` endpoint constructs the raw feature vector from the partial metadata fields provided (`amount`, `hour`, `product_cd`, `addr1`). This fills only 4 of 224 imputer input features; the remaining 220 are imputed to training-set means. When all 433 original transaction fields are available, connecting the full feature vector directly produces significantly better P1 scores.
+
+**Behavioral profile cold start:** Accounts with fewer than 5 historical transactions produce unreliable contextual deviation scores. All 8 contextual features are available from the first transaction, but accuracy improves as the profile accumulates history.
+
+**Autoencoder reconstruction range:** The autoencoder was trained on SMOTE-Tomek balanced data. Its reconstruction error range on the raw imbalanced data is narrow (0.1995–0.2530), giving `behavioral_drift` limited spread. Retraining the autoencoder on raw data would widen this range.
+
+**Single-node SQLite:** The profile store uses SQLite in WAL mode. This is suitable for a single-server deployment. For multi-node or high-throughput production, migrate `profile_store.py` to PostgreSQL or Redis.
+
+**Kafka is non-blocking stub:** The Kafka producer in `/score` is wrapped in a `try/except` and silently ignores failures. In a production deployment, add dead-letter queue handling and producer error monitoring.
+
+---
+
+## Future Enhancements
+
+- [ ] **Full feature inference** — accept complete 224-column feature vectors via API and re-score with real P1 spread
+- [ ] **Fraud pattern visualisation** — merchant-level risk heatmaps, temporal fraud cluster charts, account compromise timeline dashboard
+- [ ] **Real-time Kafka consumer** — fully wire `profile_consumer.py` into a production consumer group with offset management and DLQ
+- [ ] **Multi-node profile store** — migrate from SQLite to Redis or PostgreSQL for horizontal scaling
+- [ ] **Online model updating** — incremental model fine-tuning as new confirmed fraud labels arrive without full retraining
+- [ ] **Graph-based account linking** — detect fraud rings by modelling shared device / email / address connections across accounts using GNN
+- [ ] **REST streaming endpoint** — Server-Sent Events for real-time dashboard push without polling `/account/alerts`
+- [ ] **Federated scoring** — privacy-preserving model updates across multiple bank data silos without raw data sharing
+
+---
+
+## Troubleshooting
+
+### `ModuleNotFoundError: No module named 'pandas'`
+
+You are on Python 3.14 or outside the conda environment.
+
+```bash
+conda activate rxtj_env
+python --version   # must show Python 3.11.x
+pip install pandas pyarrow matplotlib
+```
+
+### `RuntimeError: Error(s) in loading state_dict — size mismatch`
+
+The model class definition in `app.py` does not match the saved checkpoint architecture.
+
+```bash
+# Inspect saved keys to identify the mismatch
+python -c "
+import torch
+state = torch.load('models/attention_rxtj.pt', map_location='cpu')
+for k, v in state.items(): print(k, tuple(v.shape))
+"
+```
+
+Compare the printed keys against the class definition in `app.py` and align attribute names.
+
+### Server crashes on startup with `fusion_config.json not found`
+
+Notebooks 06–08 have not been run yet. Run them in order before starting the server.
+
+```bash
+cd notebooks
+python 06_behavioral_profiling.py
+python 07_contextual_features.py
+python 08_fusion_model_training.py
+```
+
+### `ValueError: X has 224 features, but Nystroem is expecting 128 features`
+
+You are feeding raw 224-dim features directly to Nystroem. The correct pipeline is:
+
+```
+raw(224) → imputer → scaler → AE encoder(64) + ResNet extract(64) → concat(128) → nystroem
+```
+
+Check the `build_earn_features()` function in `app.py`.
+
+### `kafka.errors.NoBrokersAvailable`
+
+Kafka is not running or `KAFKA_BOOTSTRAP_SERVERS` is incorrect. For local development set `KAFKA_ENABLED=false` in `.env` — the scoring endpoints work without Kafka.
+
+### `P1 scores: std=0.011, 100% predicted fraud`
+
+Only 4 of 224 features are being filled in the raw feature matrix. Use `imputer.feature_names_in_` to load all 224 columns from the original transaction CSV. See `fix_p1_scores.py` in the project root.
+
+### Port 8000 already in use
+
+```bash
+# Find and kill the process on port 8000
+netstat -ano | findstr :8000       # Windows
+lsof -i :8000                      # macOS / Linux
+
+# Or run on a different port
+python -m uvicorn app:app --port 8080
+```
+
+---
+
+## Contributing
+
+We welcome contributions. Please follow these steps:
+
+### 1. Fork and branch
+
+```bash
+git fork https://github.com/{username}/rxtj-plus.git
+git checkout -b feature/your-feature-name
+```
+
+### 2. Code standards
+
+- Follow PEP 8. Use `black` for formatting: `black .`
+- All new functions require a docstring with `Args` and `Returns`
+- New model classes must have matching unit tests in `tests/`
+- Do not commit model artifacts (`.pt`, `.pkl`) to git — add to `.gitignore`
+
+### 3. Testing
+
+```bash
+pytest tests/ -v
+```
+
+All tests must pass before opening a pull request.
+
+### 4. Pull request checklist
+
+- [ ] Tests added for new functionality
+- [ ] Docstrings added / updated
+- [ ] `requirements.txt` updated if new dependencies added
+- [ ] README updated if API or configuration changes
+
+### Code of Conduct
+
+This project follows the [Contributor Covenant v2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Be respectful, constructive, and inclusive. Harassment of any kind will not be tolerated.
+
+---
+
+## Authors & Credits
+
+| Name | Role |
+|---|---|
+| Sm | ML engineering lead, architecture, API design |
+| Deepak B | Feature engineering, model training, evaluation |
+| Joselin Jennilia A | Data preprocessing, balancing pipeline, testing |
+
+**Faculty guide:** Ms. Soundarya, Assistant Professor, AIML Department, Sri Krishna College of Technology (SKCT), Coimbatore.
+
+**Base paper:** Almazroi, A. A. and Ayub, N. (2023). *RXT-J: ResNeXt and Gated Recurrent Unit Based Model for Credit Card Fraud Detection.* IEEE Access. DOI: [10.1109/ACCESS.2023.3339226](https://doi.org/10.1109/ACCESS.2023.3339226)
+
+**Dataset:** IEEE-CIS Fraud Detection — Kaggle Competition (2019). [Link](https://www.kaggle.com/c/ieee-fraud-detection)
+
+---
+
+## License
+
+```
+MIT License
+
+Copyright (c) 2024 SKCT Team 13
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+<div align="center">
+
+<!-- ROC CHART — replace src with docs/assets/roc.png -->
+<img src="docs/assets/roc.png" alt="ROC Curve" width="600"/>
+
+<sub>Transaction fraud ROC · AUC = 96.24% &nbsp;|&nbsp; Account compromise ROC · AUC = 75.67%</sub>
+
+<br/><br/>
+
+<sub>Built with PyTorch · FastAPI · scikit-learn · IEEE-CIS Dataset</sub>
+
+<br/>
+
+<img src="https://img.shields.io/badge/SKCT-Team%2013-0052CC?style=flat-square"/>
+<img src="https://img.shields.io/badge/B.E.%20CSE-Cyber%20Security-7B2D8B?style=flat-square"/>
+<img src="https://img.shields.io/badge/NEP-2020-FF6B35?style=flat-square"/>
+
+</div>
