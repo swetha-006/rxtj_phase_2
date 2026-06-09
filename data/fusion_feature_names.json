@@ -6,5 +6,10 @@
   "device_novelty",
   "velocity_ratio",
   "behavioral_drift",
-  "p1_risk_score"
+  "p1_risk_score",
+  "amount_percentile",
+  "time_gap_norm",
+  "merchant_fraud_rate",
+  "cross_device_accounts",
+  "account_age_score"
 ]
