@@ -16,6 +16,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from profile_store import ProfileStore
@@ -495,6 +497,12 @@ def decide_action(compromise_prob: float, p1_risk: float) -> str:
     if compromise_prob >= ELEVATED_THRESHOLD:
         return "MONITOR_AND_FLAG"
     return "APPROVE"
+
+@app.get("/panel", response_class=FileResponse)
+def serve_panel():
+    """Serve the RXT-J+ FraudShield demo panel."""
+    panel_path = os.path.join(BASE, "panel.html")
+    return FileResponse(panel_path, media_type="text/html")
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
