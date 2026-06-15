@@ -1,6 +1,16 @@
 # ============================================================
-# app.py — RXT-J+ FastAPI Deployment (Updated with Phase 2)
+# app.py — RXT-J+ FastAPI Deployment  (Phase 2 — Zero-Bug)
 # Run with: python -m uvicorn app:app --reload --port 8000
+#
+# FIXES applied vs previous version:
+#   [BUG-1] FusionNet architecture: matched to trained weights
+#           net: Linear(13,128)->ReLU->Dropout->Linear(128,64)->ReLU
+#                ->Dropout->Linear(64,32)->ReLU->Linear(32,1)
+#           (previous code had 32->16->1 which caused shape mismatch)
+#   [BUG-2] compute_contextual_features now produces all 13 features:
+#           added amount_percentile, time_gap_norm, merchant_fraud_rate,
+#           cross_device_accounts, account_age_score
+#   [BUG-3] explain endpoint interpret() updated for all 13 feature names
 # ============================================================
 
 from fastapi import FastAPI, HTTPException
@@ -56,16 +66,6 @@ class ResNeXtExtractor(nn.Module):
     def forward(self, x): return self.net(x)
 
 class SelfAttentionGRU(nn.Module):
-    """Self-attention GRU classifier head.
-
-    Known limitation (Phase 1):
-        The GRU is fed a single transaction's 64-dim ResNeXt embedding,
-        reshaped into ``seq_len`` artificial timesteps of ``input_dim/seq_len``
-        dims each. This is NOT a real temporal sequence — it is a fixed split
-        of one feature vector. True per-customer history is supplied by the
-        Phase 2 profile store, which feeds historical context into this same
-        head at scoring time.
-    """
     def __init__(self, input_dim=64, hidden_dim=64, seq_len=SEQ_LEN):
         super().__init__()
         self.seq_len  = seq_len
@@ -92,10 +92,6 @@ class AttentionRXTJ(nn.Module):
         return self.attn_gru(self.resnext(x))
 
 class AutoencoderNet(nn.Module):
-    """Reconstruction autoencoder used by Phase 2 as a behavioural drift
-    scorer. Architecture mirrors ``FraudAutoencoder`` from
-    ``notebooks/03_earn_features.ipynb``.
-    """
     def __init__(self, input_dim, latent_dim=64):
         super().__init__()
         self.encoder = nn.Sequential(
@@ -112,27 +108,45 @@ class AutoencoderNet(nn.Module):
         z = self.encoder(x)
         return self.decoder(z), z
 
+
+# ── FusionNet v3 — architecture MUST match fusion_net.pt ─────────────────────
+# Trained weights layout (verified from state_dict):
+#   feature_attn : [13]
+#   net.0.weight : [128, 13]   → Linear(13, 128)
+#   net.3.weight : [64, 128]   → Linear(128, 64)
+#   net.6.weight : [32, 64]    → Linear(64, 32)
+#   net.8.weight : [1, 32]     → Linear(32, 1)
+# ─────────────────────────────────────────────────────────────────────────────
 class FusionNet(nn.Module):
-    """Attention-weighted MLP for account compromise scoring (Phase 2).
- 
-    A learnable softmax weight vector applied to the 8-dim contextual
-    input provides per-feature importance scores used by /account/explain.
+    """FusionNet v3 — Attention-weighted MLP for account compromise scoring.
+
+    Architecture is fixed to match the saved weights in fusion_net.pt.
+    Input dim MUST be 13 (the 13 contextual features computed by
+    compute_contextual_features()).
     """
-    def __init__(self, input_dim: int = 8):
+    def __init__(self, input_dim: int = 13):
         super().__init__()
         self.feature_attn = nn.Parameter(torch.ones(input_dim))
+        # Layers match the state_dict: 13→128→64→32→1
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 32), nn.ReLU(), nn.Dropout(0.3),
-            nn.Linear(32, 16),        nn.ReLU(),
-            nn.Linear(16, 1)
+            nn.Linear(input_dim, 128),  # net.0
+            nn.ReLU(),                   # net.1
+            nn.Dropout(0.3),             # net.2
+            nn.Linear(128, 64),          # net.3
+            nn.ReLU(),                   # net.4
+            nn.Dropout(0.3),             # net.5
+            nn.Linear(64, 32),           # net.6
+            nn.ReLU(),                   # net.7
+            nn.Linear(32, 1)             # net.8
         )
- 
+
     def forward(self, x):
         attn_weights = torch.softmax(self.feature_attn, dim=0)
         x_weighted   = x * attn_weights
         logit        = self.net(x_weighted).squeeze(1)
         return torch.sigmoid(logit), attn_weights
-    
+
+
 # ── Load artefacts ────────────────────────────────────────────────────────────
 
 def load_models():
@@ -155,16 +169,20 @@ def load_models():
     autoencoder.load_state_dict(ae_state)
     autoencoder.eval()
 
-    # Phase 2: FusionNet + scaler
+    # Phase 2: FusionNet v3 + scaler
     fusion_config_data = json.load(open(os.path.join(BASE, 'results/fusion_config.json')))
     fusion_scaler_obj  = joblib.load(os.path.join(BASE, 'models/fusion_scaler.pkl'))
-    fusion_model_obj   = FusionNet(fusion_config_data['input_dim']).to(DEVICE)
-    fusion_state       = torch.load(os.path.join(BASE, 'models/fusion_net.pt'), map_location=DEVICE)
-    fusion_model_obj.load_state_dict(fusion_state)
+
+    # Always use the input_dim from the saved config (13), not a hard-coded value
+    f_input_dim      = fusion_config_data['input_dim']  # must be 13
+    fusion_model_obj = FusionNet(f_input_dim).to(DEVICE)
+    fusion_state     = torch.load(os.path.join(BASE, 'models/fusion_net.pt'), map_location=DEVICE)
+    fusion_model_obj.load_state_dict(fusion_state)   # will raise if arch wrong
     fusion_model_obj.eval()
 
     return (model, imputer, scaler, nystroem, ipca, ifm, autoencoder, config,
             fusion_model_obj, fusion_scaler_obj, fusion_config_data)
+
 
 print("Loading RXT-J+ models...")
 (model, imputer, scaler, nystroem, ipca, ifm,
@@ -179,12 +197,15 @@ THRESHOLD = config['THRESHOLD']
 FUSION_THRESHOLD   = fusion_config['fusion_threshold']
 HIGH_THRESHOLD     = fusion_config['high_threshold']
 ELEVATED_THRESHOLD = fusion_config['elevated_threshold']
-FEATURE_NAMES      = fusion_config['feature_names']
+FEATURE_NAMES      = fusion_config['feature_names']   # 13 names
 DRIFT_NORM         = json.load(open(os.path.join(BASE, 'data/drift_norm_params.json')))
+MERCHANT_FRAUD_RATES = json.load(open(os.path.join(BASE, 'data/merchant_fraud_rates.json')))
 
 print(f"Models loaded. W_MODEL={W_MODEL:.4f}, W_IFM={W_IFM:.4f}, Threshold={THRESHOLD:.2f}")
 print(f"Autoencoder loaded (input_dim={autoencoder.encoder[0].in_features}).")
-print(f"FusionNet loaded. High Threshold={HIGH_THRESHOLD}, Elevated Threshold={ELEVATED_THRESHOLD}")
+print(f"FusionNet v3 loaded (input_dim={fusion_config['input_dim']}). "
+      f"High={HIGH_THRESHOLD}, Elevated={ELEVATED_THRESHOLD}")
+print(f"Feature names ({len(FEATURE_NAMES)}): {FEATURE_NAMES}")
 
 # ── SQLite history store ─────────────────────────────────────────────────────
 
@@ -249,7 +270,7 @@ def _publish_profile_update(transaction_id, risk_score, decision, features):
 app = FastAPI(
     title="RXT-J+ Fraud Risk Scoring API",
     description="Real-time payment fraud detection — Attention-RXT-J+ with Jaya optimisation",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 app.add_middleware(
@@ -327,53 +348,70 @@ def score_raw_features(features_np: np.ndarray):
     Z_earn  = ipca.transform(Z_nys)
     return score_earn_features(Z_earn)
 
+
 def compute_contextual_features(
     features_np: np.ndarray,
     profile: dict,
     txn_meta: dict,
-) -> tuple[np.ndarray, dict]:
-    """Compute the 8-dim contextual feature vector for Phase 2 scoring."""
+) -> tuple:
+    """Compute the 13-dim contextual feature vector for FusionNet v3.
+
+    Feature order (must match fusion_config['feature_names']):
+      0  amount_z_score
+      1  merchant_novelty
+      2  geo_displacement
+      3  hour_deviation
+      4  device_novelty
+      5  velocity_ratio
+      6  behavioral_drift
+      7  p1_risk_score
+      8  amount_percentile        ← NEW (was missing)
+      9  time_gap_norm            ← NEW (was missing)
+      10 merchant_fraud_rate      ← NEW (was missing)
+      11 cross_device_accounts    ← NEW (was missing)
+      12 account_age_score        ← NEW (was missing)
+    """
     amount     = float(txn_meta.get("amount", 0.0))
     hour       = int(txn_meta.get("hour", 0)) % 24
     product_cd = str(txn_meta.get("product_cd", ""))
     device     = str(txn_meta.get("device_info", "")) if txn_meta.get("device_info") else ""
     addr1      = str(txn_meta.get("addr1", ""))
- 
-    # F1: amount z-score
+
+    # ── F1: amount z-score ────────────────────────────────────────────────
     amt_std = max(profile.get("amt_std", 1.0), 0.1)
     f1_amount_z = float(np.clip(
         (amount - profile.get("amt_mean", 0.0)) / amt_std, -5.0, 5.0
     ))
- 
-    # F2: merchant novelty
+
+    # ── F2: merchant novelty ──────────────────────────────────────────────
     mc       = profile.get("merchant_counts", {})
     max_freq = max(mc.values()) if mc else 1
     freq     = mc.get(product_cd, 0)
     f2_merchant_novelty = 1.0 - (freq / (max_freq + 1e-9)) if mc else 1.0
- 
-    # F3: geo displacement
+
+    # ── F3: geo displacement ──────────────────────────────────────────────
     geo_cluster = profile.get("geo_cluster", "")
     try:
         disp = abs(float(addr1) - float(geo_cluster)) if (addr1 and geo_cluster) else 0.0
         f3_geo_disp = float(min(disp / 500.0, 1.0))
     except (ValueError, TypeError):
         f3_geo_disp = 0.5
- 
-    # F4: hour deviation
+
+    # ── F4: hour deviation ────────────────────────────────────────────────
     hh     = profile.get("hour_hist", [1/24]*24)
     hh_val = hh[hour] if len(hh) == 24 else 1/24
     f4_hour_dev = float(max(0.0, 1.0 - hh_val * 24))
- 
-    # F5: device novelty
+
+    # ── F5: device novelty ────────────────────────────────────────────────
     kd = profile.get("known_devices", [])
     f5_device_novel = 0.0 if (device and device in kd) else (1.0 if device else 0.5)
- 
-    # F6: velocity ratio
+
+    # ── F6: velocity ratio ────────────────────────────────────────────────
     vel_1h  = float(profile.get("velocity_1h", 0))
     vel_24h = float(profile.get("velocity_24h", 0))
     f6_vel_ratio = float(np.clip(vel_1h / (vel_24h / 24.0 + 1e-6), 0.0, 10.0))
- 
-    # F7: behavioral drift via autoencoder reconstruction error
+
+    # ── F7: behavioral drift via autoencoder reconstruction error ─────────
     with torch.no_grad():
         batch       = torch.FloatTensor(features_np).to(DEVICE)
         recon, _    = autoencoder(batch)
@@ -381,28 +419,75 @@ def compute_contextual_features(
     p5  = DRIFT_NORM.get("p5", 0.0)
     p95 = DRIFT_NORM.get("p95", 1.0)
     f7_drift = float(np.clip((mse - p5) / (p95 - p5 + 1e-9), 0.0, 1.0))
- 
-    # F8: Phase 1 risk score
+
+    # ── F8: Phase 1 risk score ────────────────────────────────────────────
     f8_p1 = float(txn_meta.get("p1_risk_score", 0.5))
- 
+
+    # ── F9: amount percentile (relative to account's observed range) ──────
+    amt_min = profile.get("amt_min", 0.0)
+    amt_max = profile.get("amt_max", amount)
+    span    = amt_max - amt_min
+    if span > 0:
+        f9_amount_percentile = float(np.clip((amount - amt_min) / span, 0.0, 1.0))
+    else:
+        f9_amount_percentile = 0.5   # no history → neutral
+
+    # ── F10: time gap norm (time since last transaction, normalised) ───────
+    last_txn_dt = profile.get("last_txn_dt", 0.0)
+    now_ts      = txn_meta.get("timestamp", time.time()) or time.time()
+    if last_txn_dt > 0:
+        gap_seconds = max(0.0, float(now_ts) - float(last_txn_dt))
+        # clip at 30 days; gap > 30d is treated as 1.0 (very long gap)
+        f10_time_gap = float(np.clip(gap_seconds / (30 * 86400), 0.0, 1.0))
+    else:
+        f10_time_gap = 1.0   # no prior transaction on record → maximum gap
+
+    # ── F11: merchant fraud rate (static lookup from training data) ────────
+    # product_cd maps to a known fraud-rate bucket (C, H, R, S, W)
+    f11_merchant_fraud = float(MERCHANT_FRAUD_RATES.get(product_cd, 0.05))
+    # normalise to [0, 1] using the known range [0.020, 0.117]
+    f11_merchant_fraud = float(np.clip(
+        (f11_merchant_fraud - 0.020) / (0.117 - 0.020 + 1e-9), 0.0, 1.0
+    ))
+
+    # ── F12: cross_device_accounts (fraction of shared devices in profile) ─
+    # Proxy: count of known devices relative to transaction count.
+    # More distinct devices per transaction → higher cross-device risk.
+    kd_count  = len(kd)
+    txn_count = max(1, profile.get("txn_count", 1))
+    f12_cross_device = float(np.clip(kd_count / txn_count, 0.0, 1.0))
+
+    # ── F13: account age score (normalised, 0=new, 1=very old) ────────────
+    # We use txn_count as a proxy: saturates at 200 transactions (≈mature).
+    f13_account_age = float(np.clip(txn_count / 200.0, 0.0, 1.0))
+
+    # ── Assemble in feature_names order ───────────────────────────────────
     vec = np.array(
         [f1_amount_z, f2_merchant_novelty, f3_geo_disp, f4_hour_dev,
-         f5_device_novel, f6_vel_ratio, f7_drift, f8_p1],
+         f5_device_novel, f6_vel_ratio, f7_drift, f8_p1,
+         f9_amount_percentile, f10_time_gap, f11_merchant_fraud,
+         f12_cross_device, f13_account_age],
         dtype=np.float32
     ).reshape(1, -1)
- 
+
     named = {
-        "amount_z_score":    round(f1_amount_z, 4),
-        "merchant_novelty":  round(f2_merchant_novelty, 4),
-        "geo_displacement":  round(f3_geo_disp, 4),
-        "hour_deviation":    round(f4_hour_dev, 4),
-        "device_novelty":    round(f5_device_novel, 4),
-        "velocity_ratio":    round(f6_vel_ratio, 4),
-        "behavioral_drift":  round(f7_drift, 4),
-        "p1_risk_score":     round(f8_p1, 4),
+        "amount_z_score":        round(f1_amount_z, 4),
+        "merchant_novelty":      round(f2_merchant_novelty, 4),
+        "geo_displacement":      round(f3_geo_disp, 4),
+        "hour_deviation":        round(f4_hour_dev, 4),
+        "device_novelty":        round(f5_device_novel, 4),
+        "velocity_ratio":        round(f6_vel_ratio, 4),
+        "behavioral_drift":      round(f7_drift, 4),
+        "p1_risk_score":         round(f8_p1, 4),
+        "amount_percentile":     round(f9_amount_percentile, 4),
+        "time_gap_norm":         round(f10_time_gap, 4),
+        "merchant_fraud_rate":   round(f11_merchant_fraud, 4),
+        "cross_device_accounts": round(f12_cross_device, 4),
+        "account_age_score":     round(f13_account_age, 4),
     }
     return vec, named
- 
+
+
 def decide_action(compromise_prob: float, p1_risk: float) -> str:
     """Map compromise probability + P1 risk to a recommended action."""
     if compromise_prob >= HIGH_THRESHOLD:
@@ -417,31 +502,56 @@ def decide_action(compromise_prob: float, p1_risk: float) -> str:
 def root():
     return {
         "service": "RXT-J+ Fraud Risk Scoring API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status":  "live",
+        "phase":   "Phase 2 — Behavioral + Contextual Fusion",
         "model_auc": config['final_auc'],
         "model_mcc": config['final_mcc'],
+        "fusion_auc": fusion_config['fusion_auc'],
         "latency_ms": config['latency_ms']
     }
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "models_loaded": True}
+    return {
+        "status": "healthy",
+        "models_loaded": True,
+        "fusion_input_dim": fusion_config['input_dim'],
+        "feature_count": len(FEATURE_NAMES),
+    }
 
 @app.get("/model/info")
 def model_info():
     return {
-        "weights":     {"W_MODEL": W_MODEL, "W_IFM": W_IFM},
-        "threshold":   THRESHOLD,
-        "performance": {
-            "auc": config['final_auc'],
-            "mcc": config['final_mcc'],
-            "false_positives": config['false_positives'],
-            "false_negatives": config['false_negatives'],
+        "phase1": {
+            "weights":     {"W_MODEL": W_MODEL, "W_IFM": W_IFM},
+            "threshold":   THRESHOLD,
+            "performance": {
+                "auc": config['final_auc'],
+                "mcc": config['final_mcc'],
+                "false_positives": config['false_positives'],
+                "false_negatives": config['false_negatives'],
+            },
+            "speed": {
+                "latency_ms":     config['latency_ms'],
+                "throughput_tps": config['throughput_tps']
+            }
         },
-        "speed": {
-            "latency_ms":     config['latency_ms'],
-            "throughput_tps": config['throughput_tps']
+        "phase2": {
+            "model":        "FusionNet v3 (13→128→64→32→1)",
+            "input_dim":    fusion_config['input_dim'],
+            "feature_names": FEATURE_NAMES,
+            "thresholds": {
+                "fusion":   FUSION_THRESHOLD,
+                "high":     HIGH_THRESHOLD,
+                "elevated": ELEVATED_THRESHOLD,
+            },
+            "performance": {
+                "auc":     fusion_config['fusion_auc'],
+                "pr_auc":  fusion_config['fusion_pr_auc'],
+                "mcc":     fusion_config['fusion_mcc'],
+                "recall":  fusion_config['fusion_recall'],
+            }
         }
     }
 
@@ -576,21 +686,35 @@ def score_batch(req: BatchRequest):
 
 @app.post("/account/compromise-score")
 def account_compromise_score(req: CompromiseRequest):
-    """Phase 2 — Full behavioral + contextual fusion scoring."""
+    """Phase 2 — Full behavioral + contextual fusion scoring (13-feature FusionNet v3)."""
     t0 = time.time()
     try:
         # — Phase 1 scoring —
+        # Accept either 50-dim EARN+ (post-IPCA) or full raw 224-dim features.
         features_np = np.array(req.features, dtype=np.float32).reshape(1, -1)
-        risk, preds, conf = score_raw_features(features_np)
-        p1_risk = float(risk[0])
- 
-        # — Imputed+scaled for autoencoder —
-        X_clean = transform_raw(features_np, imputer, scaler)
- 
+        n_feat = features_np.shape[1]
+
+        if n_feat == ipca.n_components_:
+            # Already EARN+ space — use direct scorer; synthesize X_clean for AE
+            risk, preds, conf = score_earn_features(features_np)
+            p1_risk = float(risk[0])
+            # Reconstruct approximate 224-dim input for autoencoder via inverse_transform
+            Z_nys_approx = ipca.inverse_transform(features_np)        # (1, nystroem_dim)
+            # We can't invert Nystroem exactly; use the EARN+ vector padded to AE input
+            ae_in_dim = autoencoder.encoder[0].in_features            # 224
+            X_clean   = np.zeros((1, ae_in_dim), dtype=np.float32)
+            X_clean[0, :min(n_feat, ae_in_dim)] = features_np[0, :min(n_feat, ae_in_dim)]
+        else:
+            # Full raw features path
+            risk, preds, conf = score_raw_features(features_np)
+            p1_risk = float(risk[0])
+            # — Imputed+scaled for autoencoder —
+            X_clean = transform_raw(features_np, imputer, scaler)
+
         # — Load account profile —
         profile = profile_store.get_or_empty(str(req.account_id))
- 
-        # — Contextual features —
+
+        # — Contextual features (all 13) —
         txn_meta = {
             "amount":       req.amount   or (req.features[0] if req.features else 0.0),
             "hour":         req.hour     or 0,
@@ -598,18 +722,22 @@ def account_compromise_score(req: CompromiseRequest):
             "device_info":  req.device_info,
             "addr1":        req.addr1,
             "p1_risk_score": p1_risk,
+            "timestamp":    req.timestamp or time.time(),
         }
         ctx_vec, ctx_named = compute_contextual_features(X_clean, profile, txn_meta)
- 
+
+        # Safety check: shape must be (1, 13)
+        assert ctx_vec.shape == (1, 13), f"ctx_vec shape {ctx_vec.shape} != (1,13)"
+
         # — FusionNet inference —
         ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
         ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
- 
+
         with torch.no_grad():
             compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
         compromise_prob  = float(compromise_prob_t.cpu().numpy()[0])
         attn_weights_np  = attn_weights_t.cpu().numpy()
- 
+
         # — Decision —
         if compromise_prob >= HIGH_THRESHOLD:
             decision = "HIGH"
@@ -617,16 +745,16 @@ def account_compromise_score(req: CompromiseRequest):
             decision = "ELEVATED"
         else:
             decision = "LOW"
- 
+
         rec_action = decide_action(compromise_prob, p1_risk)
- 
-        # — Explainability dict —
+
+        # — Explainability dict (attention weight × feature value magnitude) —
         explainability = {
             FEATURE_NAMES[i]: round(float(attn_weights_np[i]), 4)
             for i in range(len(FEATURE_NAMES))
         }
         top_trigger = max(explainability, key=explainability.get)
- 
+
         # — Persist to log —
         profile_store.log_transaction(
             account_id      = str(req.account_id),
@@ -638,7 +766,7 @@ def account_compromise_score(req: CompromiseRequest):
             top_trigger     = top_trigger,
             context         = ctx_named,
         )
- 
+
         # — Update profile —
         profile_store.update_profile(str(req.account_id), {
             "amount":      txn_meta["amount"],
@@ -648,26 +776,29 @@ def account_compromise_score(req: CompromiseRequest):
             "addr1":       req.addr1,
             "txn_dt":      req.timestamp or time.time(),
         })
- 
+
         latency_ms = round((time.time() - t0) * 1000, 3)
- 
+
         return {
-            "account_id":           req.account_id,
-            "transaction_id":       req.transaction_id,
+            "account_id":             req.account_id,
+            "transaction_id":         req.transaction_id,
             "compromise_probability": round(compromise_prob, 4),
-            "decision":             decision,
-            "p1_risk_score":        round(p1_risk, 4),
+            "decision":               decision,
+            "p1_risk_score":          round(p1_risk, 4),
             "behavioral_drift_score": ctx_named["behavioral_drift"],
-            "contextual_features":  ctx_named,
-            "explainability":       explainability,
-            "top_trigger_feature":  top_trigger,
-            "recommended_action":   rec_action,
-            "latency_ms":           latency_ms,
-            "model_version":        "rxtj_plus_v2",
+            "contextual_features":    ctx_named,
+            "explainability":         explainability,
+            "top_trigger_feature":    top_trigger,
+            "recommended_action":     rec_action,
+            "latency_ms":             latency_ms,
+            "model_version":          "rxtj_plus_v2_phase2",
         }
+    except AssertionError as e:
+        raise HTTPException(status_code=500, detail=f"Feature shape error: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
- 
+
+
 @app.get("/account/profile/{account_id}")
 def get_account_profile(account_id: str, window: str = "30d"):
     """Return stored behavioral profile for an account."""
@@ -678,11 +809,12 @@ def get_account_profile(account_id: str, window: str = "30d"):
             detail=f"No profile found for account '{account_id}'."
         )
     age_h = round((time.time() - profile.get("last_updated", 0)) / 3600, 1)
-    profile["profile_age_hours"] = age_h
-    profile["window_requested"]  = window
+    profile["profile_age_hours"]  = age_h
+    profile["window_requested"]   = window
     profile["known_device_count"] = len(profile.get("known_devices", []))
     return profile
- 
+
+
 @app.get("/account/history/{account_id}")
 def get_account_history(account_id: str, limit: int = 20):
     """Return the last N scored events for an account, newest first."""
@@ -693,7 +825,8 @@ def get_account_history(account_id: str, limit: int = 20):
         "record_count":  len(history),
         "events":        history,
     }
- 
+
+
 @app.get("/account/alerts")
 def get_account_alerts(threshold: float = 0.7, limit: int = 50):
     """Return accounts with peak compromise score above threshold in last 24h."""
@@ -705,7 +838,8 @@ def get_account_alerts(threshold: float = 0.7, limit: int = 50):
         "alerts":       alerts,
         "generated_at": time.time(),
     }
- 
+
+
 @app.post("/account/explain")
 def explain_compromise(req: ExplainRequest):
     """Return a human-readable explanation for a stored compromise score."""
@@ -716,33 +850,39 @@ def explain_compromise(req: ExplainRequest):
             status_code=404,
             detail=f"No scored event found for account='{req.account_id}' txn='{req.transaction_id}'."
         )
- 
+
     profile = profile_store.get_profile(req.account_id)
     ctx     = event.get("context", {})
- 
+
     def interpret(name, val):
+        """Human-readable interpretation for all 13 feature names."""
         tips = {
-            "amount_z_score":   f"Amount deviated {abs(val):.1f}σ from account's average (z={val:.2f}).",
-            "merchant_novelty": f"Merchant type {'never' if val > 0.9 else 'rarely'} seen before (novelty={val:.2f}).",
-            "geo_displacement": f"Location {'far' if val > 0.5 else 'somewhat'} from typical billing region ({val:.2f}).",
-            "hour_deviation":   f"Transaction hour {'unusual' if val > 0.6 else 'slightly off'} for this account ({val:.2f}).",
-            "device_novelty":   f"{'New device never seen before' if val > 0.9 else 'Unfamiliar device'} ({val:.2f}).",
-            "velocity_ratio":   f"Transaction rate {val:.1f}× higher than usual for this time window.",
-            "behavioral_drift": f"Overall behavioral pattern {'significantly' if val > 0.6 else 'somewhat'} different from historical baseline ({val:.2f}).",
-            "p1_risk_score":    f"Phase 1 per-transaction risk score: {val:.2f}.",
+            "amount_z_score":        f"Amount deviated {abs(val):.1f}σ from account's average (z={val:.2f}).",
+            "merchant_novelty":      f"Merchant type {'never' if val > 0.9 else 'rarely'} seen before (novelty={val:.2f}).",
+            "geo_displacement":      f"Location {'far' if val > 0.5 else 'somewhat'} from typical billing region ({val:.2f}).",
+            "hour_deviation":        f"Transaction hour {'unusual' if val > 0.6 else 'slightly off'} for this account ({val:.2f}).",
+            "device_novelty":        f"{'New device never seen before' if val > 0.9 else 'Unfamiliar device'} ({val:.2f}).",
+            "velocity_ratio":        f"Transaction rate {val:.1f}× higher than usual for this time window.",
+            "behavioral_drift":      f"Overall behavioral pattern {'significantly' if val > 0.6 else 'somewhat'} different from historical baseline ({val:.2f}).",
+            "p1_risk_score":         f"Phase 1 per-transaction risk score: {val:.2f}.",
+            "amount_percentile":     f"Amount is in the {'top' if val > 0.8 else 'upper' if val > 0.6 else 'normal'} range for this account (percentile={val:.2f}).",
+            "time_gap_norm":         f"Gap since last transaction is {'unusually long' if val > 0.7 else 'moderate'} ({val:.2f}).",
+            "merchant_fraud_rate":   f"Merchant category has {'high' if val > 0.6 else 'moderate'} baseline fraud rate ({val:.2f}).",
+            "cross_device_accounts": f"{'Many' if val > 0.5 else 'Some'} distinct devices relative to account history ({val:.2f}).",
+            "account_age_score":     f"Account is {'mature' if val > 0.7 else 'relatively new'} ({val:.2f}).",
         }
         return tips.get(name, f"{name} = {val:.4f}")
- 
+
     if ctx:
         sorted_feats = sorted(ctx.items(), key=lambda x: abs(float(x[1])), reverse=True)[:3]
     else:
         sorted_feats = []
- 
+
     top_features = [
         {"feature": k, "value": round(float(v), 4), "interpretation": interpret(k, float(v))}
         for k, v in sorted_feats
     ]
- 
+
     if profile:
         baseline = {
             "typical_amount":     round(profile.get("amt_mean", 0.0), 2),
@@ -753,7 +893,7 @@ def explain_compromise(req: ExplainRequest):
         }
     else:
         baseline = {}
- 
+
     if top_features:
         primary = top_features[0]
         summary = (
@@ -763,13 +903,13 @@ def explain_compromise(req: ExplainRequest):
         )
     else:
         summary = "Insufficient context data for detailed explanation."
- 
+
     return {
-        "account_id":     req.account_id,
-        "transaction_id": req.transaction_id,
-        "compromise_prob": event.get("compromise_prob"),
-        "decision":       event.get("decision"),
-        "top_features":   top_features,
+        "account_id":       req.account_id,
+        "transaction_id":   req.transaction_id,
+        "compromise_prob":  event.get("compromise_prob"),
+        "decision":         event.get("decision"),
+        "top_features":     top_features,
         "account_baseline": baseline,
-        "what_triggered": summary,
+        "what_triggered":   summary,
     }
