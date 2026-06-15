@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RXT-J+ FraudShield — Phase 2 Demo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:       #0a0e1a;
+    --bg2:      #111624;
+    --bg3:      #1a2035;
+    --border:   #1e2d47;
+    --accent:   #00d4a0;
+    --accent2:  #4f8ef7;
+    --danger:   #ff4d6d;
+    --warn:     #ffba08;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --card-r:   12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ──────────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 36px; height: 36px; background: linear-gradient(135deg,#00d4a0,#4f8ef7);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo-text { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+  .logo-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .badge {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px; background: rgba(0,212,160,.12);
+    color: var(--accent); border: 1px solid rgba(0,212,160,.25);
+    letter-spacing: .5px;
+  }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .api-url { font-family: 'JetBrains Mono',monospace; font-size: 12px; color: var(--muted); }
+
+  /* ── Layout ──────────────────────────────────────────── */
+  .container { max-width: 1300px; margin: 0 auto; padding: 28px 24px; }
+
+  /* ── Metric strip ──────────────────────────────────────── */
+  .metric-strip { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 24px; }
+  .metric-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 16px 18px;
+  }
+  .metric-label { font-size: 11px; color: var(--muted); letter-spacing: .6px; text-transform: uppercase; }
+  .metric-value { font-size: 26px; font-weight: 700; margin-top: 4px; line-height: 1; }
+  .metric-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .green { color: var(--accent); }
+  .blue  { color: var(--accent2); }
+  .red   { color: var(--danger); }
+  .yellow{ color: var(--warn); }
+
+  /* ── Main grid ───────────────────────────────────────── */
+  .main-grid { display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
+
+  /* ── Card ───────────────────────────────────────────── */
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-r); overflow: hidden;
+  }
+  .card-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title { font-size: 13px; font-weight: 600; letter-spacing: .3px; }
+  .card-body  { padding: 18px; }
+
+  /* ── Transaction form ──────────────────────────────── */
+  .scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .scenario-btn {
+    padding: 10px 12px; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer; text-align: left; transition: all .18s;
+    font-family: inherit;
+  }
+  .scenario-btn:hover { border-color: var(--accent); }
+  .scenario-btn.active { border-color: var(--accent); background: rgba(0,212,160,.08); }
+  .scenario-btn .sname { font-size: 12px; font-weight: 600; }
+  .scenario-btn .sdesc { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .sicon { font-size: 16px; margin-bottom: 4px; }
+
+  .field-row { margin-bottom: 12px; }
+  .field-row label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 5px; letter-spacing: .4px; }
+  .field-row input, .field-row select {
+    width: 100%; padding: 9px 12px; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: inherit; font-size: 13px;
+    transition: border-color .18s;
+  }
+  .field-row input:focus, .field-row select:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .field-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .score-btn {
+    width: 100%; padding: 13px; background: linear-gradient(135deg,#00d4a0,#4f8ef7);
+    border: none; border-radius: 8px; color: #0a0e1a;
+    font-family: inherit; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: opacity .18s; letter-spacing: .3px;
+  }
+  .score-btn:hover { opacity: .88; }
+  .score-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ── Results panel ─────────────────────────────────── */
+  .verdict-box {
+    border-radius: 10px; padding: 18px 20px; margin-bottom: 16px;
+    border: 1px solid; display: none;
+  }
+  .verdict-box.low      { background: rgba(0,212,160,.08); border-color: rgba(0,212,160,.3); }
+  .verdict-box.elevated { background: rgba(255,186,8,.08);  border-color: rgba(255,186,8,.3); }
+  .verdict-box.high     { background: rgba(255,77,109,.08); border-color: rgba(255,77,109,.3); }
+  .verdict-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .verdict-action{ font-size: 12px; margin-top: 6px; opacity: .85; }
+
+  .prob-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .prob-label { font-size: 12px; color: var(--muted); width: 110px; flex-shrink: 0; }
+  .prob-bar-wrap { flex: 1; background: var(--bg3); border-radius: 4px; height: 7px; overflow: hidden; }
+  .prob-bar { height: 100%; border-radius: 4px; transition: width .5s ease; }
+  .prob-val { font-size: 12px; font-family: 'JetBrains Mono',monospace; width: 46px; text-align: right; }
+
+  /* ── Feature grid ──────────────────────────────────── */
+  .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .feat-item {
+    background: var(--bg3); border-radius: 8px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .feat-name { font-size: 10px; color: var(--muted); letter-spacing: .4px; text-transform: uppercase; }
+  .feat-val  { font-size: 14px; font-weight: 600; font-family: 'JetBrains Mono',monospace; }
+  .feat-bar-wrap { background: var(--border); border-radius: 3px; height: 4px; overflow: hidden; margin-top: 2px; }
+  .feat-bar { height: 100%; border-radius: 3px; background: var(--accent); transition: width .5s; }
+
+  /* ── Attn weights ──────────────────────────────────── */
+  .attn-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .attn-row:last-child { border-bottom: none; }
+  .attn-name { font-size: 12px; width: 170px; flex-shrink: 0; }
+  .attn-bar-wrap { flex: 1; background: var(--bg3); border-radius: 3px; height: 6px; overflow: hidden; }
+  .attn-bar { height: 100%; border-radius: 3px; background: var(--accent2); transition: width .5s; }
+  .attn-val { font-size: 11px; font-family: 'JetBrains Mono',monospace; width: 38px; text-align: right; color: var(--muted); }
+  .attn-top .attn-bar { background: var(--warn); }
+  .attn-top .attn-name { color: var(--warn); font-weight: 600; }
+
+  /* ── Architecture diagram ─────────────────────────── */
+  .arch-diagram { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 8px 0; }
+  .arch-node {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; text-align: center; flex-shrink: 0; min-width: 90px;
+  }
+  .arch-node.active { border-color: var(--accent); background: rgba(0,212,160,.08); }
+  .arch-node .an-top { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .arch-node .an-main { font-size: 13px; font-weight: 600; }
+  .arch-node .an-sub  { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .arch-arrow { font-size: 18px; color: var(--muted); padding: 0 6px; flex-shrink: 0; }
+
+  /* ── Tabs ────────────────────────────────────────── */
+  .tab-row { display: flex; gap: 4px; padding: 14px 18px 0; }
+  .tab {
+    font-size: 12px; padding: 7px 14px; border-radius: 6px 6px 0 0;
+    cursor: pointer; color: var(--muted); border: 1px solid transparent;
+    border-bottom: none; transition: all .15s; font-family: inherit;
+    background: transparent;
+  }
+  .tab.active {
+    color: var(--text); background: var(--bg3);
+    border-color: var(--border);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Ticker ──────────────────────────────────────── */
+  .ticker-feed {
+    max-height: 240px; overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .ticker-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+  }
+  .ticker-item:last-child { border-bottom: none; }
+  .t-ts  { color: var(--muted); width: 70px; flex-shrink: 0; }
+  .t-id  { width: 90px; color: var(--accent2); flex-shrink: 0; }
+  .t-dec { font-weight: 600; width: 70px; }
+  .t-score { width: 50px; text-align: right; color: var(--muted); }
+  .t-dec.fraud  { color: var(--danger); }
+  .t-dec.legit  { color: var(--accent); }
+  .t-dec.high   { color: var(--danger); }
+  .t-dec.elev   { color: var(--warn); }
+  .t-dec.low    { color: var(--accent); }
+
+  /* ── Toast ───────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 18px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .3s;
+    max-width: 340px;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ── Loader ──────────────────────────────────────── */
+  .loader { display: inline-block; width: 16px; height: 16px; }
+  .loader::after {
+    content: ''; display: block; width: 16px; height: 16px;
+    border-radius: 50%; border: 2px solid var(--bg3);
+    border-top-color: var(--accent); animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Phase pipeline ──────────────────────────────── */
+  .phase-row {
+    display: flex; align-items: center; gap: 0;
+    background: var(--bg3); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 16px; overflow-x: auto;
+  }
+  .phase-step {
+    text-align: center; flex: 1; min-width: 70px;
+    font-size: 11px; color: var(--muted); position: relative;
+  }
+  .phase-step::after {
+    content: '→'; position: absolute; right: -6px; top: 50%;
+    transform: translateY(-50%); color: var(--border);
+  }
+  .phase-step:last-child::after { display: none; }
+  .phase-step .ps-icon { font-size: 18px; margin-bottom: 4px; }
+  .phase-step .ps-label { font-size: 10px; }
+  .phase-step.done .ps-icon { filter: none; }
+  .phase-step.done .ps-label { color: var(--accent); }
+
+  /* ── Explanation box ──────────────────────────────── */
+  .explain-item {
+    background: var(--bg3); border-radius: 8px; padding: 12px 14px;
+    margin-bottom: 8px; border-left: 3px solid var(--accent2);
+  }
+  .explain-item.top1 { border-color: var(--warn); }
+  .ei-feat { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono',monospace; }
+  .ei-text { font-size: 13px; margin-top: 4px; line-height: 1.5; }
+
+  /* ── Scrollbar ───────────────────────────────────── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛡️</div>
+    <div>
+      <div class="logo-text">RXT-J+ FraudShield</div>
+      <div class="logo-sub">Phase 2 — Behavioral & Contextual Fusion</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="api-url" id="api-url-display">localhost:8000</div>
+    <div class="status-dot" id="status-dot" style="background:#64748b;box-shadow:none"></div>
+    <span class="badge" id="status-badge">CONNECTING</span>
+  </div>
+</header>
+
+<!-- Metrics strip -->
+<div class="container">
+  <div class="metric-strip">
+    <div class="metric-card">
+      <div class="metric-label">Phase 1 AUC</div>
+      <div class="metric-value green">0.962</div>
+      <div class="metric-sub">Attention RXT-J+</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Phase 2 AUC</div>
+      <div class="metric-value blue">0.741</div>
+      <div class="metric-sub">FusionNet v3 (13-feat)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">MCC Score</div>
+      <div class="metric-value green">0.843</div>
+      <div class="metric-sub">Phase 1 (Jaya opt.)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Throughput</div>
+      <div class="metric-value blue">51K</div>
+      <div class="metric-sub">transactions / sec</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Latency</div>
+      <div class="metric-value green">&lt;1<span style="font-size:14px">ms</span></div>
+      <div class="metric-sub">median inference</div>
+    </div>
+  </div>
+
+  <!-- Architecture pipeline -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-head">
+      <span class="card-title">Two-Stage Detection Pipeline</span>
+      <span class="badge">FusionNet v3 · 13 contextual features</span>
+    </div>
+    <div class="card-body" style="padding:16px 18px">
+      <div class="arch-diagram">
+        <div class="arch-node active">
+          <div class="an-top">INPUT</div>
+          <div class="an-main">224 feats</div>
+          <div class="an-sub">raw transaction</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node active">
+          <div class="an-top">PREPROCESSING</div>
+          <div class="an-main">Imputer+Scaler</div>
+          <div class="an-sub">NaN fill · z-norm</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node active">
+          <div class="an-top">PHASE 1</div>
+          <div class="an-main">Attention RXT-J+</div>
+          <div class="an-sub">ResNeXt+GRU·50d</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node active">
+          <div class="an-top">AE DRIFT</div>
+          <div class="an-main">Autoencoder</div>
+          <div class="an-sub">reconstruction error</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node active" style="border-color:var(--accent2)">
+          <div class="an-top">PROFILE</div>
+          <div class="an-main">ProfileStore</div>
+          <div class="an-sub">SQLite · EMA</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node active" style="border-color:var(--accent2)">
+          <div class="an-top">PHASE 2</div>
+          <div class="an-main">FusionNet v3</div>
+          <div class="an-sub">13→128→64→32→1</div>
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node active" style="border-color:var(--warn)">
+          <div class="an-top">OUTPUT</div>
+          <div class="an-main">Decision</div>
+          <div class="an-sub">LOW·ELEVATED·HIGH</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <!-- Left: Input panel -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Score Transaction</span>
+        </div>
+        <div class="card-body">
+          <!-- Scenario buttons -->
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.4px">DEMO SCENARIOS</div>
+          <div class="scenario-grid">
+            <button class="scenario-btn active" id="s-fraud" onclick="loadScenario('fraud')">
+              <div class="sicon">🚨</div>
+              <div class="sname">High-Risk Fraud</div>
+              <div class="sdesc">Card skimming, new device, high amount</div>
+            </button>
+            <button class="scenario-btn" id="s-legit" onclick="loadScenario('legit')">
+              <div class="sicon">✅</div>
+              <div class="sname">Legitimate Txn</div>
+              <div class="sdesc">Known merchant, usual hour, typical amount</div>
+            </button>
+            <button class="scenario-btn" id="s-compromise" onclick="loadScenario('compromise')">
+              <div class="sicon">⚠️</div>
+              <div class="sname">Account Takeover</div>
+              <div class="sdesc">High behavioral drift, geo anomaly</div>
+            </button>
+            <button class="scenario-btn" id="s-edge" onclick="loadScenario('edge')">
+              <div class="sicon">🔍</div>
+              <div class="sname">Edge Case</div>
+              <div class="sdesc">Borderline — monitor zone</div>
+            </button>
+          </div>
+
+          <!-- Fields -->
+          <div class="field-2col">
+            <div class="field-row">
+              <label>TRANSACTION ID</label>
+              <input type="text" id="f-txnid" value="TXN_DEMO_001">
+            </div>
+            <div class="field-row">
+              <label>ACCOUNT ID</label>
+              <input type="text" id="f-accid" value="ACC_42">
+            </div>
+          </div>
+          <div class="field-2col">
+            <div class="field-row">
+              <label>AMOUNT ($)</label>
+              <input type="number" id="f-amount" value="289.99" step="0.01">
+            </div>
+            <div class="field-row">
+              <label>HOUR (0–23)</label>
+              <input type="number" id="f-hour" value="14" min="0" max="23">
+            </div>
+          </div>
+          <div class="field-2col">
+            <div class="field-row">
+              <label>MERCHANT CATEGORY</label>
+              <select id="f-pcd">
+                <option value="W">W — Electronics/Web</option>
+                <option value="C">C — Cash (highest risk)</option>
+                <option value="H">H — Hotel</option>
+                <option value="R">R — Restaurant</option>
+                <option value="S">S — Services</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label>DEVICE</label>
+              <input type="text" id="f-device" value="MacOS">
+            </div>
+          </div>
+          <div class="field-row">
+            <label>BILLING ADDR (numeric region code)</label>
+            <input type="text" id="f-addr" value="299">
+          </div>
+          <div class="field-row">
+            <label>API ENDPOINT</label>
+            <select id="f-endpoint" onchange="updateEndpointNote()">
+              <option value="score/direct">Phase 1 only — /score/direct (fast)</option>
+              <option value="account/compromise-score" selected>Phase 2 full — /account/compromise-score</option>
+            </select>
+          </div>
+          <div id="endpoint-note" style="font-size:11px;color:var(--muted);margin:-6px 0 12px;padding:6px 10px;background:var(--bg3);border-radius:6px">
+            Phase 2: Behavioral profiling + FusionNet v3 compromise score + explainability
+          </div>
+          <button class="score-btn" id="score-btn" onclick="runScore()">
+            ⚡ Run Inference
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Results panel -->
+    <div>
+      <!-- Verdict -->
+      <div id="verdict-box" class="verdict-box low">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div class="verdict-title" id="vd-title">—</div>
+            <div id="vd-action" class="verdict-action">—</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--muted)">COMPROMISE PROB</div>
+            <div id="vd-prob" style="font-size:32px;font-weight:700;font-family:'JetBrains Mono',monospace">—</div>
+          </div>
+        </div>
+        <div style="margin-top:14px">
+          <div class="prob-row">
+            <span class="prob-label">P1 Risk Score</span>
+            <div class="prob-bar-wrap"><div class="prob-bar" id="bar-p1" style="width:0%;background:var(--accent2)"></div></div>
+            <span class="prob-val" id="val-p1">—</span>
+          </div>
+          <div class="prob-row">
+            <span class="prob-label">Behavioral Drift</span>
+            <div class="prob-bar-wrap"><div class="prob-bar" id="bar-drift" style="width:0%;background:var(--warn)"></div></div>
+            <span class="prob-val" id="val-drift">—</span>
+          </div>
+          <div class="prob-row">
+            <span class="prob-label">Compromise Score</span>
+            <div class="prob-bar-wrap"><div class="prob-bar" id="bar-comp" style="width:0%;background:var(--danger)"></div></div>
+            <span class="prob-val" id="val-comp">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs: Features / Attention / Explain / Live Feed -->
+      <div class="card">
+        <div class="tab-row">
+          <button class="tab active" onclick="showTab('features')">Contextual Features</button>
+          <button class="tab" onclick="showTab('attention')">Attention Weights</button>
+          <button class="tab" onclick="showTab('explain')">Explanation</button>
+          <button class="tab" onclick="showTab('feed')">Live Feed</button>
+        </div>
+        <div class="card-body" style="padding-top:14px">
+
+          <!-- Features -->
+          <div class="tab-content active" id="tc-features">
+            <div class="feat-grid" id="feat-grid">
+              <div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:24px">
+                Run a score to see contextual features
+              </div>
+            </div>
+          </div>
+
+          <!-- Attention weights -->
+          <div class="tab-content" id="tc-attention">
+            <div id="attn-grid">
+              <div style="color:var(--muted);font-size:13px;text-align:center;padding:24px">
+                Run a Phase 2 score to see learned attention weights
+              </div>
+            </div>
+          </div>
+
+          <!-- Explanation -->
+          <div class="tab-content" id="tc-explain">
+            <div id="explain-panel">
+              <div style="color:var(--muted);font-size:13px;text-align:center;padding:24px">
+                Run a Phase 2 score to see feature explanations
+              </div>
+            </div>
+          </div>
+
+          <!-- Live feed -->
+          <div class="tab-content" id="tc-feed">
+            <div class="ticker-feed" id="feed-list">
+              <div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">
+                Scored transactions appear here
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8000';
+let feedItems = [];
+
+// ── Pre-built 50-dim EARN+ demo vectors ────────────────────────────────────
+// These will be loaded from /demo-samples on startup
+let DEMO_VECTORS = {};
+
+async function loadDemoSamples() {
+  try {
+    const r = await fetch(API_BASE + '/demo-samples');
+    if (r.ok) DEMO_VECTORS = await r.json();
+  } catch(e) {}
+}
+
+// ── Server health check ────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(API_BASE + '/health', {signal: AbortSignal.timeout(2500)});
+    if (r.ok) {
+      document.getElementById('status-dot').style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite';
+      document.getElementById('status-badge').textContent = 'LIVE';
+      return true;
+    }
+  } catch(e) {}
+  document.getElementById('status-dot').style.cssText = 'width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 8px var(--danger)';
+  document.getElementById('status-badge').textContent = 'OFFLINE';
+  return false;
+}
+
+// ── Scenario presets ──────────────────────────────────────────────────────
+const SCENARIOS = {
+  fraud: {
+    txnid: 'TXN_FRAUD_001', accid: 'ACC_9999', amount: 2499.99,
+    hour: 3, pcd: 'C', device: 'Unknown_Android_9', addr: '99',
+    vecKey: 'fraud_1'
+  },
+  legit: {
+    txnid: 'TXN_LEGIT_001', accid: 'ACC_1001', amount: 47.50,
+    hour: 14, pcd: 'W', device: 'MacOS', addr: '299',
+    vecKey: 'legit_1'
+  },
+  compromise: {
+    txnid: 'TXN_COMP_001', accid: 'ACC_500', amount: 899.00,
+    hour: 2, pcd: 'C', device: 'Trident/7.0', addr: '450',
+    vecKey: 'fraud_2'
+  },
+  edge: {
+    txnid: 'TXN_EDGE_001', accid: 'ACC_77', amount: 125.00,
+    hour: 19, pcd: 'R', device: 'iOS Device', addr: '299',
+    vecKey: 'edge_1'
+  }
+};
+
+let activeScenario = 'fraud';
+function loadScenario(s) {
+  activeScenario = s;
+  const sc = SCENARIOS[s];
+  document.getElementById('f-txnid').value = sc.txnid;
+  document.getElementById('f-accid').value = sc.accid;
+  document.getElementById('f-amount').value = sc.amount;
+  document.getElementById('f-hour').value = sc.hour;
+  document.getElementById('f-pcd').value = sc.pcd;
+  document.getElementById('f-device').value = sc.device;
+  document.getElementById('f-addr').value = sc.addr;
+  ['fraud','legit','compromise','edge'].forEach(k =>
+    document.getElementById('s-'+k).classList.toggle('active', k===s)
+  );
+}
+
+function updateEndpointNote() {
+  const ep = document.getElementById('f-endpoint').value;
+  const note = document.getElementById('endpoint-note');
+  if (ep === 'score/direct') {
+    note.textContent = 'Phase 1 only: Fast transaction-level risk score (no profile lookup).';
+  } else {
+    note.textContent = 'Phase 2: Behavioral profiling + FusionNet v3 compromise score + explainability';
+  }
+}
+
+// ── Tab switcher ──────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['features','attention','explain','feed'];
+    t.classList.toggle('active', names[i]===name);
+  });
+  document.querySelectorAll('.tab-content').forEach(tc => {
+    tc.classList.toggle('active', tc.id === 'tc-'+name);
+  });
+}
+
+// ── Main scorer ───────────────────────────────────────────────────────────
+async function runScore() {
+  const btn = document.getElementById('score-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loader"></span> Scoring…';
+
+  const ep     = document.getElementById('f-endpoint').value;
+  const txnid  = document.getElementById('f-txnid').value.trim() || 'TXN_001';
+  const accid  = document.getElementById('f-accid').value.trim() || 'ACC_001';
+  const amount = parseFloat(document.getElementById('f-amount').value) || 0;
+  const hour   = parseInt(document.getElementById('f-hour').value) || 0;
+  const pcd    = document.getElementById('f-pcd').value;
+  const device = document.getElementById('f-device').value.trim();
+  const addr   = document.getElementById('f-addr').value.trim();
+
+  // Get feature vector for this scenario
+  const sc = SCENARIOS[activeScenario];
+  const features = DEMO_VECTORS[sc.vecKey] || Array(50).fill(0);
+
+  let url  = API_BASE + '/' + ep;
+  let body = {};
+
+  if (ep === 'score/direct') {
+    body = { transaction_id: txnid, features };
+  } else {
+    body = {
+      account_id:  accid,
+      transaction_id: txnid,
+      features,
+      amount,
+      hour,
+      product_cd:  pcd,
+      device_info: device || null,
+      addr1:       addr || null,
+      timestamp:   Date.now() / 1000
+    };
+  }
+
+  try {
+    const r    = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      toast(`Error: ${data.detail || r.statusText}`, true);
+      return;
+    }
+
+    renderResult(data, ep);
+    addFeedItem(data, ep);
+
+  } catch(e) {
+    toast(`Connection failed: ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Run Inference';
+  }
+}
+
+// ── Render result ─────────────────────────────────────────────────────────
+function renderResult(data, ep) {
+  const box    = document.getElementById('verdict-box');
+  const p2     = ep.includes('compromise');
+
+  if (p2) {
+    // Phase 2 path
+    const cp    = data.compromise_probability ?? 0;
+    const dec   = (data.decision || 'LOW').toUpperCase();
+    const p1r   = data.p1_risk_score ?? 0;
+    const drift = data.behavioral_drift_score ?? 0;
+    const action= data.recommended_action || '';
+    const ctxf  = data.contextual_features || {};
+    const expl  = data.explainability || {};
+    const topF  = data.top_trigger_feature || '';
+
+    // Verdict box
+    box.className = 'verdict-box ' + dec.toLowerCase();
+    box.style.display = 'block';
+
+    const icons = {HIGH:'🚨',ELEVATED:'⚠️',LOW:'✅'};
+    document.getElementById('vd-title').innerHTML =
+      `${icons[dec]||''} ${dec} RISK — ${data.transaction_id}`;
+    document.getElementById('vd-action').textContent = '→ ' + action;
+    document.getElementById('vd-prob').textContent = (cp*100).toFixed(1)+'%';
+
+    setProbBar('p1', p1r);
+    setProbBar('drift', drift);
+    setProbBar('comp', cp);
+
+    // Feature grid
+    renderFeatureGrid(ctxf);
+    // Attention weights
+    renderAttention(expl, topF);
+    // Explanation
+    renderExplanation(data);
+
+  } else {
+    // Phase 1 only
+    const rs   = data.risk_score ?? 0;
+    const dec  = (data.decision || 'LEGIT').toUpperCase();
+
+    box.className = 'verdict-box ' + (dec==='FRAUD'?'high':'low');
+    box.style.display = 'block';
+
+    document.getElementById('vd-title').innerHTML =
+      `${dec==='FRAUD'?'🚨':'✅'} ${dec} — ${data.transaction_id}`;
+    document.getElementById('vd-action').textContent =
+      `→ Confidence: ${(data.confidence*100).toFixed(1)}%  |  Latency: ${data.latency_ms?.toFixed(2)}ms`;
+    document.getElementById('vd-prob').textContent = (rs*100).toFixed(1)+'%';
+
+    setProbBar('p1', rs);
+    setProbBar('drift', 0);
+    setProbBar('comp', 0);
+
+    // Clear phase 2 panels
+    document.getElementById('feat-grid').innerHTML =
+      '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:24px">Use Phase 2 endpoint to see contextual features</div>';
+    document.getElementById('attn-grid').innerHTML =
+      '<div style="color:var(--muted);font-size:13px;text-align:center;padding:24px">Use Phase 2 endpoint for attention weights</div>';
+  }
+}
+
+function setProbBar(id, val) {
+  const pct = Math.round(Math.min(Math.max(val,0),1)*100);
+  document.getElementById('bar-'+id).style.width = pct+'%';
+  document.getElementById('val-'+id).textContent = (val).toFixed(3);
+}
+
+function renderFeatureGrid(ctx) {
+  const FEAT_META = {
+    amount_z_score:        {label:'Amount Z-Score',  range:[-5,5],   center:true},
+    merchant_novelty:      {label:'Merchant Novelty', range:[0,1]},
+    geo_displacement:      {label:'Geo Displacement', range:[0,1]},
+    hour_deviation:        {label:'Hour Deviation',   range:[0,1]},
+    device_novelty:        {label:'Device Novelty',   range:[0,1]},
+    velocity_ratio:        {label:'Velocity Ratio',   range:[0,10]},
+    behavioral_drift:      {label:'Behavioral Drift', range:[0,1]},
+    p1_risk_score:         {label:'P1 Risk Score',    range:[0,1]},
+    amount_percentile:     {label:'Amount Percentile',range:[0,1]},
+    time_gap_norm:         {label:'Time Gap',         range:[0,1]},
+    merchant_fraud_rate:   {label:'Merchant FR',      range:[0,1]},
+    cross_device_accounts: {label:'Cross-Device',     range:[0,1]},
+    account_age_score:     {label:'Account Age',      range:[0,1]},
+  };
+
+  const grid = document.getElementById('feat-grid');
+  grid.innerHTML = '';
+
+  Object.entries(ctx).forEach(([k,v]) => {
+    const m = FEAT_META[k] || {label:k, range:[0,1]};
+    const [lo,hi] = m.range;
+    const pct = Math.round(Math.min(Math.max((v-lo)/(hi-lo),0),1)*100);
+    const fv  = parseFloat(v);
+    const isHigh = pct > 65;
+
+    const el = document.createElement('div');
+    el.className = 'feat-item';
+    el.innerHTML = `
+      <div class="feat-name">${m.label}</div>
+      <div class="feat-val" style="color:${isHigh?'var(--warn)':'var(--text)'}">${fv.toFixed(3)}</div>
+      <div class="feat-bar-wrap"><div class="feat-bar" style="width:${pct}%;background:${isHigh?'var(--warn)':'var(--accent)'}"></div></div>`;
+    grid.appendChild(el);
+  });
+}
+
+function renderAttention(expl, topF) {
+  const grid = document.getElementById('attn-grid');
+  if (!expl || Object.keys(expl).length === 0) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:24px">No attention data</div>';
+    return;
+  }
+  const sorted = Object.entries(expl).sort((a,b)=>b[1]-a[1]);
+  const maxVal = sorted[0][1];
+
+  grid.innerHTML = sorted.map(([k,v]) => {
+    const pct = Math.round((v/maxVal)*100);
+    const isTop = k===topF;
+    return `<div class="attn-row ${isTop?'attn-top':''}">
+      <span class="attn-name">${k}${isTop?' ⭐':''}</span>
+      <div class="attn-bar-wrap"><div class="attn-bar" style="width:${pct}%"></div></div>
+      <span class="attn-val">${v.toFixed(4)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderExplanation(data) {
+  const panel = document.getElementById('explain-panel');
+  if (!data.contextual_features) {
+    panel.innerHTML = '<div style="color:var(--muted);text-align:center;padding:24px">No Phase 2 data</div>';
+    return;
+  }
+
+  const cp  = data.compromise_probability;
+  const dec = data.decision;
+  const topF= data.top_trigger_feature;
+  const ctx = data.contextual_features;
+
+  const INTERPRET = {
+    amount_z_score:        v => `Amount deviated ${Math.abs(v).toFixed(1)}σ from account average (z=${v.toFixed(2)})`,
+    merchant_novelty:      v => v>0.9?'Merchant category NEVER seen before':'Merchant rarely seen before',
+    geo_displacement:      v => v>0.5?'Location far from typical billing region':'Slight geographic deviation',
+    hour_deviation:        v => v>0.6?'Transaction at unusual hour for this account':'Slightly off-hours for account',
+    device_novelty:        v => v>0.9?'NEW device — never seen on this account':'Unfamiliar device fingerprint',
+    velocity_ratio:        v => `Transaction rate ${v.toFixed(1)}× above typical for time window`,
+    behavioral_drift:      v => v>0.6?`HIGH behavioral drift (${(v*100).toFixed(0)}%)  — pattern doesn't match account history`:`Moderate behavioral drift (${(v*100).toFixed(0)}%)`,
+    p1_risk_score:         v => `Phase 1 per-transaction risk: ${(v*100).toFixed(1)}%`,
+    amount_percentile:     v => `Amount in ${v>0.8?'top 20%':v>0.6?'upper range':'normal range'} for this account`,
+    time_gap_norm:         v => v>0.7?'Unusually long gap since last transaction':'Normal inter-transaction gap',
+    merchant_fraud_rate:   v => `Merchant category baseline fraud rate: ${(v*100).toFixed(1)}% (normalised)`,
+    cross_device_accounts: v => `Cross-device diversity: ${(v*100).toFixed(0)}% of transaction count`,
+    account_age_score:     v => v>0.7?'Mature account (established profile)':'Relatively new account'
+  };
+
+  // Top 3 by absolute value
+  const sorted = Object.entries(ctx).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,3);
+
+  let html = `<div style="margin-bottom:14px;padding:10px 14px;background:var(--bg3);border-radius:8px;font-size:13px">
+    <strong>${dec}</strong> risk — Compromise probability: <strong>${(cp*100).toFixed(1)}%</strong><br>
+    <span style="color:var(--muted);font-size:12px">Top driver: <code style="color:var(--warn)">${topF}</code></span>
+  </div>`;
+
+  sorted.forEach(([k,v],i) => {
+    const txt = INTERPRET[k] ? INTERPRET[k](parseFloat(v)) : `${k} = ${v}`;
+    html += `<div class="explain-item ${i===0?'top1':''}">
+      <div class="ei-feat">${k} = ${parseFloat(v).toFixed(4)}</div>
+      <div class="ei-text">${txt}</div>
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+}
+
+// ── Live feed ─────────────────────────────────────────────────────────────
+function addFeedItem(data, ep) {
+  const ts  = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const id  = data.transaction_id || data.account_id || '—';
+  let dec, score;
+
+  if (ep.includes('compromise')) {
+    dec   = (data.decision||'?').toUpperCase();
+    score = data.compromise_probability ?? 0;
+  } else {
+    dec   = data.decision || '?';
+    score = data.risk_score ?? 0;
+  }
+
+  const cls = dec==='HIGH'?'high': dec==='ELEVATED'?'elev': dec==='FRAUD'?'fraud': dec==='LEGIT'?'legit':'low';
+  feedItems.unshift({ts,id,dec,score,cls});
+  if(feedItems.length>50) feedItems.pop();
+
+  const feed = document.getElementById('feed-list');
+  feed.innerHTML = feedItems.map(fi=>`
+    <div class="ticker-item">
+      <span class="t-ts">${fi.ts}</span>
+      <span class="t-id">${fi.id.slice(0,10)}</span>
+      <span class="t-dec ${fi.cls}">${fi.dec}</span>
+      <span class="t-score">${(fi.score*100).toFixed(1)}%</span>
+    </div>`).join('');
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, err=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = err ? 'var(--danger)' : 'var(--accent)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 3500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
+  loadScenario('fraud');
+  await loadDemoSamples();
+  const alive = await checkHealth();
+  if (!alive) {
+    toast('⚠️  API offline — start uvicorn first: python -m uvicorn app:app --reload --port 8000', true);
+  } else {
+    toast('✅ RXT-J+ API connected');
+  }
+  setInterval(checkHealth, 10000);
+}
+init();
+</script>
+</body>
+</html>
