@@ -449,7 +449,8 @@
             <label>API ENDPOINT</label>
             <select id="f-endpoint" onchange="updateEndpointNote()">
               <option value="score/direct">Phase 1 only — /score/direct (fast)</option>
-              <option value="account/compromise-score" selected>Phase 2 full — /account/compromise-score</option>
+              <option value="score/form-full" selected>Phase 2 live form — /score/form-full ✦</option>
+              <option value="account/compromise-score">Phase 2 vector — /account/compromise-score</option>
             </select>
           </div>
           <div id="endpoint-note" style="font-size:11px;color:var(--muted);margin:-6px 0 12px;padding:6px 10px;background:var(--bg3);border-radius:6px">
@@ -625,8 +626,10 @@ function updateEndpointNote() {
   const note = document.getElementById('endpoint-note');
   if (ep === 'score/direct') {
     note.textContent = 'Phase 1 only: Fast transaction-level risk score (no profile lookup).';
+  } else if (ep === 'score/form-full') {
+    note.textContent = 'Phase 2 live: Every form field drives the model directly — no fixed vector. Change amount, device, or hour to see live model reactions.';
   } else {
-    note.textContent = 'Phase 2: Behavioral profiling + FusionNet v3 compromise score + explainability';
+    note.textContent = 'Phase 2: Behavioral profiling + FusionNet v3 compromise score + explainability (uses pre-saved feature vector).';
   }
 }
 
@@ -665,7 +668,22 @@ async function runScore() {
 
   if (ep === 'score/direct') {
     body = { transaction_id: txnid, features };
+  } else if (ep === 'score/form-full') {
+    // Live form inference: no feature vector — the model synthesises one from inputs
+    body = {
+      account_id:     accid,
+      transaction_id: txnid,
+      amount,
+      hour,
+      product_cd:     pcd,
+      is_foreign:     false,
+      customer_age:   30,
+      device_info:    device || null,
+      addr1:          addr || null,
+      timestamp:      Date.now() / 1000
+    };
   } else {
+    // /account/compromise-score — uses pre-saved 50-dim feature vector
     body = {
       account_id:  accid,
       transaction_id: txnid,
@@ -694,6 +712,9 @@ async function runScore() {
 
     renderResult(data, ep);
     addFeedItem(data, ep);
+    if (ep === 'score/form-full') {
+      toast(`Live inference ✓ — P1: ${((data.p1_risk_score??0)*100).toFixed(1)}% · Compromise: ${((data.compromise_probability??0)*100).toFixed(1)}% · ${data.latency_ms?.toFixed(1)}ms`);
+    }
 
   } catch(e) {
     toast(`Connection failed: ${e.message}`, true);
@@ -706,7 +727,7 @@ async function runScore() {
 // ── Render result ─────────────────────────────────────────────────────────
 function renderResult(data, ep) {
   const box    = document.getElementById('verdict-box');
-  const p2     = ep.includes('compromise');
+  const p2     = ep.includes('compromise') || ep.includes('form-full');
 
   if (p2) {
     // Phase 2 path
@@ -882,7 +903,7 @@ function addFeedItem(data, ep) {
   const id  = data.transaction_id || data.account_id || '—';
   let dec, score;
 
-  if (ep.includes('compromise')) {
+  if (ep.includes('compromise') || ep.includes('form-full')) {
     dec   = (data.decision||'?').toUpperCase();
     score = data.compromise_probability ?? 0;
   } else {

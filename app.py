@@ -111,6 +111,37 @@ class AutoencoderNet(nn.Module):
         return self.decoder(z), z
 
 
+class ResBlock(nn.Module):
+    """Residual block used by FraudResNet (must match resnet_extractor.pt weights)."""
+    def __init__(self, in_dim, out_dim):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Linear(in_dim, out_dim), nn.BatchNorm1d(out_dim), nn.ReLU(),
+            nn.Linear(out_dim, out_dim), nn.BatchNorm1d(out_dim)
+        )
+        self.shortcut = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
+        self.relu = nn.ReLU()
+    def forward(self, x):
+        return self.relu(self.block(x) + self.shortcut(x))
+
+class FraudResNet(nn.Module):
+    """Feature extractor trained in notebook 03 (resnet_extractor.pt).
+    .features() returns a 64-dim representation from 224-dim scaled input.
+    """
+    def __init__(self, input_dim, out_dim=64):
+        super().__init__()
+        self.stem   = nn.Linear(input_dim, 128)
+        self.blocks = nn.Sequential(
+            ResBlock(128, 128), ResBlock(128, 64),
+            ResBlock(64,  64),  ResBlock(64, out_dim)
+        )
+        self.head = nn.Linear(out_dim, 2)
+    def features(self, x):
+        return self.blocks(torch.relu(self.stem(x)))
+    def forward(self, x):
+        return self.head(self.features(x))
+
+
 # ── FusionNet v3 — architecture MUST match fusion_net.pt ─────────────────────
 # Trained weights layout (verified from state_dict):
 #   feature_attn : [13]
@@ -171,6 +202,14 @@ def load_models():
     autoencoder.load_state_dict(ae_state)
     autoencoder.eval()
 
+    # ResNet feature extractor — needed for raw→EARN+ pipeline (224→64 features).
+    # Concatenated with AE latents (64) to form the 128-dim Nystroem input.
+    rn_input_dim = ae_input_dim   # same 224-dim scaled input
+    resnet_ext   = FraudResNet(rn_input_dim).to(DEVICE)
+    rn_state     = torch.load(os.path.join(BASE, 'models/resnet_extractor.pt'), map_location=DEVICE)
+    resnet_ext.load_state_dict(rn_state)
+    resnet_ext.eval()
+
     # Phase 2: FusionNet v3 + scaler
     fusion_config_data = json.load(open(os.path.join(BASE, 'results/fusion_config.json')))
     fusion_scaler_obj  = joblib.load(os.path.join(BASE, 'models/fusion_scaler.pkl'))
@@ -182,13 +221,13 @@ def load_models():
     fusion_model_obj.load_state_dict(fusion_state)   # will raise if arch wrong
     fusion_model_obj.eval()
 
-    return (model, imputer, scaler, nystroem, ipca, ifm, autoencoder, config,
+    return (model, imputer, scaler, nystroem, ipca, ifm, autoencoder, resnet_ext, config,
             fusion_model_obj, fusion_scaler_obj, fusion_config_data)
 
 
 print("Loading RXT-J+ models...")
 (model, imputer, scaler, nystroem, ipca, ifm,
- autoencoder, config,
+ autoencoder, resnet_ext, config,
  fusion_model, fusion_scaler, fusion_config) = load_models()
 
 RAW_DIM   = raw_feature_dim(imputer)
@@ -205,6 +244,8 @@ MERCHANT_FRAUD_RATES = json.load(open(os.path.join(BASE, 'data/merchant_fraud_ra
 
 print(f"Models loaded. W_MODEL={W_MODEL:.4f}, W_IFM={W_IFM:.4f}, Threshold={THRESHOLD:.2f}")
 print(f"Autoencoder loaded (input_dim={autoencoder.encoder[0].in_features}).")
+print(f"ResNet extractor loaded (input_dim={resnet_ext.stem.in_features}, output_dim=64).")
+print(f"EARN+ pipeline: {autoencoder.encoder[0].in_features}→AE(64)+RN(64)→concat(128)→Nystroem→IPCA({ipca.n_components_}).")
 print(f"FusionNet v3 loaded (input_dim={fusion_config['input_dim']}). "
       f"High={HIGH_THRESHOLD}, Elevated={ELEVATED_THRESHOLD}")
 print(f"Feature names ({len(FEATURE_NAMES)}): {FEATURE_NAMES}")
@@ -324,6 +365,24 @@ class ExplainRequest(BaseModel):
     account_id:     str
     transaction_id: str
 
+class FullFormRequest(BaseModel):
+    """Human-readable inputs for /score/form-full.
+
+    No pre-computed feature vector needed — the endpoint synthesises one
+    from the form fields using the training-time imputer column means, so
+    every field change produces a genuinely different model output.
+    """
+    account_id:     str             = Field(...,  example="ACC_42")
+    transaction_id: str             = Field(...,  example="TXN_001")
+    amount:         float           = Field(...,  example=289.99, description="Transaction amount in USD")
+    hour:           int             = Field(14,   ge=0, le=23,    description="Hour of day (0-23, local)")
+    product_cd:     str             = Field("W",  example="W",    description="Product code: W C H R S")
+    is_foreign:     bool            = Field(False,                description="True if card-not-present / international")
+    customer_age:   Optional[int]   = Field(30,   ge=0, le=120,   description="Cardholder age (used to fill raw features)")
+    device_info:    Optional[str]   = Field(None, example="MacOS")
+    addr1:          Optional[str]   = Field(None, example="299",  description="Billing postal/zip code")
+    timestamp:      Optional[float] = Field(None,                 description="Unix timestamp (defaults to now)")
+
 # ── Core Scorers & Helpers ────────────────────────────────────────────────────
 
 def score_earn_features(Z_earn: np.ndarray):
@@ -343,11 +402,43 @@ def score_earn_features(Z_earn: np.ndarray):
     conf  = np.where(preds == 1, risk, 1 - risk)
     return risk, preds, conf
 
+
+def extract_earn_features(X_clean: np.ndarray) -> np.ndarray:
+    """Convert a 224-dim imputed+scaled feature matrix into 50-dim EARN+ space.
+
+    Full pipeline (matches notebook 03 training exactly):
+      1. AE encoder:    X_clean (224) → latent z (64)
+      2. ResNet extractor: X_clean (224) → features (64)
+      3. Concatenate:   [z | features] → (128)
+      4. Nystroem RBF:  (128) → (300)
+      5. IncrementalPCA:(300) → (50)  ← this is EARN+ / Z_earn
+
+    Args:
+        X_clean: float32 array of shape (n, 224) — imputer+scaler output.
+    Returns:
+        Z_earn: float32 array of shape (n, 50).
+    """
+    X_t = torch.FloatTensor(X_clean).to(DEVICE)
+    with torch.no_grad():
+        # AE latent (64-dim)
+        _, z_ae = autoencoder(X_t)
+        z_ae = z_ae.cpu().numpy()                    # (n, 64)
+        # ResNet features (64-dim)
+        z_rn = resnet_ext.features(X_t).cpu().numpy()  # (n, 64)
+
+    Z_concat = np.concatenate([z_ae, z_rn], axis=1).astype(np.float32)  # (n, 128)
+    Z_nys    = nystroem.transform(Z_concat)                               # (n, 300)
+    Z_earn   = ipca.transform(Z_nys).astype(np.float32)                  # (n, 50)
+    return Z_earn
+
+
 def score_raw_features(features_np: np.ndarray):
-    """Score raw features — applies the *training-time* imputer + scaler."""
-    X_clean = transform_raw(features_np, imputer, scaler)
-    Z_nys   = nystroem.transform(X_clean)
-    Z_earn  = ipca.transform(Z_nys)
+    """Score raw 224-dim features through the full EARN+ pipeline.
+
+    Pipeline: imputer+scaler → AE encoder+ResNet → concat 128 → Nystroem → IPCA → model+IFM
+    """
+    X_clean = transform_raw(features_np, imputer, scaler)   # (n, 224)
+    Z_earn  = extract_earn_features(X_clean)                 # (n, 50)
     return score_earn_features(Z_earn)
 
 
@@ -691,6 +782,144 @@ def score_batch(req: BatchRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/score/form-full")
+def score_form_full(req: FullFormRequest):
+    """Phase 1 + Phase 2 scoring from plain human-readable form inputs.
+
+    No pre-computed feature vector required.  The endpoint:
+      1. Builds a padded raw (224-dim) feature vector from the form fields
+         using pad_form_features() — missing columns filled with imputer means.
+      2. Runs the full Phase 1 pipeline (imputer -> scaler -> Nystroem -> IPCA
+         -> ResNeXt + Self-Attention GRU + IFM ensemble) to produce p1_risk_score.
+      3. Uses transform_raw() output as the autoencoder input for behavioral drift.
+      4. Computes all 13 contextual features using the live form fields + the
+         account behavioral profile from ProfileStore.
+      5. Runs FusionNet v3 to produce compromise probability + explainability.
+      6. Persists the event to the transaction log and updates the account profile.
+
+    Result: every change to amount / hour / device / addr produces a different
+    Phase 1 score AND different contextual feature values — fully live model
+    inference with no pre-saved vectors.
+    """
+    t0 = time.time()
+    try:
+        # Step 1: synthesise 224-dim raw feature vector from form fields.
+        # col 0 -> TransactionAmt (strongest single predictor)
+        # col 1 -> is_foreign flag (card-not-present proxy)
+        # col 2 -> customer age
+        # Every other column is NaN -> imputer fills with training-set mean.
+        partial = [
+            float(req.amount),
+            1.0 if req.is_foreign else 0.0,
+            float(req.customer_age or 30),
+        ]
+        raw_vec = pad_form_features(partial, RAW_DIM).reshape(1, -1)
+
+        # Step 2: Phase 1 scoring
+        # score_raw_features applies imputer -> scaler -> Nystroem -> IPCA -> model
+        risk, preds, conf = score_raw_features(raw_vec)
+        p1_risk = float(risk[0])
+        p1_dec  = "FRAUD" if preds[0] == 1 else "LEGIT"
+        p1_conf = float(conf[0])
+
+        # Step 3: X_clean for autoencoder (behavioral drift)
+        # transform_raw gives the imputed + scaled 224-dim vector the AE was trained on.
+        X_clean = transform_raw(raw_vec, imputer, scaler)
+
+        # Step 4: load account behavioral profile
+        profile = profile_store.get_or_empty(str(req.account_id))
+
+        # Step 5: compute all 13 contextual features
+        now_ts = req.timestamp or time.time()
+        txn_meta = {
+            "amount":        req.amount,
+            "hour":          req.hour,
+            "product_cd":    req.product_cd,
+            "device_info":   req.device_info,
+            "addr1":         req.addr1,
+            "p1_risk_score": p1_risk,
+            "timestamp":     now_ts,
+        }
+        ctx_vec, ctx_named = compute_contextual_features(X_clean, profile, txn_meta)
+
+        if ctx_vec.shape != (1, 13):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Feature shape error: {ctx_vec.shape} != (1, 13)"
+            )
+
+        # Step 6: FusionNet v3 inference
+        ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
+        ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
+
+        with torch.no_grad():
+            compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
+        compromise_prob = float(compromise_prob_t.cpu().numpy()[0])
+        attn_weights_np = attn_weights_t.cpu().numpy()
+
+        # Step 7: decision tiers
+        if compromise_prob >= HIGH_THRESHOLD:
+            decision = "HIGH"
+        elif compromise_prob >= ELEVATED_THRESHOLD:
+            decision = "ELEVATED"
+        else:
+            decision = "LOW"
+
+        rec_action = decide_action(compromise_prob, p1_risk)
+
+        # Step 8: explainability
+        explainability = {
+            FEATURE_NAMES[i]: round(float(attn_weights_np[i]), 4)
+            for i in range(len(FEATURE_NAMES))
+        }
+        top_trigger = max(explainability, key=explainability.get)
+
+        # Step 9: persist log + update profile
+        profile_store.log_transaction(
+            account_id      = str(req.account_id),
+            transaction_id  = req.transaction_id,
+            p1_risk_score   = p1_risk,
+            decision        = decision,
+            timestamp       = now_ts,
+            compromise_prob = compromise_prob,
+            top_trigger     = top_trigger,
+            context         = ctx_named,
+        )
+        profile_store.update_profile(str(req.account_id), {
+            "amount":      req.amount,
+            "hour":        req.hour,
+            "product_cd":  req.product_cd,
+            "device_info": req.device_info,
+            "addr1":       req.addr1,
+            "txn_dt":      now_ts,
+        })
+
+        latency_ms = round((time.time() - t0) * 1000, 3)
+
+        return {
+            "account_id":             req.account_id,
+            "transaction_id":         req.transaction_id,
+            "compromise_probability": round(compromise_prob, 4),
+            "decision":               decision,
+            "recommended_action":     rec_action,
+            "p1_risk_score":          round(p1_risk, 4),
+            "p1_decision":            p1_dec,
+            "p1_confidence":          round(p1_conf, 4),
+            "behavioral_drift_score": ctx_named["behavioral_drift"],
+            "contextual_features":    ctx_named,
+            "explainability":         explainability,
+            "top_trigger_feature":    top_trigger,
+            "latency_ms":             latency_ms,
+            "model_version":          "rxtj_plus_v2_form_full",
+            "feature_source":         "synthesised_from_form_inputs",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/account/compromise-score")
 def account_compromise_score(req: CompromiseRequest):
