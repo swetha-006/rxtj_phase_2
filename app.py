@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any, Union, Tuple
 from profile_store import ProfileStore
 import guardian_accounts
+import guardian_orgs
 from cost_router import CostSensitiveRouter, CostDecision
 from ring_detector import FraudRingDetector, FraudRingMetrics
 import numpy as np
@@ -331,6 +332,7 @@ app = FastAPI(
 )
 
 guardian_accounts.init_db()
+guardian_orgs.init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -1146,6 +1148,69 @@ def guardian_put_records(record_type: str, payload: Dict[str, Any], request: Req
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True, "count": len(records)}
+
+
+# ── Stage 2: organization workspaces, team membership and shared investigations ──
+def _org_call(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+@app.get("/api/orgs")
+def guardian_list_orgs(request: Request):
+    return {"organizations": guardian_orgs.list_orgs(_current_user(request))}
+
+@app.post("/api/orgs", status_code=201)
+def guardian_create_org(payload: Dict[str, Any], request: Request):
+    return {"organization": _org_call(guardian_orgs.create_org, _current_user(request), str(payload.get("name", "")))}
+
+@app.get("/api/orgs/{org_id}")
+def guardian_get_org(org_id: str, request: Request):
+    return {"organization": _org_call(guardian_orgs.get_org, _current_user(request), org_id)}
+
+@app.get("/api/orgs/{org_id}/members")
+def guardian_org_members(org_id: str, request: Request):
+    return {"members": _org_call(guardian_orgs.list_members, _current_user(request), org_id)}
+
+@app.post("/api/orgs/{org_id}/invitations", status_code=201)
+def guardian_org_invite(org_id: str, payload: Dict[str, Any], request: Request):
+    result = _org_call(guardian_orgs.invite, _current_user(request), org_id, str(payload.get("email", "")), str(payload.get("role", "viewer")))
+    result["delivery_note"] = "Demo mode: share this one-time token with the invited user. Production deployments must deliver it through verified email."
+    return result
+
+@app.post("/api/invitations/accept")
+def guardian_accept_invitation(payload: Dict[str, Any], request: Request):
+    return {"organization": _org_call(guardian_orgs.accept_invitation, _current_user(request), str(payload.get("token", "")))}
+
+@app.get("/api/orgs/{org_id}/cases")
+def guardian_list_cases(org_id: str, request: Request, status: Optional[str] = None):
+    return {"cases": _org_call(guardian_orgs.list_cases, _current_user(request), org_id, status)}
+
+@app.post("/api/orgs/{org_id}/cases", status_code=201)
+def guardian_create_case(org_id: str, payload: Dict[str, Any], request: Request):
+    user = _current_user(request)
+    return {"case": _org_call(guardian_orgs.create_case, user, org_id, str(payload.get("transaction_id", "")), str(payload.get("title", "")), str(payload.get("priority", "medium")), payload.get("assigned_to"))}
+
+@app.get("/api/orgs/{org_id}/cases/{case_id}")
+def guardian_get_case(org_id: str, case_id: str, request: Request):
+    return {"case": _org_call(guardian_orgs.get_case, _current_user(request), org_id, case_id)}
+
+@app.patch("/api/orgs/{org_id}/cases/{case_id}")
+def guardian_update_case(org_id: str, case_id: str, payload: Dict[str, Any], request: Request):
+    return {"case": _org_call(guardian_orgs.update_case, _current_user(request), org_id, case_id, payload.get("status"), payload.get("assigned_to"), payload.get("priority"))}
+
+@app.post("/api/orgs/{org_id}/cases/{case_id}/notes", status_code=201)
+def guardian_case_note(org_id: str, case_id: str, payload: Dict[str, Any], request: Request):
+    return {"note": _org_call(guardian_orgs.add_note, _current_user(request), org_id, case_id, str(payload.get("body", "")))}
+
+@app.get("/api/orgs/{org_id}/audit")
+def guardian_org_audit(org_id: str, request: Request):
+    return {"events": _org_call(guardian_orgs.audit_events, _current_user(request), org_id)}
 
 
 # ── API Endpoints ─────────────────────────────────────────────────────────────
