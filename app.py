@@ -1069,6 +1069,13 @@ def decide_action(compromise_prob: float, p1_risk: float, amount: float = 200.0)
 
 # ── Static UI Servicing ───────────────────────────────────────────────────────
 
+@app.get("/", response_class=FileResponse)
+@app.get("/guardian", response_class=FileResponse)
+def serve_guardian():
+    """Serve the integrated Guardian payment-intelligence workspace."""
+    guardian_path = os.path.join(BASE, "guardian.html")
+    return FileResponse(guardian_path, media_type="text/html")
+
 @app.get("/panel", response_class=FileResponse)
 @app.get("/dashboard", response_class=FileResponse)
 def serve_legacy_panel():
