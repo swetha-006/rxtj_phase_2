@@ -428,6 +428,28 @@ Guardian now supports organization workspaces layered on top of individual accou
 - `POST /api/orgs/{org_id}/cases/{case_id}/notes`
 - `GET /api/orgs/{org_id}/audit`
 
+### Stage 3: investigation operations and reporting
+
+Stage 3 adds workspace-scoped operational views on top of Stage 2:
+
+- `GET /api/orgs/{org_id}/analytics` returns case totals, status/priority distributions, assignment coverage, resolution rate, and a 14-day case-creation series.
+- `GET /api/orgs/{org_id}/alerts` returns unresolved high- and critical-priority investigation cases as actionable alerts.
+- `GET /api/orgs/{org_id}/cases` now supports optional `status`, `priority`, `q`, and `assigned` filters.
+- `GET /api/orgs/{org_id}/cases-export.csv` exports up to 5,000 filtered cases; CSV formula-leading cells are escaped to reduce spreadsheet formula injection risk.
+
+These metrics describe Guardian investigation records, not verified payment outcomes. Alerts are derived from open case priority rather than a live payment gateway or push-notification service. CSV export and analytics require workspace membership; data is not shared across organizations.
+
+### Stage 3 API routes
+
+- `GET /api/orgs/{org_id}/analytics`
+- `GET /api/orgs/{org_id}/alerts`
+- `GET /api/orgs/{org_id}/cases?status=open&priority=high&q=device&assigned=false`
+- `GET /api/orgs/{org_id}/cases-export.csv`
+
 ### Stage 2 security notes
 
 This is still a prototype. Invitations are shown as tokens in the UI because outbound email delivery is not configured; share tokens only in a controlled demo. Use HTTPS, secure cookie configuration, rate limiting, email verification, invitation revocation, CSRF defenses appropriate to the deployment, managed secrets, backups, and a security review before exposing it publicly. Workspace audit events are application audit records, not tamper-proof compliance evidence. The transaction-scoring engine is not a payment processor and does not authorize real payments.
+
+### Stage 3 validation
+
+The Stage 3 regression suite covers analytics counts, high/critical case alerts, combined case filters, CSV export, and cross-workspace access denial. Run `python -m pytest -q --disable-warnings` from the project directory to execute the full suite.
