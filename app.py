@@ -13,7 +13,7 @@
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, Response
 from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any, Union, Tuple
 from profile_store import ProfileStore
@@ -1188,8 +1188,48 @@ def guardian_accept_invitation(payload: Dict[str, Any], request: Request):
     return {"organization": _org_call(guardian_orgs.accept_invitation, _current_user(request), str(payload.get("token", "")))}
 
 @app.get("/api/orgs/{org_id}/cases")
-def guardian_list_cases(org_id: str, request: Request, status: Optional[str] = None):
-    return {"cases": _org_call(guardian_orgs.list_cases, _current_user(request), org_id, status)}
+def guardian_list_cases(org_id: str, request: Request, status: Optional[str] = None,
+                       priority: Optional[str] = None, q: Optional[str] = None,
+                       assigned: Optional[bool] = None):
+    cases = _org_call(guardian_orgs.list_cases, _current_user(request), org_id, status)
+    if priority:
+        if priority not in {"low", "medium", "high", "critical"}:
+            raise HTTPException(status_code=400, detail="Invalid priority.")
+        cases = [c for c in cases if c["priority"] == priority]
+    if q:
+        needle = q.strip().lower()[:120]
+        cases = [c for c in cases if needle in c["title"].lower() or needle in c["transaction_id"].lower()]
+    if assigned is not None:
+        cases = [c for c in cases if bool(c.get("assigned_to")) is assigned]
+    return {"cases": cases}
+
+@app.get("/api/orgs/{org_id}/analytics")
+def guardian_org_analytics(org_id: str, request: Request):
+    return _org_call(guardian_orgs.analytics, _current_user(request), org_id)
+
+@app.get("/api/orgs/{org_id}/alerts")
+def guardian_org_alerts(org_id: str, request: Request, limit: int = Query(100, ge=1, le=200)):
+    return {"alerts": _org_call(guardian_orgs.list_alerts, _current_user(request), org_id, limit)}
+
+@app.get("/api/orgs/{org_id}/cases-export.csv")
+def guardian_export_cases(org_id: str, request: Request, status: Optional[str] = None,
+                          priority: Optional[str] = None, q: Optional[str] = None):
+    import csv, io
+    rows = _org_call(guardian_orgs.export_cases, _current_user(request), org_id, status, priority, q)
+    output = io.StringIO(newline="")
+    fields = ["id", "transaction_id", "title", "status", "priority", "assigned_name", "created_by_name", "created_at", "updated_at"]
+    writer = csv.DictWriter(output, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    for row in rows:
+        safe = {}
+        for field in fields:
+            value = row.get(field, "")
+            if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
+                value = "'" + value
+            safe[field] = value
+        writer.writerow(safe)
+    return Response(output.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="guardian-cases.csv"', "X-Content-Type-Options": "nosniff"})
 
 @app.post("/api/orgs/{org_id}/cases", status_code=201)
 def guardian_create_case(org_id: str, payload: Dict[str, Any], request: Request):
