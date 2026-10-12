@@ -11,12 +11,13 @@
 #   - Layer 3: Bounded counterfactual search on TransactionAmt
 # ============================================================
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any, Union, Tuple
 from profile_store import ProfileStore
+import guardian_accounts
 from cost_router import CostSensitiveRouter, CostDecision
 from ring_detector import FraudRingDetector, FraudRingMetrics
 import numpy as np
@@ -328,6 +329,8 @@ app = FastAPI(
     description="Real-time payment fraud detection — Glass Box ML Core (Calibrated LightGBM + Contextual Fusion)",
     version="4.0.0"
 )
+
+guardian_accounts.init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -1082,6 +1085,67 @@ def serve_legacy_panel():
     """Keep the original dashboard available for backwards compatibility."""
     panel_path = os.path.join(BASE, "panel.html")
     return FileResponse(panel_path, media_type="text/html")
+
+
+# ── Guardian multi-user accounts and per-user cloud records ───────────────────
+SESSION_COOKIE = "guardian_session"
+COOKIE_SECURE = os.environ.get("GUARDIAN_COOKIE_SECURE", "0").lower() in ("1", "true", "yes")
+
+def _current_user(request: Request):
+    user = guardian_accounts.get_user(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        raise HTTPException(status_code=401, detail="Please sign in to continue.")
+    return user
+
+@app.post("/auth/register", status_code=201)
+def guardian_register(payload: Dict[str, Any], response: Response):
+    try:
+        user = guardian_accounts.register(str(payload.get("email", "")), str(payload.get("display_name", "")), str(payload.get("password", "")))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    token = guardian_accounts.create_session(user["id"])
+    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=COOKIE_SECURE, samesite="lax", max_age=60*60*24*14, path="/")
+    return {"user": user}
+
+@app.post("/auth/login")
+def guardian_login(payload: Dict[str, Any], response: Response):
+    user = guardian_accounts.login(str(payload.get("email", "")), str(payload.get("password", "")))
+    if not user:
+        raise HTTPException(status_code=401, detail="Email or password is incorrect.")
+    token = guardian_accounts.create_session(user["id"])
+    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=COOKIE_SECURE, samesite="lax", max_age=60*60*24*14, path="/")
+    return {"user": user}
+
+@app.get("/auth/me")
+def guardian_me(request: Request):
+    return {"user": _current_user(request)}
+
+@app.post("/auth/logout")
+def guardian_logout(request: Request, response: Response):
+    guardian_accounts.delete_session(request.cookies.get(SESSION_COOKIE))
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    return {"ok": True}
+
+@app.get("/api/me/records/{record_type}")
+def guardian_get_records(record_type: str, request: Request):
+    if record_type not in ("transactions", "activity", "preferences"):
+        raise HTTPException(status_code=400, detail="Unsupported record type.")
+    user = _current_user(request)
+    return {"records": guardian_accounts.list_records(user["id"], record_type)}
+
+@app.put("/api/me/records/{record_type}")
+def guardian_put_records(record_type: str, payload: Dict[str, Any], request: Request):
+    if record_type not in ("transactions", "activity", "preferences"):
+        raise HTTPException(status_code=400, detail="Unsupported record type.")
+    records = payload.get("records", [])
+    if not isinstance(records, list) or any(not isinstance(x, dict) for x in records):
+        raise HTTPException(status_code=400, detail="records must be a list of objects.")
+    user = _current_user(request)
+    try:
+        guardian_accounts.put_records(user["id"], record_type, records)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True, "count": len(records)}
 
 
 # ── API Endpoints ─────────────────────────────────────────────────────────────
