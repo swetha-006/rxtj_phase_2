@@ -39,6 +39,7 @@ data/ifm_scores.npy
 *.db-wal
 *.sqlite
 .venv
+!data/behavioral_profiles.db
 
 # Environment variables
 .env
