@@ -12,6 +12,8 @@ import numpy as np
 def load_preprocessors(base_dir):
     """Load the training-time SimpleImputer + StandardScaler from disk."""
     imputer = joblib.load(os.path.join(base_dir, 'models', 'imputer.pkl'))
+    if not hasattr(imputer, '_fill_dtype'):
+        imputer._fill_dtype = np.float32
     scaler  = joblib.load(os.path.join(base_dir, 'models', 'scaler.pkl'))
     return imputer, scaler
 

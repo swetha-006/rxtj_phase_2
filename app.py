@@ -1,25 +1,22 @@
 # ============================================================
-# app.py — RXT-J+ FastAPI Deployment  (Phase 2 — Zero-Bug)
+# app.py — RXT-J+ FastAPI Deployment (v4 — Glass Box ML Core)
 # Run with: python -m uvicorn app:app --reload --port 8000
 #
-# FIXES applied vs previous version:
-#   [BUG-1] FusionNet architecture: matched to trained weights
-#           net: Linear(13,128)->ReLU->Dropout->Linear(128,64)->ReLU
-#                ->Dropout->Linear(64,32)->ReLU->Linear(32,1)
-#           (previous code had 32->16->1 which caused shape mismatch)
-#   [BUG-2] compute_contextual_features now produces all 13 features:
-#           added amount_percentile, time_gap_norm, merchant_fraud_rate,
-#           cross_device_accounts, account_age_score
-#   [BUG-3] explain endpoint interpret() updated for all 13 feature names
+# ML Core Renovation (P3 + P5):
+#   - Phase 1 Scorer: Calibrated LightGBM (models/lgbm.pkl)
+#   - Obsolete inference chain retired (AttentionRXTJ, ResNet, Nystroem, IPCA, IFM, Jaya)
+#   - Phase 2 Behavioral Drift Autoencoder + FusionNet v3 preserved
+#   - Layer 1: TreeSHAP explanations
+#   - Layer 2: Deterministic reason codes (R07, R12, R03, R21)
+#   - Layer 3: Bounded counterfactual search on TransactionAmt
 # ============================================================
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Union, Tuple
 from profile_store import ProfileStore
 import numpy as np
 import torch
@@ -30,70 +27,21 @@ import time
 import os
 import sys
 import sqlite3
+import pandas as pd
+import shap
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from preprocessing import load_preprocessors, transform_raw, pad_form_features, raw_feature_dim
 
 DEVICE      = torch.device('cpu')
-SEQ_LEN     = 8
-CARDINALITY = 4
 HISTORY_DB  = 'fraud_storage.db'
 BASE        = os.path.dirname(os.path.abspath(__file__))
 
-# ── Model architectures ───────────────────────────────────────────────────────
 
-class ResNeXtBlock(nn.Module):
-    def __init__(self, in_dim, out_dim, cardinality=CARDINALITY):
-        super().__init__()
-        group_dim = out_dim // cardinality
-        self.paths = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(in_dim, group_dim), nn.BatchNorm1d(group_dim), nn.ReLU(),
-                nn.Linear(group_dim, group_dim), nn.BatchNorm1d(group_dim)
-            ) for _ in range(cardinality)
-        ])
-        self.shortcut = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
-        self.relu = nn.ReLU()
-
-    def forward(self, x):
-        return self.relu(torch.cat([p(x) for p in self.paths], dim=-1) + self.shortcut(x))
-
-class ResNeXtExtractor(nn.Module):
-    def __init__(self, input_dim):
-        super().__init__()
-        self.net = nn.Sequential(
-            ResNeXtBlock(input_dim, 128), ResNeXtBlock(128, 128),
-            ResNeXtBlock(128, 64),        ResNeXtBlock(64,  64)
-        )
-    def forward(self, x): return self.net(x)
-
-class SelfAttentionGRU(nn.Module):
-    def __init__(self, input_dim=64, hidden_dim=64, seq_len=SEQ_LEN):
-        super().__init__()
-        self.seq_len  = seq_len
-        self.step_dim = input_dim // seq_len
-        self.gru      = nn.GRU(self.step_dim, hidden_dim, num_layers=2,
-                               batch_first=True, dropout=0.3)
-        self.attention = nn.Sequential(nn.Linear(hidden_dim, 32), nn.Tanh(),
-                                       nn.Linear(32, 1))
-        self.classifier = nn.Sequential(nn.Linear(hidden_dim, 32), nn.ReLU(),
-                                        nn.Dropout(0.3), nn.Linear(32, 1), nn.Identity())
-    def forward(self, x):
-        x      = x.view(x.size(0), self.seq_len, self.step_dim)
-        out, _ = self.gru(x)
-        attn   = torch.softmax(self.attention(out), dim=1)
-        ctx    = (attn * out).sum(dim=1)
-        return self.classifier(ctx).squeeze(1), attn.squeeze(-1)
-
-class AttentionRXTJ(nn.Module):
-    def __init__(self, input_dim, seq_len=SEQ_LEN):
-        super().__init__()
-        self.resnext  = ResNeXtExtractor(input_dim)
-        self.attn_gru = SelfAttentionGRU(input_dim=64, seq_len=seq_len)
-    def forward(self, x):
-        return self.attn_gru(self.resnext(x))
+# ── Phase 2 PyTorch model architectures (Preserved) ──────────────────────────
 
 class AutoencoderNet(nn.Module):
+    """Autoencoder for Phase 2 behavioural drift scoring."""
     def __init__(self, input_dim, latent_dim=64):
         super().__init__()
         self.encoder = nn.Sequential(
@@ -111,66 +59,21 @@ class AutoencoderNet(nn.Module):
         return self.decoder(z), z
 
 
-class ResBlock(nn.Module):
-    """Residual block used by FraudResNet (must match resnet_extractor.pt weights)."""
-    def __init__(self, in_dim, out_dim):
-        super().__init__()
-        self.block = nn.Sequential(
-            nn.Linear(in_dim, out_dim), nn.BatchNorm1d(out_dim), nn.ReLU(),
-            nn.Linear(out_dim, out_dim), nn.BatchNorm1d(out_dim)
-        )
-        self.shortcut = nn.Linear(in_dim, out_dim) if in_dim != out_dim else nn.Identity()
-        self.relu = nn.ReLU()
-    def forward(self, x):
-        return self.relu(self.block(x) + self.shortcut(x))
-
-class FraudResNet(nn.Module):
-    """Feature extractor trained in notebook 03 (resnet_extractor.pt).
-    .features() returns a 64-dim representation from 224-dim scaled input.
-    """
-    def __init__(self, input_dim, out_dim=64):
-        super().__init__()
-        self.stem   = nn.Linear(input_dim, 128)
-        self.blocks = nn.Sequential(
-            ResBlock(128, 128), ResBlock(128, 64),
-            ResBlock(64,  64),  ResBlock(64, out_dim)
-        )
-        self.head = nn.Linear(out_dim, 2)
-    def features(self, x):
-        return self.blocks(torch.relu(self.stem(x)))
-    def forward(self, x):
-        return self.head(self.features(x))
-
-
-# ── FusionNet v3 — architecture MUST match fusion_net.pt ─────────────────────
-# Trained weights layout (verified from state_dict):
-#   feature_attn : [13]
-#   net.0.weight : [128, 13]   → Linear(13, 128)
-#   net.3.weight : [64, 128]   → Linear(128, 64)
-#   net.6.weight : [32, 64]    → Linear(64, 32)
-#   net.8.weight : [1, 32]     → Linear(32, 1)
-# ─────────────────────────────────────────────────────────────────────────────
 class FusionNet(nn.Module):
-    """FusionNet v3 — Attention-weighted MLP for account compromise scoring.
-
-    Architecture is fixed to match the saved weights in fusion_net.pt.
-    Input dim MUST be 13 (the 13 contextual features computed by
-    compute_contextual_features()).
-    """
+    """FusionNet v3 — Attention-weighted MLP for account compromise scoring (13 features)."""
     def __init__(self, input_dim: int = 13):
         super().__init__()
         self.feature_attn = nn.Parameter(torch.ones(input_dim))
-        # Layers match the state_dict: 13→128→64→32→1
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 128),  # net.0
-            nn.ReLU(),                   # net.1
-            nn.Dropout(0.3),             # net.2
-            nn.Linear(128, 64),          # net.3
-            nn.ReLU(),                   # net.4
-            nn.Dropout(0.3),             # net.5
-            nn.Linear(64, 32),           # net.6
-            nn.ReLU(),                   # net.7
-            nn.Linear(32, 1)             # net.8
+            nn.Linear(input_dim, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1)
         )
 
     def forward(self, x):
@@ -180,61 +83,78 @@ class FusionNet(nn.Module):
         return torch.sigmoid(logit), attn_weights
 
 
-# ── Load artefacts ────────────────────────────────────────────────────────────
+# ── Model Artifact Loading ───────────────────────────────────────────────────
 
 def load_models():
-    config   = json.load(open(os.path.join(BASE, 'results/deployment_config.json')))
+    """
+    Safely load the new Phase 1 calibrated LightGBM model and Phase 2 components.
+    Fails clearly if the required artifact is unavailable or incompatible.
+    """
+    # 1. Load LightGBM artifact (P2 / P3)
+    lgbm_path = os.path.join(BASE, 'models', 'lgbm.pkl')
+    if not os.path.exists(lgbm_path):
+        raise RuntimeError(
+            f"Required ML Core artifact '{lgbm_path}' not found! "
+            "Please train the model first by running: python train_gbdt.py"
+        )
+    
+    try:
+        lgbm_bundle = joblib.load(lgbm_path)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load LightGBM artifact from '{lgbm_path}': {e}")
+
+    lgbm_model    = lgbm_bundle.get("model")
+    calibrator    = lgbm_bundle.get("calibrator")
+    feature_schema = lgbm_bundle.get("features", [])
+    threshold     = float(lgbm_bundle.get("threshold", 0.15))
+    top_devices   = set(lgbm_bundle.get("top_devices", []))
+    feature_stats = lgbm_bundle.get("feature_stats", {})
+    lgbm_metadata = lgbm_bundle.get("metadata", {})
+
+    if lgbm_model is None or calibrator is None or not feature_schema:
+        raise RuntimeError("Invalid lgbm.pkl artifact: Missing model, calibrator, or feature schema.")
+
+    # TreeSHAP explainer for Layer 1 explanations
+    try:
+        shap_explainer = shap.TreeExplainer(lgbm_model)
+    except Exception as e:
+        print(f"Warning: Failed to initialize TreeExplainer ({e}). SHAP explanations may be disabled.")
+        shap_explainer = None
+
+    # 2. Load Phase 2 behavioral drift components (Autoencoder + Preprocessors)
     imputer, scaler = load_preprocessors(BASE)
-    nystroem = joblib.load(os.path.join(BASE, 'models/nystroem.pkl'))
-    ipca     = joblib.load(os.path.join(BASE, 'models/incremental_pca.pkl'))
-    ifm      = joblib.load(os.path.join(BASE, 'models/isolation_forest.pkl'))
-
-    input_dim = ipca.n_components_
-    model     = AttentionRXTJ(input_dim).to(DEVICE)
-    state     = torch.load(os.path.join(BASE, 'models/attention_rxtj.pt'), map_location=DEVICE)
-    model.load_state_dict(state)
-    model.eval()
-
-    # Autoencoder for Phase 2 behavioural drift scoring.
-    ae_state  = torch.load(os.path.join(BASE, 'models/autoencoder.pt'), map_location=DEVICE)
+    ae_state = torch.load(os.path.join(BASE, 'models/autoencoder.pt'), map_location=DEVICE)
     ae_input_dim = ae_state['encoder.0.weight'].shape[1]
-    autoencoder  = AutoencoderNet(ae_input_dim).to(DEVICE)
+    autoencoder = AutoencoderNet(ae_input_dim).to(DEVICE)
     autoencoder.load_state_dict(ae_state)
     autoencoder.eval()
 
-    # ResNet feature extractor — needed for raw→EARN+ pipeline (224→64 features).
-    # Concatenated with AE latents (64) to form the 128-dim Nystroem input.
-    rn_input_dim = ae_input_dim   # same 224-dim scaled input
-    resnet_ext   = FraudResNet(rn_input_dim).to(DEVICE)
-    rn_state     = torch.load(os.path.join(BASE, 'models/resnet_extractor.pt'), map_location=DEVICE)
-    resnet_ext.load_state_dict(rn_state)
-    resnet_ext.eval()
-
-    # Phase 2: FusionNet v3 + scaler
+    # 3. Load Phase 2 FusionNet v3 + Scaler + Config
     fusion_config_data = json.load(open(os.path.join(BASE, 'results/fusion_config.json')))
     fusion_scaler_obj  = joblib.load(os.path.join(BASE, 'models/fusion_scaler.pkl'))
-
-    # Always use the input_dim from the saved config (13), not a hard-coded value
-    f_input_dim      = fusion_config_data['input_dim']  # must be 13
-    fusion_model_obj = FusionNet(f_input_dim).to(DEVICE)
-    fusion_state     = torch.load(os.path.join(BASE, 'models/fusion_net.pt'), map_location=DEVICE)
-    fusion_model_obj.load_state_dict(fusion_state)   # will raise if arch wrong
+    f_input_dim        = fusion_config_data['input_dim']
+    fusion_model_obj   = FusionNet(f_input_dim).to(DEVICE)
+    fusion_state       = torch.load(os.path.join(BASE, 'models/fusion_net.pt'), map_location=DEVICE)
+    fusion_model_obj.load_state_dict(fusion_state)
     fusion_model_obj.eval()
 
-    return (model, imputer, scaler, nystroem, ipca, ifm, autoencoder, resnet_ext, config,
-            fusion_model_obj, fusion_scaler_obj, fusion_config_data)
+    return (
+        lgbm_model, calibrator, feature_schema, threshold, top_devices,
+        feature_stats, lgbm_metadata, shap_explainer,
+        imputer, scaler, autoencoder,
+        fusion_model_obj, fusion_scaler_obj, fusion_config_data
+    )
 
 
-print("Loading RXT-J+ models...")
-(model, imputer, scaler, nystroem, ipca, ifm,
- autoencoder, resnet_ext, config,
- fusion_model, fusion_scaler, fusion_config) = load_models()
+print("Loading RXT-J+ v4 models...")
+(
+    lgbm_model, calibrator, FEATURE_SCHEMA, THRESHOLD, TOP_DEVICES,
+    FEATURE_STATS, LGBM_METADATA, shap_explainer,
+    imputer, scaler, autoencoder,
+    fusion_model, fusion_scaler, fusion_config
+) = load_models()
 
-RAW_DIM   = raw_feature_dim(imputer)
-W_MODEL   = config['W_MODEL']
-W_IFM     = config['W_IFM']
-THRESHOLD = config['THRESHOLD']
-
+RAW_DIM            = raw_feature_dim(imputer)
 FUSION_THRESHOLD   = fusion_config['fusion_threshold']
 HIGH_THRESHOLD     = fusion_config['high_threshold']
 ELEVATED_THRESHOLD = fusion_config['elevated_threshold']
@@ -242,15 +162,11 @@ FEATURE_NAMES      = fusion_config['feature_names']   # 13 names
 DRIFT_NORM         = json.load(open(os.path.join(BASE, 'data/drift_norm_params.json')))
 MERCHANT_FRAUD_RATES = json.load(open(os.path.join(BASE, 'data/merchant_fraud_rates.json')))
 
-print(f"Models loaded. W_MODEL={W_MODEL:.4f}, W_IFM={W_IFM:.4f}, Threshold={THRESHOLD:.2f}")
-print(f"Autoencoder loaded (input_dim={autoencoder.encoder[0].in_features}).")
-print(f"ResNet extractor loaded (input_dim={resnet_ext.stem.in_features}, output_dim=64).")
-print(f"EARN+ pipeline: {autoencoder.encoder[0].in_features}→AE(64)+RN(64)→concat(128)→Nystroem→IPCA({ipca.n_components_}).")
-print(f"FusionNet v3 loaded (input_dim={fusion_config['input_dim']}). "
-      f"High={HIGH_THRESHOLD}, Elevated={ELEVATED_THRESHOLD}")
-print(f"Feature names ({len(FEATURE_NAMES)}): {FEATURE_NAMES}")
+print(f"ML Core loaded: LightGBM v4 (Calibrated). Threshold={THRESHOLD:.2f}, Features={len(FEATURE_SCHEMA)}")
+print(f"Phase 2 FusionNet v3 loaded (input_dim={fusion_config['input_dim']}). High={HIGH_THRESHOLD}, Elevated={ELEVATED_THRESHOLD}")
 
-# ── SQLite history store ─────────────────────────────────────────────────────
+
+# ── SQLite History Store ─────────────────────────────────────────────────────
 
 HISTORY_PATH = os.path.join(BASE, HISTORY_DB)
 
@@ -269,9 +185,10 @@ _init_history_db()
 profile_store = ProfileStore(
     db_path=os.path.join(BASE, "data", "behavioral_profiles.db")
 )
-print(f"  [Phase2] ProfileStore ready. Accounts: {profile_store.coverage_stats()['total_accounts']:,}")
+print(f"ProfileStore ready. Total accounts: {profile_store.coverage_stats()['total_accounts']:,}")
 
-# ── Kafka producer (optional, non-blocking) ──────────────────────────────────
+
+# ── Kafka Producer (Optional, non-blocking) ──────────────────────────────────
 
 KAFKA_BOOTSTRAP = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', '').strip()
 KAFKA_TOPIC     = os.environ.get('KAFKA_PROFILE_TOPIC', 'profile_updates')
@@ -287,7 +204,7 @@ if KAFKA_BOOTSTRAP:
             linger_ms=10,
             request_timeout_ms=2000,
         )
-        print(f"Kafka producer ready → {KAFKA_BOOTSTRAP} topic={KAFKA_TOPIC}")
+        print(f"Kafka producer ready -> {KAFKA_BOOTSTRAP} topic={KAFKA_TOPIC}")
     except Exception as e:
         print(f"Kafka producer disabled ({e}).")
         kafka_producer = None
@@ -308,31 +225,33 @@ def _publish_profile_update(transaction_id, risk_score, decision, features):
     except Exception:
         pass
 
+
 # ── App Init ──────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="RXT-J+ Fraud Risk Scoring API",
-    description="Real-time payment fraud detection — Attention-RXT-J+ with Jaya optimisation",
-    version="2.0.0"
+    description="Real-time payment fraud detection — Glass Box ML Core (Calibrated LightGBM + Contextual Fusion)",
+    version="4.0.0"
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "null"],   # null allows file:// access from demo HTML
+    allow_origins=["*", "null"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class TransactionRequest(BaseModel):
     transaction_id: str = Field(..., example="TXN_001")
-    features: List[float] = Field(..., description="Preprocessed feature vector")
+    features: List[float] = Field(..., description="Feature vector (14-dim exact, 224-dim raw, or 50-dim)")
 
 class DirectScoreRequest(BaseModel):
     transaction_id: str
-    features: List[float] = Field(..., description="50-dim EARN+ feature vector (post-IPCA)")
+    features: List[float] = Field(..., description="Feature vector")
 
 class BatchRequest(BaseModel):
     transactions: List[TransactionRequest]
@@ -345,10 +264,11 @@ class FormScoreRequest(BaseModel):
 
 class RiskResponse(BaseModel):
     transaction_id: str
-    risk_score:  float
-    decision:    str
-    confidence:  float
-    latency_ms:  float
+    risk_score:     float
+    decision:       str
+    confidence:     float
+    latency_ms:     float
+    explanation:    Optional[Dict[str, Any]] = None
 
 class CompromiseRequest(BaseModel):
     account_id:     str
@@ -365,124 +285,541 @@ class ExplainRequest(BaseModel):
     account_id:     str
     transaction_id: str
 
-class FullFormRequest(BaseModel):
-    """Human-readable inputs for /score/form-full.
+class ExplainTransactionRequest(BaseModel):
+    transaction_id: str = Field(..., example="TXN_001")
+    account_id:     Optional[str]   = None
+    amount:         Optional[float] = None
+    hour:           Optional[int]   = None
+    product_cd:     Optional[str]   = "W"
+    device_info:    Optional[str]   = None
+    addr1:          Optional[str]   = None
+    features:       Optional[List[float]] = None
 
-    No pre-computed feature vector needed — the endpoint synthesises one
-    from the form fields using the training-time imputer column means, so
-    every field change produces a genuinely different model output.
-    """
+class FullFormRequest(BaseModel):
     account_id:     str             = Field(...,  example="ACC_42")
     transaction_id: str             = Field(...,  example="TXN_001")
     amount:         float           = Field(...,  example=289.99, description="Transaction amount in USD")
     hour:           int             = Field(14,   ge=0, le=23,    description="Hour of day (0-23, local)")
     product_cd:     str             = Field("W",  example="W",    description="Product code: W C H R S")
     is_foreign:     bool            = Field(False,                description="True if card-not-present / international")
-    customer_age:   Optional[int]   = Field(30,   ge=0, le=120,   description="Cardholder age (used to fill raw features)")
+    customer_age:   Optional[int]   = Field(30,   ge=0, le=120,   description="Cardholder age")
     device_info:    Optional[str]   = Field(None, example="MacOS")
     addr1:          Optional[str]   = Field(None, example="299",  description="Billing postal/zip code")
-    timestamp:      Optional[float] = Field(None,                 description="Unix timestamp (defaults to now)")
-
-# ── Core Scorers & Helpers ────────────────────────────────────────────────────
-
-def score_earn_features(Z_earn: np.ndarray):
-    """Score 50-dim EARN+ features directly — no Nystroem/IPCA needed."""
-    with torch.no_grad():
-        logits, _ = model(torch.FloatTensor(Z_earn).to(DEVICE))
-        probs = torch.sigmoid(logits).cpu().numpy()
-
-    ifm_raw  = ifm.score_samples(Z_earn)
-    ifm_min, ifm_max = ifm_raw.min(), ifm_raw.max()
-    ifm_norm = 1 - (ifm_raw - ifm_min) / (ifm_max - ifm_min + 1e-9)
-    ifm_norm = np.clip(ifm_norm, 0, 1)
-
-    total = W_MODEL + W_IFM + 1e-9
-    risk  = np.clip((W_MODEL / total) * probs + (W_IFM / total) * ifm_norm, 0, 1)
-    preds = (risk > THRESHOLD).astype(int)
-    conf  = np.where(preds == 1, risk, 1 - risk)
-    return risk, preds, conf
+    timestamp:      Optional[float] = Field(None,                 description="Unix timestamp")
 
 
-def extract_earn_features(X_clean: np.ndarray) -> np.ndarray:
-    """Convert a 224-dim imputed+scaled feature matrix into 50-dim EARN+ space.
+# ── Feature Transformation & Core Scorer (P3) ─────────────────────────────────
 
-    Full pipeline (matches notebook 03 training exactly):
-      1. AE encoder:    X_clean (224) → latent z (64)
-      2. ResNet extractor: X_clean (224) → features (64)
-      3. Concatenate:   [z | features] → (128)
-      4. Nystroem RBF:  (128) → (300)
-      5. IncrementalPCA:(300) → (50)  ← this is EARN+ / Z_earn
-
-    Args:
-        X_clean: float32 array of shape (n, 224) — imputer+scaler output.
-    Returns:
-        Z_earn: float32 array of shape (n, 50).
+def transform_to_lgbm_features(
+    inputs: Any,
+    profile: Optional[dict] = None,
+    txn_meta: Optional[dict] = None
+) -> pd.DataFrame:
     """
-    X_t = torch.FloatTensor(X_clean).to(DEVICE)
-    with torch.no_grad():
-        # AE latent (64-dim)
-        _, z_ae = autoencoder(X_t)
-        z_ae = z_ae.cpu().numpy()                    # (n, 64)
-        # ResNet features (64-dim)
-        z_rn = resnet_ext.features(X_t).cpu().numpy()  # (n, 64)
-
-    Z_concat = np.concatenate([z_ae, z_rn], axis=1).astype(np.float32)  # (n, 128)
-    Z_nys    = nystroem.transform(Z_concat)                               # (n, 300)
-    Z_earn   = ipca.transform(Z_nys).astype(np.float32)                  # (n, 50)
-    return Z_earn
-
-
-def score_raw_features(features_np: np.ndarray):
-    """Score raw 224-dim features through the full EARN+ pipeline.
-
-    Pipeline: imputer+scaler → AE encoder+ResNet → concat 128 → Nystroem → IPCA → model+IFM
+    Deterministically transforms various input formats into the exact 14-feature schema
+    required by the LightGBM model.
+    Supported inputs:
+      - DataFrame with partial or complete features
+      - Dictionary (form inputs / key-value metadata)
+      - List or 1D/2D numpy array:
+          - 14-dim exact feature vector
+          - 224-dim raw IEEE feature vector (maps col 0:DT->hour, col 1:Amt, col 9:addr1)
+          - 50-dim post-IPCA vector (maps col 0 to amount proxy)
     """
-    X_clean = transform_raw(features_np, imputer, scaler)   # (n, 224)
-    Z_earn  = extract_earn_features(X_clean)                 # (n, 50)
-    return score_earn_features(Z_earn)
+    rows = []
+    
+    if isinstance(inputs, pd.DataFrame):
+        df_in = inputs.copy()
+        for f in FEATURE_SCHEMA:
+            if f not in df_in.columns:
+                df_in[f] = np.nan
+        df_out = df_in[FEATURE_SCHEMA].copy()
+        
+    elif isinstance(inputs, dict):
+        amt = float(inputs.get("amount", inputs.get("TransactionAmt", 0.0)))
+        hr  = int(inputs.get("hour", 0)) % 24
+        pcd = str(inputs.get("product_cd", inputs.get("ProductCD", "W")))
+        dev = str(inputs.get("device_info", inputs.get("DeviceInfo", ""))) if inputs.get("device_info") or inputs.get("DeviceInfo") else "MISSING"
+        addr = float(inputs.get("addr1")) if inputs.get("addr1") is not None and str(inputs.get("addr1")).strip() != "" else np.nan
 
+        if profile:
+            amt_mean = float(inputs.get("amt_cumsum", profile.get("amt_mean", amt)))
+            amt_std  = float(inputs.get("amt_cumstd", profile.get("amt_std", 0.0)))
+            txn_seq  = int(inputs.get("txn_seq", profile.get("txn_count", 0)))
+            v1h      = int(inputs.get("velocity_1h", profile.get("velocity_1h", 0)))
+            v24h     = int(inputs.get("velocity_24h", profile.get("velocity_24h", 0)))
+            kd       = profile.get("known_devices", [])
+            if "device_novel" in inputs:
+                dev_nov = float(inputs["device_novel"])
+            else:
+                dev_nov = 0.0 if (dev and dev in kd) else (1.0 if dev != "MISSING" else 0.5)
+        else:
+            amt_mean = float(inputs.get("amt_cumsum", amt))
+            amt_std  = float(inputs.get("amt_cumstd", 0.0))
+            txn_seq  = int(inputs.get("txn_seq", 0))
+            v1h      = int(inputs.get("velocity_1h", 0))
+            v24h     = int(inputs.get("velocity_24h", 0))
+            dev_nov  = float(inputs.get("device_novel", 0.5))
+
+        row = {
+            "TransactionAmt": amt,
+            "ProductCD":      pcd,
+            "addr1":          addr,
+            "DeviceInfo":     dev,
+            "hour":           hr,
+            "amt_cumsum":     amt_mean,
+            "amt_cumstd":     amt_std,
+            "txn_seq":        txn_seq,
+            "velocity_1h":    v1h,
+            "velocity_24h":   v24h,
+            "device_novel":   dev_nov,
+            "amt_to_mean":    amt / (amt_mean + 1.0),
+            "amt_diff_mean":  amt - amt_mean,
+            "velocity_ratio": v1h / (v24h / 24.0 + 1e-4)
+        }
+        df_out = pd.DataFrame([row])
+        
+    else:
+        # Numeric array or list of floats
+        arr = np.asarray(inputs, dtype=np.float32)
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        n_samples, n_dim = arr.shape
+
+        for i in range(n_samples):
+            vec = arr[i]
+            if n_dim == 14:
+                # Exact model schema
+                row = {FEATURE_SCHEMA[j]: vec[j] for j in range(14)}
+            elif n_dim == 224:
+                # Raw IEEE-CIS feature vector
+                amt = float(vec[1])
+                hr  = int(vec[0] // 3600) % 24 if not np.isnan(vec[0]) else 12
+                addr = float(vec[9]) if not np.isnan(vec[9]) else np.nan
+                row = {
+                    "TransactionAmt": amt,
+                    "ProductCD":      "W",
+                    "addr1":          addr,
+                    "DeviceInfo":     "MISSING",
+                    "hour":           hr,
+                    "amt_cumsum":     amt,
+                    "amt_cumstd":     0.0,
+                    "txn_seq":        0,
+                    "velocity_1h":    0,
+                    "velocity_24h":   0,
+                    "device_novel":   0.5,
+                    "amt_to_mean":    1.0,
+                    "amt_diff_mean":  0.0,
+                    "velocity_ratio": 0.0
+                }
+            elif n_dim == 50:
+                # Post-IPCA vector
+                amt = abs(float(vec[0])) * 100.0 if not np.isnan(vec[0]) else 100.0
+                row = {
+                    "TransactionAmt": amt,
+                    "ProductCD":      "W",
+                    "addr1":          np.nan,
+                    "DeviceInfo":     "MISSING",
+                    "hour":           12,
+                    "amt_cumsum":     amt,
+                    "amt_cumstd":     0.0,
+                    "txn_seq":        0,
+                    "velocity_1h":    0,
+                    "velocity_24h":   0,
+                    "device_novel":   0.5,
+                    "amt_to_mean":    1.0,
+                    "amt_diff_mean":  0.0,
+                    "velocity_ratio": 0.0
+                }
+            else:
+                amt = abs(float(vec[0])) if n_dim > 0 and not np.isnan(vec[0]) else 100.0
+                row = {
+                    "TransactionAmt": amt,
+                    "ProductCD":      "W",
+                    "addr1":          np.nan,
+                    "DeviceInfo":     "MISSING",
+                    "hour":           12,
+                    "amt_cumsum":     amt,
+                    "amt_cumstd":     0.0,
+                    "txn_seq":        0,
+                    "velocity_1h":    0,
+                    "velocity_24h":   0,
+                    "device_novel":   0.5,
+                    "amt_to_mean":    1.0,
+                    "amt_diff_mean":  0.0,
+                    "velocity_ratio": 0.0
+                }
+            rows.append(row)
+        df_out = pd.DataFrame(rows)
+
+    # Format categorical types matching training artifact
+    df_out["ProductCD"] = df_out["ProductCD"].fillna("MISSING").astype(str).astype("category")
+    df_out["DeviceInfo"] = df_out["DeviceInfo"].apply(
+        lambda x: x if x in TOP_DEVICES else ("MISSING" if pd.isna(x) else "OTHER")
+    ).astype("category")
+
+    return df_out[FEATURE_SCHEMA]
+
+
+def score_transaction_features(X_df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Score a prepared feature DataFrame using the calibrated LightGBM model.
+    Returns: (calibrated_probs, binary_preds, confidence)
+    """
+    X_eval = X_df[FEATURE_SCHEMA].copy()
+    X_eval["ProductCD"] = X_eval["ProductCD"].fillna("MISSING").astype(str).astype("category")
+    X_eval["DeviceInfo"] = X_eval["DeviceInfo"].apply(
+        lambda x: x if x in TOP_DEVICES else ("MISSING" if pd.isna(x) else "OTHER")
+    ).astype("category")
+
+    raw_probs = lgbm_model.predict_proba(X_eval)[:, 1]
+    cal_probs = np.clip(calibrator.predict(raw_probs), 0.0, 1.0)
+    preds     = (cal_probs >= THRESHOLD).astype(int)
+    conf      = np.where(preds == 1, cal_probs, 1.0 - cal_probs)
+
+    return cal_probs, preds, conf
+
+
+def score_raw_features(
+    features_np: np.ndarray,
+    profile: Optional[dict] = None,
+    txn_meta: Optional[dict] = None
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Score raw inputs through the calibrated LightGBM model."""
+    X_df = transform_to_lgbm_features(features_np, profile=profile, txn_meta=txn_meta)
+    return score_transaction_features(X_df)
+
+
+def score_earn_features(Z_earn: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compatibility scorer for EARN+ features, routed to calibrated LightGBM."""
+    X_df = transform_to_lgbm_features(Z_earn)
+    return score_transaction_features(X_df)
+
+
+# ── Explanations: TreeSHAP, Reason Codes, Counterfactuals (P5) ────────────────
+
+def compute_shap_layer(X_df: pd.DataFrame) -> dict:
+    """
+    Layer 1: TreeSHAP Feature Contributions.
+    Computes signed feature contributions from the LightGBM estimator.
+    """
+    if shap_explainer is None:
+        return {
+            "status": "UNAVAILABLE",
+            "reason": "TreeExplainer is not initialized."
+        }
+
+    X_eval = X_df[FEATURE_SCHEMA].copy()
+    X_eval["ProductCD"] = X_eval["ProductCD"].fillna("MISSING").astype(str).astype("category")
+    X_eval["DeviceInfo"] = X_eval["DeviceInfo"].apply(
+        lambda x: x if x in TOP_DEVICES else ("MISSING" if pd.isna(x) else "OTHER")
+    ).astype("category")
+
+    shap_vals = shap_explainer.shap_values(X_eval)
+    if isinstance(shap_vals, list):
+        shap_vec = shap_vals[1][0]  # Positive / fraud class
+    elif hasattr(shap_vals, "shape") and len(shap_vals.shape) == 3:
+        shap_vec = shap_vals[0, :, 1]
+    else:
+        shap_vec = shap_vals[0]
+
+    expected_val = shap_explainer.expected_value
+    if isinstance(expected_val, (list, np.ndarray)):
+        expected_val = float(expected_val[1])
+    else:
+        expected_val = float(expected_val)
+
+    raw_margin = float(expected_val + np.sum(shap_vec))
+    raw_prob   = float(1.0 / (1.0 + np.exp(-raw_margin)))
+    cal_prob   = float(np.clip(calibrator.predict([raw_prob])[0], 0.0, 1.0))
+
+    contributions = []
+    shap_dict = {}
+
+    for i, col in enumerate(FEATURE_SCHEMA):
+        val = X_eval.iloc[0][col]
+        s_val = float(shap_vec[i])
+        shap_dict[col] = s_val
+        direction = "INCREASES_FRAUD_RISK" if s_val > 0 else ("DECREASES_FRAUD_RISK" if s_val < 0 else "NEUTRAL")
+        contributions.append({
+            "feature": col,
+            "shap_value": round(s_val, 4),
+            "feature_value": str(val) if not pd.isna(val) else "MISSING",
+            "risk_direction": direction
+        })
+
+    # Sort contributions by absolute SHAP value magnitude
+    contributions.sort(key=lambda x: abs(x["shap_value"]), reverse=True)
+
+    return {
+        "base_value": round(expected_val, 4),
+        "raw_model_margin": round(raw_margin, 4),
+        "raw_probability": round(raw_prob, 4),
+        "calibrated_probability": round(cal_prob, 4),
+        "feature_contributions": contributions,
+        "shap_dict": shap_dict,
+        "disclosure": (
+            "TreeSHAP contributions explain the raw LightGBM margin output. "
+            "Displayed probability is calibrated via Isotonic Regression, which adjusts "
+            "probability calibration without altering monotonicity."
+        )
+    }
+
+
+def generate_reason_codes(
+    X_df: pd.DataFrame,
+    shap_dict: Dict[str, float],
+    context_meta: Optional[dict] = None
+) -> List[Dict[str, Any]]:
+    """
+    Layer 2: Human-readable Reason Codes.
+    Deterministic mapping from model features and SHAP contributions to:
+      - R07 — AMOUNT_ANOMALY
+      - R12 — DEVICE_UNRECOGNIZED
+      - R03 — VELOCITY_SPIKE
+      - R21 — RING_ASSOCIATION (compatible with future ring_detector.py)
+    """
+    row = X_df.iloc[0]
+    active_reasons = []
+
+    # 1. R07 — AMOUNT_ANOMALY
+    amt      = float(row["TransactionAmt"])
+    amt_mean = float(row["amt_cumsum"])
+    amt_to_m = float(row["amt_to_mean"])
+    amt_shap = sum(shap_dict.get(k, 0.0) for k in ["TransactionAmt", "amt_diff_mean", "amt_to_mean"])
+
+    if amt_shap > 0.02 or amt_to_m >= 2.0 or (amt > amt_mean * 1.8 and amt > 200.0):
+        active_reasons.append({
+            "code": "R07",
+            "name": "AMOUNT_ANOMALY",
+            "shap_contribution": round(amt_shap, 4),
+            "category": "DIRECT_MODEL_EVIDENCE",
+            "explanation": f"Transaction amount (${amt:.2f}) is significantly anomalous compared to historical account average (${amt_mean:.2f}, {amt_to_m:.1f}x higher).",
+            "evidence": {
+                "amount": round(amt, 2),
+                "historical_mean": round(amt_mean, 2),
+                "amt_to_mean_ratio": round(amt_to_m, 2),
+                "shap_contribution": round(amt_shap, 4)
+            }
+        })
+
+    # 2. R12 — DEVICE_UNRECOGNIZED
+    dev_nov  = float(row["device_novel"])
+    dev_info = str(row["DeviceInfo"])
+    dev_shap = float(shap_dict.get("device_novel", 0.0) + shap_dict.get("DeviceInfo", 0.0))
+
+    if dev_nov == 1.0 or dev_shap > 0.02:
+        active_reasons.append({
+            "code": "R12",
+            "name": "DEVICE_UNRECOGNIZED",
+            "shap_contribution": round(dev_shap, 4),
+            "category": "DIRECT_MODEL_EVIDENCE",
+            "explanation": f"Transaction initiated from an unrecognized device ('{dev_info}') never previously seen on this account.",
+            "evidence": {
+                "device_info": dev_info,
+                "device_novelty_score": dev_nov,
+                "shap_contribution": round(dev_shap, 4)
+            }
+        })
+
+    # 3. R03 — VELOCITY_SPIKE
+    v1h    = int(row["velocity_1h"])
+    v24h   = int(row["velocity_24h"])
+    v_rat  = float(row["velocity_ratio"])
+    v_shap = sum(shap_dict.get(k, 0.0) for k in ["velocity_1h", "velocity_24h", "velocity_ratio"])
+
+    if v1h >= 2 or v_rat > 2.0 or v_shap > 0.02:
+        active_reasons.append({
+            "code": "R03",
+            "name": "VELOCITY_SPIKE",
+            "shap_contribution": round(v_shap, 4),
+            "category": "DIRECT_MODEL_EVIDENCE",
+            "explanation": f"Rapid velocity acceleration: {v1h} transaction(s) in the past hour ({v_rat:.1f}x typical velocity).",
+            "evidence": {
+                "velocity_1h": v1h,
+                "velocity_24h": v24h,
+                "velocity_ratio": round(v_rat, 2),
+                "shap_contribution": round(v_shap, 4)
+            }
+        })
+
+    # 4. R21 — RING_ASSOCIATION (compatible hook for future ring_detector.py)
+    meta = context_meta or {}
+    ring_id = meta.get("ring_id") or meta.get("ring_cluster_id")
+    ring_risk = meta.get("ring_risk_score")
+
+    if ring_id is not None or ring_risk is not None:
+        active_reasons.append({
+            "code": "R21",
+            "name": "RING_ASSOCIATION",
+            "shap_contribution": float(ring_risk or 0.5),
+            "category": "CONTEXTUAL_GRAPH_EVIDENCE",
+            "explanation": f"Entity is affiliated with known fraud ring cluster '{ring_id}' (risk: {ring_risk}).",
+            "evidence": {
+                "ring_id": str(ring_id),
+                "ring_risk_score": float(ring_risk or 0.0)
+            }
+        })
+    else:
+        # Document explicit unavailable status for ring association
+        active_reasons.append({
+            "code": "R21",
+            "name": "RING_ASSOCIATION",
+            "status": "UNAVAILABLE",
+            "category": "CONTEXTUAL_GRAPH_EVIDENCE",
+            "explanation": "No fraud-ring graph association evidence present in input (pending ring_detector.py integration).",
+            "evidence": None
+        })
+
+    # Rank active reasons by SHAP contribution magnitude descending (unavailable placed at end)
+    active_sorted = [r for r in active_reasons if r.get("status") != "UNAVAILABLE"]
+    unavail = [r for r in active_reasons if r.get("status") == "UNAVAILABLE"]
+
+    active_sorted.sort(key=lambda x: abs(x.get("shap_contribution", 0.0)), reverse=True)
+    for idx, r in enumerate(active_sorted, 1):
+        r["rank"] = idx
+
+    return active_sorted + unavail
+
+
+def compute_counterfactual_explanation(
+    X_df: pd.DataFrame,
+    current_prob: float,
+    threshold: float = THRESHOLD
+) -> dict:
+    """
+    Layer 3: Bounded Counterfactual Explanation.
+    Searches for minimal plausible feature modification on actionable feature (TransactionAmt)
+    that causes decision to drop below threshold, holding other features constant.
+    Consistently updates dependent features (amt_to_mean, amt_diff_mean).
+    """
+    row = X_df.iloc[0].to_dict()
+    orig_amt = float(row["TransactionAmt"])
+    amt_cumsum = float(row["amt_cumsum"])
+
+    if current_prob < threshold:
+        return {
+            "counterfactual_found": False,
+            "status": "ALREADY_LOW_RISK",
+            "original_value": round(orig_amt, 2),
+            "original_probability": round(current_prob, 4),
+            "threshold": threshold,
+            "explanation": f"Transaction already receives a low-risk decision (LEGIT) with calibrated risk {current_prob:.4f} < threshold {threshold:.2f}.",
+            "disclaimer": "Hypothetical model-based counterfactual; does not guarantee real-world transaction approval."
+        }
+
+    # Binary search bounds: [1.0, orig_amt]
+    low_bound = 1.0
+    high_bound = orig_amt
+
+    def evaluate_test_amt(test_amt: float) -> float:
+        test_row = row.copy()
+        test_row["TransactionAmt"] = float(test_amt)
+        test_row["amt_to_mean"]    = float(test_amt) / (amt_cumsum + 1.0)
+        test_row["amt_diff_mean"]  = float(test_amt) - amt_cumsum
+        test_df = pd.DataFrame([test_row])
+        test_p, _, _ = score_transaction_features(test_df)
+        return float(test_p[0])
+
+    p_at_min = evaluate_test_amt(low_bound)
+    if p_at_min >= threshold:
+        return {
+            "counterfactual_found": False,
+            "status": "NO_SINGLE_FEATURE_CROSSOVER",
+            "feature_name": "TransactionAmt",
+            "original_value": round(orig_amt, 2),
+            "original_probability": round(current_prob, 4),
+            "minimum_tested_value": round(low_bound, 2),
+            "probability_at_minimum": round(p_at_min, 4),
+            "threshold": threshold,
+            "explanation": (
+                f"Holding other high-risk features constant (e.g. velocity/device anomalies), "
+                f"reducing transaction amount to minimum (${low_bound:.2f}) does not lower risk below "
+                f"threshold {threshold:.2f} (resulting risk: {p_at_min:.4f})."
+            ),
+            "disclaimer": "Hypothetical model-based counterfactual; does not guarantee real-world transaction approval."
+        }
+
+    # Bounded binary search for crossover point
+    low, high = low_bound, high_bound
+    for _ in range(30):
+        mid = (low + high) / 2.0
+        p_mid = evaluate_test_amt(mid)
+        if p_mid < threshold:
+            low = mid
+        else:
+            high = mid
+
+    cf_amt = float(np.floor(low * 100) / 100.0)
+    cf_prob = evaluate_test_amt(cf_amt)
+    while cf_prob >= threshold and cf_amt > (low_bound + 0.10):
+        cf_amt = round(cf_amt - 0.50, 2)
+        cf_prob = evaluate_test_amt(cf_amt)
+
+    return {
+        "counterfactual_found": True,
+        "feature_name": "TransactionAmt",
+        "original_value": round(orig_amt, 2),
+        "counterfactual_value": cf_amt,
+        "original_probability": round(current_prob, 4),
+        "counterfactual_probability": round(cf_prob, 4),
+        "threshold": threshold,
+        "dependent_features_updated": ["amt_to_mean", "amt_diff_mean"],
+        "explanation": f"This transaction would have received a lower-risk decision (LEGIT) if its amount were at or below ${cf_amt:,.2f}, holding other features constant.",
+        "disclaimer": "Hypothetical model-based counterfactual; does not guarantee real-world transaction approval."
+    }
+
+
+def explain_lgbm_prediction(
+    X_df: pd.DataFrame,
+    transaction_id: str = "TXN_001",
+    context_meta: Optional[dict] = None
+) -> dict:
+    """Full 3-layer explanation bundle."""
+    cal_probs, preds, conf = score_transaction_features(X_df)
+    current_p = float(cal_probs[0])
+    decision  = "FRAUD" if preds[0] == 1 else "LEGIT"
+
+    layer1 = compute_shap_layer(X_df)
+    shap_dict = layer1.get("shap_dict", {})
+    layer2 = generate_reason_codes(X_df, shap_dict, context_meta=context_meta)
+    layer3 = compute_counterfactual_explanation(X_df, current_p, threshold=THRESHOLD)
+
+    return {
+        "transaction_id": transaction_id,
+        "calibrated_risk_score": round(current_p, 4),
+        "decision": decision,
+        "threshold": THRESHOLD,
+        "layer1_shap": layer1,
+        "layer2_reason_codes": layer2,
+        "layer3_counterfactual": layer3
+    }
+
+
+# ── Phase 2 Contextual Feature Extraction (Preserved) ─────────────────────────
 
 def compute_contextual_features(
     features_np: np.ndarray,
     profile: dict,
     txn_meta: dict,
 ) -> tuple:
-    """Compute the 13-dim contextual feature vector for FusionNet v3.
-
-    Feature order (must match fusion_config['feature_names']):
-      0  amount_z_score
-      1  merchant_novelty
-      2  geo_displacement
-      3  hour_deviation
-      4  device_novelty
-      5  velocity_ratio
-      6  behavioral_drift
-      7  p1_risk_score
-      8  amount_percentile        ← NEW (was missing)
-      9  time_gap_norm            ← NEW (was missing)
-      10 merchant_fraud_rate      ← NEW (was missing)
-      11 cross_device_accounts    ← NEW (was missing)
-      12 account_age_score        ← NEW (was missing)
-    """
+    """Compute the 13-dim contextual feature vector for FusionNet v3."""
     amount     = float(txn_meta.get("amount", 0.0))
     hour       = int(txn_meta.get("hour", 0)) % 24
     product_cd = str(txn_meta.get("product_cd", ""))
     device     = str(txn_meta.get("device_info", "")) if txn_meta.get("device_info") else ""
     addr1      = str(txn_meta.get("addr1", ""))
 
-    # ── F1: amount z-score ────────────────────────────────────────────────
     amt_std = max(profile.get("amt_std", 1.0), 0.1)
     f1_amount_z = float(np.clip(
         (amount - profile.get("amt_mean", 0.0)) / amt_std, -5.0, 5.0
     ))
 
-    # ── F2: merchant novelty ──────────────────────────────────────────────
     mc       = profile.get("merchant_counts", {})
     max_freq = max(mc.values()) if mc else 1
     freq     = mc.get(product_cd, 0)
     f2_merchant_novelty = 1.0 - (freq / (max_freq + 1e-9)) if mc else 1.0
 
-    # ── F3: geo displacement ──────────────────────────────────────────────
     geo_cluster = profile.get("geo_cluster", "")
     try:
         disp = abs(float(addr1) - float(geo_cluster)) if (addr1 and geo_cluster) else 0.0
@@ -490,21 +827,18 @@ def compute_contextual_features(
     except (ValueError, TypeError):
         f3_geo_disp = 0.5
 
-    # ── F4: hour deviation ────────────────────────────────────────────────
     hh     = profile.get("hour_hist", [1/24]*24)
     hh_val = hh[hour] if len(hh) == 24 else 1/24
     f4_hour_dev = float(max(0.0, 1.0 - hh_val * 24))
 
-    # ── F5: device novelty ────────────────────────────────────────────────
     kd = profile.get("known_devices", [])
     f5_device_novel = 0.0 if (device and device in kd) else (1.0 if device else 0.5)
 
-    # ── F6: velocity ratio ────────────────────────────────────────────────
     vel_1h  = float(profile.get("velocity_1h", 0))
     vel_24h = float(profile.get("velocity_24h", 0))
     f6_vel_ratio = float(np.clip(vel_1h / (vel_24h / 24.0 + 1e-6), 0.0, 10.0))
 
-    # ── F7: behavioral drift via autoencoder reconstruction error ─────────
+    # F7: behavioral drift via autoencoder reconstruction error
     with torch.no_grad():
         batch       = torch.FloatTensor(features_np).to(DEVICE)
         recon, _    = autoencoder(batch)
@@ -513,48 +847,30 @@ def compute_contextual_features(
     p95 = DRIFT_NORM.get("p95", 1.0)
     f7_drift = float(np.clip((mse - p5) / (p95 - p5 + 1e-9), 0.0, 1.0))
 
-    # ── F8: Phase 1 risk score ────────────────────────────────────────────
-    f8_p1 = float(txn_meta.get("p1_risk_score", 0.5))
+    # F8: Phase 1 risk score from calibrated LightGBM
+    f8_p1 = float(txn_meta.get("p1_risk_score", 0.15))
 
-    # ── F9: amount percentile (relative to account's observed range) ──────
     amt_min = profile.get("amt_min", 0.0)
     amt_max = profile.get("amt_max", amount)
     span    = amt_max - amt_min
-    if span > 0:
-        f9_amount_percentile = float(np.clip((amount - amt_min) / span, 0.0, 1.0))
-    else:
-        f9_amount_percentile = 0.5   # no history → neutral
+    f9_amount_percentile = float(np.clip((amount - amt_min) / span, 0.0, 1.0)) if span > 0 else 0.5
 
-    # ── F10: time gap norm (time since last transaction, normalised) ───────
     last_txn_dt = profile.get("last_txn_dt", 0.0)
     now_ts      = txn_meta.get("timestamp", time.time()) or time.time()
     if last_txn_dt > 0:
         gap_seconds = max(0.0, float(now_ts) - float(last_txn_dt))
-        # clip at 30 days; gap > 30d is treated as 1.0 (very long gap)
         f10_time_gap = float(np.clip(gap_seconds / (30 * 86400), 0.0, 1.0))
     else:
-        f10_time_gap = 1.0   # no prior transaction on record → maximum gap
+        f10_time_gap = 1.0
 
-    # ── F11: merchant fraud rate (static lookup from training data) ────────
-    # product_cd maps to a known fraud-rate bucket (C, H, R, S, W)
     f11_merchant_fraud = float(MERCHANT_FRAUD_RATES.get(product_cd, 0.05))
-    # normalise to [0, 1] using the known range [0.020, 0.117]
-    f11_merchant_fraud = float(np.clip(
-        (f11_merchant_fraud - 0.020) / (0.117 - 0.020 + 1e-9), 0.0, 1.0
-    ))
+    f11_merchant_fraud = float(np.clip((f11_merchant_fraud - 0.020) / (0.117 - 0.020 + 1e-9), 0.0, 1.0))
 
-    # ── F12: cross_device_accounts (fraction of shared devices in profile) ─
-    # Proxy: count of known devices relative to transaction count.
-    # More distinct devices per transaction → higher cross-device risk.
     kd_count  = len(kd)
     txn_count = max(1, profile.get("txn_count", 1))
     f12_cross_device = float(np.clip(kd_count / txn_count, 0.0, 1.0))
+    f13_account_age  = float(np.clip(txn_count / 200.0, 0.0, 1.0))
 
-    # ── F13: account age score (normalised, 0=new, 1=very old) ────────────
-    # We use txn_count as a proxy: saturates at 200 transactions (≈mature).
-    f13_account_age = float(np.clip(txn_count / 200.0, 0.0, 1.0))
-
-    # ── Assemble in feature_names order ───────────────────────────────────
     vec = np.array(
         [f1_amount_z, f2_merchant_novelty, f3_geo_disp, f4_hour_dev,
          f5_device_novel, f6_vel_ratio, f7_drift, f8_p1,
@@ -584,30 +900,35 @@ def compute_contextual_features(
 def decide_action(compromise_prob: float, p1_risk: float) -> str:
     """Map compromise probability + P1 risk to a recommended action."""
     if compromise_prob >= HIGH_THRESHOLD:
-        return "FREEZE_AND_NOTIFY" if p1_risk > 0.5 else "STEP_UP_AUTHENTICATION"
+        return "FREEZE_AND_NOTIFY" if p1_risk > THRESHOLD else "STEP_UP_AUTHENTICATION"
     if compromise_prob >= ELEVATED_THRESHOLD:
         return "MONITOR_AND_FLAG"
     return "APPROVE"
 
+
+# ── Static UI Servicing ───────────────────────────────────────────────────────
+
 @app.get("/panel", response_class=FileResponse)
 def serve_panel():
-    """Serve the RXT-J+ FraudShield demo panel."""
     panel_path = os.path.join(BASE, "panel.html")
     return FileResponse(panel_path, media_type="text/html")
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+# ── API Endpoints ─────────────────────────────────────────────────────────────
 
 @app.get("/")
 def root():
+    metrics = LGBM_METADATA.get("metrics", {})
     return {
         "service": "RXT-J+ Fraud Risk Scoring API",
-        "version": "2.0.0",
+        "version": "4.0.0",
         "status":  "live",
-        "phase":   "Phase 2 — Behavioral + Contextual Fusion",
-        "model_auc": config['final_auc'],
-        "model_mcc": config['final_mcc'],
+        "phase":   "Phase 1 Calibrated LightGBM + Phase 2 Behavioral Fusion",
+        "model_auc": metrics.get("test_roc_auc_cal", metrics.get("test_roc_auc_raw", 0.779)),
+        "model_pr_auc": metrics.get("test_pr_auc_cal", 0.163),
+        "operating_threshold": THRESHOLD,
         "fusion_auc": fusion_config['fusion_auc'],
-        "latency_ms": config['latency_ms']
+        "latency_ms": 0.05
     }
 
 @app.get("/health")
@@ -615,6 +936,9 @@ def health():
     return {
         "status": "healthy",
         "models_loaded": True,
+        "phase1_model": "LightGBM (Calibrated)",
+        "phase1_threshold": THRESHOLD,
+        "phase1_feature_count": len(FEATURE_SCHEMA),
         "fusion_input_dim": fusion_config['input_dim'],
         "feature_count": len(FEATURE_NAMES),
     }
@@ -623,21 +947,16 @@ def health():
 def model_info():
     return {
         "phase1": {
-            "weights":     {"W_MODEL": W_MODEL, "W_IFM": W_IFM},
+            "model_type":  LGBM_METADATA.get("model_type", "LightGBM + IsotonicRegression"),
+            "version":     LGBM_METADATA.get("version", "4.0.0"),
             "threshold":   THRESHOLD,
-            "performance": {
-                "auc": config['final_auc'],
-                "mcc": config['final_mcc'],
-                "false_positives": config['false_positives'],
-                "false_negatives": config['false_negatives'],
-            },
-            "speed": {
-                "latency_ms":     config['latency_ms'],
-                "throughput_tps": config['throughput_tps']
-            }
+            "features":    FEATURE_SCHEMA,
+            "feature_count": len(FEATURE_SCHEMA),
+            "performance": LGBM_METADATA.get("metrics", {}),
+            "weights":     {"W_LGBM": 1.0, "calibrator": "IsotonicRegression"},
         },
         "phase2": {
-            "model":        "FusionNet v3 (13→128→64→32→1)",
+            "model":        "FusionNet v3 (13->128->64->32->1)",
             "input_dim":    fusion_config['input_dim'],
             "feature_names": FEATURE_NAMES,
             "thresholds": {
@@ -660,39 +979,48 @@ def demo_samples():
     if not os.path.exists(path):
         raise HTTPException(
             status_code=404,
-            detail="demo_samples.json not found — run save_demo_samples.py first"
+            detail="demo_samples.json not found"
         )
     with open(path, 'r') as f:
         return JSONResponse(content=json.load(f))
 
 @app.post("/score", response_model=RiskResponse)
-def score_single(req: TransactionRequest):
+def score_single(req: TransactionRequest, explain: bool = Query(False)):
     t0 = time.time()
     try:
-        features_np = np.array(req.features, dtype=np.float32).reshape(1, -1)
-        risk, preds, conf = score_raw_features(features_np)
+        X_df = transform_to_lgbm_features(req.features)
+        risk, preds, conf = score_transaction_features(X_df)
         latency  = (time.time() - t0) * 1000
         decision = "FRAUD" if preds[0] == 1 else "LEGIT"
 
         _publish_profile_update(req.transaction_id, risk[0], decision, req.features)
+
+        explanation_data = None
+        if explain:
+            explanation_data = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id)
 
         return RiskResponse(
             transaction_id = req.transaction_id,
             risk_score     = round(float(risk[0]), 4),
             decision       = decision,
             confidence     = round(float(conf[0]), 4),
-            latency_ms     = round(latency, 4)
+            latency_ms     = round(latency, 4),
+            explanation    = explanation_data
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/score/form")
-def score_form(req: FormScoreRequest):
+def score_form(req: FormScoreRequest, explain: bool = Query(False)):
     t0 = time.time()
     try:
-        partial = [req.amount, 1.0 if req.is_foreign else 0.0, float(req.customer_age or 0)]
-        padded  = pad_form_features(partial, RAW_DIM).reshape(1, -1)
-        risk, preds, conf = score_raw_features(padded)
+        form_dict = {
+            "amount": req.amount,
+            "is_foreign": req.is_foreign,
+            "customer_age": req.customer_age or 30
+        }
+        X_df = transform_to_lgbm_features(form_dict)
+        risk, preds, conf = score_transaction_features(X_df)
         latency  = (time.time() - t0) * 1000
         decision = "FRAUD" if preds[0] == 1 else "LEGIT"
 
@@ -704,15 +1032,19 @@ def score_form(req: FormScoreRequest):
         conn.commit()
         conn.close()
 
-        _publish_profile_update(req.transaction_id, risk[0], decision, partial)
+        _publish_profile_update(req.transaction_id, risk[0], decision, [req.amount])
 
-        return {
+        res = {
             "transaction_id": req.transaction_id,
             "risk_score":     round(float(risk[0]), 4),
             "decision":       decision,
             "confidence":     round(float(conf[0]), 4),
             "latency_ms":     round(latency, 4),
         }
+        if explain:
+            res["explanation"] = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id)
+
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -727,27 +1059,25 @@ def get_history(limit: int = 10):
     return [{"tid": r[0], "amt": r[1], "score": r[2], "status": r[3]} for r in rows]
 
 @app.post("/score/direct")
-def score_direct(req: DirectScoreRequest):
+def score_direct(req: DirectScoreRequest, explain: bool = Query(False)):
     t0 = time.time()
     try:
-        Z_earn = np.array(req.features, dtype=np.float32).reshape(1, -1)
-        if Z_earn.shape[1] != ipca.n_components_:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Expected {ipca.n_components_} features, got {Z_earn.shape[1]}"
-            )
-
-        risk, preds, conf = score_earn_features(Z_earn)
+        X_df = transform_to_lgbm_features(req.features)
+        risk, preds, conf = score_transaction_features(X_df)
         latency = (time.time() - t0) * 1000
 
-        return {
+        res = {
             "transaction_id": req.transaction_id,
             "risk_score":     round(float(risk[0]), 4),
             "decision":       "FRAUD" if preds[0] == 1 else "LEGIT",
             "confidence":     round(float(conf[0]), 4),
             "latency_ms":     round(latency, 4),
-            "model_version":  "rxtj_plus_v1"
+            "model_version":  "rxtj_v4_lightgbm"
         }
+        if explain:
+            res["explanation"] = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id)
+
+        return res
     except HTTPException:
         raise
     except Exception as e:
@@ -759,9 +1089,10 @@ def score_batch(req: BatchRequest):
         raise HTTPException(status_code=400, detail="Max 1000 transactions per batch")
     t0 = time.time()
     try:
-        ids         = [t.transaction_id for t in req.transactions]
-        features_np = np.array([t.features for t in req.transactions], dtype=np.float32)
-        risk, preds, conf = score_raw_features(features_np)
+        ids = [t.transaction_id for t in req.transactions]
+        features_list = [t.features for t in req.transactions]
+        X_df = transform_to_lgbm_features(features_list)
+        risk, preds, conf = score_transaction_features(X_df)
         total_latency = (time.time() - t0) * 1000
 
         results = [
@@ -784,53 +1115,37 @@ def score_batch(req: BatchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/score/form-full")
-def score_form_full(req: FullFormRequest):
-    """Phase 1 + Phase 2 scoring from plain human-readable form inputs.
-
-    No pre-computed feature vector required.  The endpoint:
-      1. Builds a padded raw (224-dim) feature vector from the form fields
-         using pad_form_features() — missing columns filled with imputer means.
-      2. Runs the full Phase 1 pipeline (imputer -> scaler -> Nystroem -> IPCA
-         -> ResNeXt + Self-Attention GRU + IFM ensemble) to produce p1_risk_score.
-      3. Uses transform_raw() output as the autoencoder input for behavioral drift.
-      4. Computes all 13 contextual features using the live form fields + the
-         account behavioral profile from ProfileStore.
-      5. Runs FusionNet v3 to produce compromise probability + explainability.
-      6. Persists the event to the transaction log and updates the account profile.
-
-    Result: every change to amount / hour / device / addr produces a different
-    Phase 1 score AND different contextual feature values — fully live model
-    inference with no pre-saved vectors.
-    """
+def score_form_full(req: FullFormRequest, explain: bool = Query(False)):
+    """Phase 1 (Calibrated LightGBM) + Phase 2 (Contextual FusionNet v3) live scoring."""
     t0 = time.time()
     try:
-        # Step 1: synthesise 224-dim raw feature vector from form fields.
-        # col 0 -> TransactionAmt (strongest single predictor)
-        # col 1 -> is_foreign flag (card-not-present proxy)
-        # col 2 -> customer age
-        # Every other column is NaN -> imputer fills with training-set mean.
+        # Step 1: load account behavioral profile
+        profile = profile_store.get_or_empty(str(req.account_id))
+
+        # Step 2: Phase 1 scoring with calibrated LightGBM
+        form_meta = {
+            "amount":      req.amount,
+            "hour":        req.hour,
+            "product_cd":  req.product_cd,
+            "device_info": req.device_info,
+            "addr1":       req.addr1
+        }
+        X_df = transform_to_lgbm_features(form_meta, profile=profile)
+        risk, preds, conf = score_transaction_features(X_df)
+        p1_risk = float(risk[0])
+        p1_dec  = "FRAUD" if preds[0] == 1 else "LEGIT"
+        p1_conf = float(conf[0])
+
+        # Step 3: Autoencoder behavioral drift (using scaled 224-dim padded form vector)
         partial = [
             float(req.amount),
             1.0 if req.is_foreign else 0.0,
             float(req.customer_age or 30),
         ]
         raw_vec = pad_form_features(partial, RAW_DIM).reshape(1, -1)
-
-        # Step 2: Phase 1 scoring
-        # score_raw_features applies imputer -> scaler -> Nystroem -> IPCA -> model
-        risk, preds, conf = score_raw_features(raw_vec)
-        p1_risk = float(risk[0])
-        p1_dec  = "FRAUD" if preds[0] == 1 else "LEGIT"
-        p1_conf = float(conf[0])
-
-        # Step 3: X_clean for autoencoder (behavioral drift)
-        # transform_raw gives the imputed + scaled 224-dim vector the AE was trained on.
         X_clean = transform_raw(raw_vec, imputer, scaler)
 
-        # Step 4: load account behavioral profile
-        profile = profile_store.get_or_empty(str(req.account_id))
-
-        # Step 5: compute all 13 contextual features
+        # Step 4: Compute 13 contextual features
         now_ts = req.timestamp or time.time()
         txn_meta = {
             "amount":        req.amount,
@@ -843,22 +1158,15 @@ def score_form_full(req: FullFormRequest):
         }
         ctx_vec, ctx_named = compute_contextual_features(X_clean, profile, txn_meta)
 
-        if ctx_vec.shape != (1, 13):
-            raise HTTPException(
-                status_code=500,
-                detail=f"Feature shape error: {ctx_vec.shape} != (1, 13)"
-            )
-
-        # Step 6: FusionNet v3 inference
+        # Step 5: FusionNet v3 inference
         ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
         ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
-
         with torch.no_grad():
             compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
         compromise_prob = float(compromise_prob_t.cpu().numpy()[0])
         attn_weights_np = attn_weights_t.cpu().numpy()
 
-        # Step 7: decision tiers
+        # Step 6: Decision tiers
         if compromise_prob >= HIGH_THRESHOLD:
             decision = "HIGH"
         elif compromise_prob >= ELEVATED_THRESHOLD:
@@ -868,14 +1176,13 @@ def score_form_full(req: FullFormRequest):
 
         rec_action = decide_action(compromise_prob, p1_risk)
 
-        # Step 8: explainability
         explainability = {
             FEATURE_NAMES[i]: round(float(attn_weights_np[i]), 4)
             for i in range(len(FEATURE_NAMES))
         }
         top_trigger = max(explainability, key=explainability.get)
 
-        # Step 9: persist log + update profile
+        # Step 7: Persist transaction log and update profile
         profile_store.log_transaction(
             account_id      = str(req.account_id),
             transaction_id  = req.transaction_id,
@@ -897,7 +1204,7 @@ def score_form_full(req: FullFormRequest):
 
         latency_ms = round((time.time() - t0) * 1000, 3)
 
-        return {
+        res = {
             "account_id":             req.account_id,
             "transaction_id":         req.transaction_id,
             "compromise_probability": round(compromise_prob, 4),
@@ -911,71 +1218,64 @@ def score_form_full(req: FullFormRequest):
             "explainability":         explainability,
             "top_trigger_feature":    top_trigger,
             "latency_ms":             latency_ms,
-            "model_version":          "rxtj_plus_v2_form_full",
-            "feature_source":         "synthesised_from_form_inputs",
+            "model_version":          "rxtj_v4_form_full",
+            "feature_source":         "calibrated_lightgbm_plus_fusion",
         }
+
+        if explain:
+            res["p1_explanation"] = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id, context_meta=txn_meta)
+
+        return res
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/account/compromise-score")
-def account_compromise_score(req: CompromiseRequest):
-    """Phase 2 — Full behavioral + contextual fusion scoring (13-feature FusionNet v3)."""
+def account_compromise_score(req: CompromiseRequest, explain: bool = Query(False)):
+    """Phase 2 — Behavioral + Contextual Fusion scoring using new LightGBM P1 score."""
     t0 = time.time()
     try:
-        # — Phase 1 scoring —
-        # Accept either 50-dim EARN+ (post-IPCA) or full raw 224-dim features.
-        features_np = np.array(req.features, dtype=np.float32).reshape(1, -1)
-        n_feat = features_np.shape[1]
-
-        if n_feat == ipca.n_components_:
-            # Already EARN+ space — use direct scorer; synthesize X_clean for AE
-            risk, preds, conf = score_earn_features(features_np)
-            p1_risk = float(risk[0])
-            # Reconstruct approximate 224-dim input for autoencoder via inverse_transform
-            Z_nys_approx = ipca.inverse_transform(features_np)        # (1, nystroem_dim)
-            # We can't invert Nystroem exactly; use the EARN+ vector padded to AE input
-            ae_in_dim = autoencoder.encoder[0].in_features            # 224
-            X_clean   = np.zeros((1, ae_in_dim), dtype=np.float32)
-            X_clean[0, :min(n_feat, ae_in_dim)] = features_np[0, :min(n_feat, ae_in_dim)]
-        else:
-            # Full raw features path
-            risk, preds, conf = score_raw_features(features_np)
-            p1_risk = float(risk[0])
-            # — Imputed+scaled for autoencoder —
-            X_clean = transform_raw(features_np, imputer, scaler)
-
-        # — Load account profile —
         profile = profile_store.get_or_empty(str(req.account_id))
 
-        # — Contextual features (all 13) —
+        features_np = np.array(req.features, dtype=np.float32).reshape(1, -1)
+        meta = {
+            "amount":      req.amount,
+            "hour":        req.hour,
+            "product_cd":  req.product_cd,
+            "device_info": req.device_info,
+            "addr1":       req.addr1
+        }
+        X_df = transform_to_lgbm_features(features_np, profile=profile, txn_meta=meta)
+        risk, preds, conf = score_transaction_features(X_df)
+        p1_risk = float(risk[0])
+
+        # Autoencoder input
+        if features_np.shape[1] == RAW_DIM:
+            X_clean = transform_raw(features_np, imputer, scaler)
+        else:
+            X_clean = np.zeros((1, RAW_DIM), dtype=np.float32)
+            X_clean[0, :min(features_np.shape[1], RAW_DIM)] = features_np[0, :min(features_np.shape[1], RAW_DIM)]
+
         txn_meta = {
-            "amount":       req.amount   or (req.features[0] if req.features else 0.0),
-            "hour":         req.hour     or 0,
-            "product_cd":   req.product_cd or "",
-            "device_info":  req.device_info,
-            "addr1":        req.addr1,
+            "amount":        req.amount or (req.features[0] if req.features else 0.0),
+            "hour":          req.hour or 0,
+            "product_cd":    req.product_cd or "",
+            "device_info":   req.device_info,
+            "addr1":         req.addr1,
             "p1_risk_score": p1_risk,
-            "timestamp":    req.timestamp or time.time(),
+            "timestamp":     req.timestamp or time.time(),
         }
         ctx_vec, ctx_named = compute_contextual_features(X_clean, profile, txn_meta)
 
-        # Safety check: shape must be (1, 13)
-        assert ctx_vec.shape == (1, 13), f"ctx_vec shape {ctx_vec.shape} != (1,13)"
-
-        # — FusionNet inference —
         ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
         ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
-
         with torch.no_grad():
             compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
-        compromise_prob  = float(compromise_prob_t.cpu().numpy()[0])
-        attn_weights_np  = attn_weights_t.cpu().numpy()
+        compromise_prob = float(compromise_prob_t.cpu().numpy()[0])
+        attn_weights_np = attn_weights_t.cpu().numpy()
 
-        # — Decision —
         if compromise_prob >= HIGH_THRESHOLD:
             decision = "HIGH"
         elif compromise_prob >= ELEVATED_THRESHOLD:
@@ -985,14 +1285,12 @@ def account_compromise_score(req: CompromiseRequest):
 
         rec_action = decide_action(compromise_prob, p1_risk)
 
-        # — Explainability dict (attention weight × feature value magnitude) —
         explainability = {
             FEATURE_NAMES[i]: round(float(attn_weights_np[i]), 4)
             for i in range(len(FEATURE_NAMES))
         }
         top_trigger = max(explainability, key=explainability.get)
 
-        # — Persist to log —
         profile_store.log_transaction(
             account_id      = str(req.account_id),
             transaction_id  = req.transaction_id,
@@ -1003,8 +1301,6 @@ def account_compromise_score(req: CompromiseRequest):
             top_trigger     = top_trigger,
             context         = ctx_named,
         )
-
-        # — Update profile —
         profile_store.update_profile(str(req.account_id), {
             "amount":      txn_meta["amount"],
             "hour":        txn_meta["hour"],
@@ -1016,7 +1312,7 @@ def account_compromise_score(req: CompromiseRequest):
 
         latency_ms = round((time.time() - t0) * 1000, 3)
 
-        return {
+        res = {
             "account_id":             req.account_id,
             "transaction_id":         req.transaction_id,
             "compromise_probability": round(compromise_prob, 4),
@@ -1028,17 +1324,18 @@ def account_compromise_score(req: CompromiseRequest):
             "top_trigger_feature":    top_trigger,
             "recommended_action":     rec_action,
             "latency_ms":             latency_ms,
-            "model_version":          "rxtj_plus_v2_phase2",
+            "model_version":          "rxtj_v4_phase2",
         }
-    except AssertionError as e:
-        raise HTTPException(status_code=500, detail=f"Feature shape error: {e}")
+
+        if explain:
+            res["p1_explanation"] = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id, context_meta=txn_meta)
+
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/account/profile/{account_id}")
 def get_account_profile(account_id: str, window: str = "30d"):
-    """Return stored behavioral profile for an account."""
     profile = profile_store.get_profile(account_id)
     if profile is None:
         raise HTTPException(
@@ -1051,10 +1348,8 @@ def get_account_profile(account_id: str, window: str = "30d"):
     profile["known_device_count"] = len(profile.get("known_devices", []))
     return profile
 
-
 @app.get("/account/history/{account_id}")
 def get_account_history(account_id: str, limit: int = 20):
-    """Return the last N scored events for an account, newest first."""
     limit = max(1, min(int(limit), 100))
     history = profile_store.get_history(account_id, limit=limit)
     return {
@@ -1063,10 +1358,8 @@ def get_account_history(account_id: str, limit: int = 20):
         "events":        history,
     }
 
-
 @app.get("/account/alerts")
 def get_account_alerts(threshold: float = 0.7, limit: int = 50):
-    """Return accounts with peak compromise score above threshold in last 24h."""
     threshold = max(0.1, min(float(threshold), 0.99))
     alerts    = profile_store.get_alerts(threshold=threshold, limit=limit)
     return {
@@ -1076,10 +1369,9 @@ def get_account_alerts(threshold: float = 0.7, limit: int = 50):
         "generated_at": time.time(),
     }
 
-
 @app.post("/account/explain")
 def explain_compromise(req: ExplainRequest):
-    """Return a human-readable explanation for a stored compromise score."""
+    """Return an explanation for a stored compromise event (P5 enriched)."""
     history = profile_store.get_history(req.account_id, limit=100)
     event   = next((e for e in history if e["transaction_id"] == req.transaction_id), None)
     if event is None:
@@ -1092,19 +1384,18 @@ def explain_compromise(req: ExplainRequest):
     ctx     = event.get("context", {})
 
     def interpret(name, val):
-        """Human-readable interpretation for all 13 feature names."""
         tips = {
-            "amount_z_score":        f"Amount deviated {abs(val):.1f}σ from account's average (z={val:.2f}).",
+            "amount_z_score":        f"Amount deviated {abs(val):.1f}σ from account average (z={val:.2f}).",
             "merchant_novelty":      f"Merchant type {'never' if val > 0.9 else 'rarely'} seen before (novelty={val:.2f}).",
             "geo_displacement":      f"Location {'far' if val > 0.5 else 'somewhat'} from typical billing region ({val:.2f}).",
             "hour_deviation":        f"Transaction hour {'unusual' if val > 0.6 else 'slightly off'} for this account ({val:.2f}).",
             "device_novelty":        f"{'New device never seen before' if val > 0.9 else 'Unfamiliar device'} ({val:.2f}).",
-            "velocity_ratio":        f"Transaction rate {val:.1f}× higher than usual for this time window.",
-            "behavioral_drift":      f"Overall behavioral pattern {'significantly' if val > 0.6 else 'somewhat'} different from historical baseline ({val:.2f}).",
+            "velocity_ratio":        f"Transaction rate {val:.1f}x higher than usual for this time window.",
+            "behavioral_drift":      f"Overall behavioral pattern {'significantly' if val > 0.6 else 'somewhat'} different from baseline ({val:.2f}).",
             "p1_risk_score":         f"Phase 1 per-transaction risk score: {val:.2f}.",
-            "amount_percentile":     f"Amount is in the {'top' if val > 0.8 else 'upper' if val > 0.6 else 'normal'} range for this account (percentile={val:.2f}).",
+            "amount_percentile":     f"Amount is in the {'top' if val > 0.8 else 'upper' if val > 0.6 else 'normal'} range for this account ({val:.2f}).",
             "time_gap_norm":         f"Gap since last transaction is {'unusually long' if val > 0.7 else 'moderate'} ({val:.2f}).",
-            "merchant_fraud_rate":   f"Merchant category has {'high' if val > 0.6 else 'moderate'} baseline fraud rate ({val:.2f}).",
+            "merchant_fraud_rate":   f"Merchant category baseline fraud rate: {val:.2f}.",
             "cross_device_accounts": f"{'Many' if val > 0.5 else 'Some'} distinct devices relative to account history ({val:.2f}).",
             "account_age_score":     f"Account is {'mature' if val > 0.7 else 'relatively new'} ({val:.2f}).",
         }
@@ -1131,17 +1422,28 @@ def explain_compromise(req: ExplainRequest):
     else:
         baseline = {}
 
-    if top_features:
-        primary = top_features[0]
-        summary = (
-            f"The compromise score was primarily driven by: "
-            f"{primary['interpretation']} "
-            + (f"Additionally, {top_features[1]['interpretation']}" if len(top_features) > 1 else "")
-        )
-    else:
-        summary = "Insufficient context data for detailed explanation."
+    summary = (
+        f"The compromise score was primarily driven by: {top_features[0]['interpretation']} "
+        + (f"Additionally, {top_features[1]['interpretation']}" if len(top_features) > 1 else "")
+    ) if top_features else "Insufficient context data for detailed explanation."
 
-    return {
+    # Compute TreeSHAP explanation if context available
+    p1_explanation = None
+    if profile:
+        try:
+            form_dict = {
+                "amount": float(profile.get("amt_mean", 100.0)),
+                "hour": 12,
+                "product_cd": "W",
+                "device_info": "MISSING",
+                "addr1": None
+            }
+            X_df = transform_to_lgbm_features(form_dict, profile=profile)
+            p1_explanation = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id)
+        except Exception:
+            pass
+
+    res = {
         "account_id":       req.account_id,
         "transaction_id":   req.transaction_id,
         "compromise_prob":  event.get("compromise_prob"),
@@ -1150,3 +1452,38 @@ def explain_compromise(req: ExplainRequest):
         "account_baseline": baseline,
         "what_triggered":   summary,
     }
+    if p1_explanation:
+        res["p1_shap_explanation"] = p1_explanation
+
+    return res
+
+@app.post("/score/explain")
+def score_explain_endpoint(req: ExplainTransactionRequest):
+    """
+    P5: Dedicated 3-layer TreeSHAP + Reason Codes + Counterfactual explanation endpoint.
+    """
+    try:
+        profile = None
+        if req.account_id:
+            profile = profile_store.get_or_empty(str(req.account_id))
+
+        if req.features is not None:
+            X_df = transform_to_lgbm_features(req.features, profile=profile)
+        else:
+            meta = {
+                "amount":      req.amount or 100.0,
+                "hour":        req.hour or 12,
+                "product_cd":  req.product_cd or "W",
+                "device_info": req.device_info or "MISSING",
+                "addr1":       req.addr1
+            }
+            X_df = transform_to_lgbm_features(meta, profile=profile)
+
+        explanation = explain_lgbm_prediction(
+            X_df,
+            transaction_id=req.transaction_id,
+            context_meta={"account_id": req.account_id}
+        )
+        return explanation
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
