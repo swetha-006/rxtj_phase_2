@@ -14,9 +14,11 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any, Union, Tuple
 from profile_store import ProfileStore
+from cost_router import CostSensitiveRouter, CostDecision
+from ring_detector import FraudRingDetector, FraudRingMetrics
 import numpy as np
 import joblib
 import json
@@ -220,8 +222,44 @@ MERCHANT_FRAUD_RATES = json.load(open(merchant_path)) if os.path.exists(merchant
 print(f"ML Core loaded: LightGBM v4 (Calibrated). Threshold={THRESHOLD:.2f}, Features={len(FEATURE_SCHEMA)}")
 if fusion_model is not None:
     print(f"Phase 2 FusionNet v3 loaded (input_dim={fusion_config.get('input_dim', 13)}). High={HIGH_THRESHOLD}, Elevated={ELEVATED_THRESHOLD}")
+# ── Exact Categorical Dtypes & Encoders (Matching LightGBM Booster) ───────────
+if hasattr(lgbm_model, "booster_") and hasattr(lgbm_model.booster_, "pandas_categorical") and lgbm_model.booster_.pandas_categorical:
+    PROD_CATEGORIES = list(lgbm_model.booster_.pandas_categorical[0])
+    DEV_CATEGORIES  = list(lgbm_model.booster_.pandas_categorical[1])
 else:
-    print("Phase 2 deep models running in lightweight heuristic fallback mode.")
+    PROD_CATEGORIES = ['C', 'H', 'R', 'S', 'W']
+    DEV_CATEGORIES  = sorted(list(TOP_DEVICES)) + ["MISSING", "OTHER"]
+
+PROD_CAT_TYPE = pd.CategoricalDtype(categories=PROD_CATEGORIES, ordered=False)
+DEV_CAT_TYPE  = pd.CategoricalDtype(categories=DEV_CATEGORIES, ordered=False)
+
+def clean_device_info(val: Any) -> str:
+    """Consistent device encoding matching training distribution."""
+    if val is None or pd.isna(val):
+        return "MISSING"
+    s = str(val).strip()
+    if not s or s.lower() in ("nan", "none", "null", "missing", "unknown", "0", "0.0"):
+        return "MISSING"
+    if s in TOP_DEVICES:
+        return s
+    return "OTHER"
+
+def clean_product_cd(val: Any) -> str:
+    """Consistent ProductCD encoding."""
+    if val is None or pd.isna(val):
+        return "W"
+    s = str(val).strip().upper()
+    if s in PROD_CATEGORIES:
+        return s
+    return "W"
+
+# ── Cost Router & Ring Detector Global Instances ──────────────────────────────
+cost_router_engine = CostSensitiveRouter(c_step=20.0, c_block=400.0, gamma=0.85)
+ring_detector_engine = FraudRingDetector(
+    window_seconds=86400.0,
+    min_ring_size_alert=3,
+    new_account_max_txn=3
+)
 
 
 # ── SQLite History Store ─────────────────────────────────────────────────────
@@ -330,12 +368,12 @@ class RiskResponse(BaseModel):
 class CompromiseRequest(BaseModel):
     account_id:     str
     transaction_id: str
-    features:       List[float]
+    features:       Optional[List[float]] = None
     amount:         Optional[float] = 0.0
     hour:           Optional[int]   = 0
     product_cd:     Optional[str]   = ""
     device_info:    Optional[str]   = None
-    addr1:          Optional[str]   = None
+    addr1:          Optional[Union[str, float, int]] = None
     timestamp:      Optional[float] = None
 
 class ExplainRequest(BaseModel):
@@ -349,7 +387,7 @@ class ExplainTransactionRequest(BaseModel):
     hour:           Optional[int]   = None
     product_cd:     Optional[str]   = "W"
     device_info:    Optional[str]   = None
-    addr1:          Optional[str]   = None
+    addr1:          Optional[Union[str, float, int]] = None
     features:       Optional[List[float]] = None
 
 class FullFormRequest(BaseModel):
@@ -361,7 +399,7 @@ class FullFormRequest(BaseModel):
     is_foreign:     bool            = Field(False,                description="True if card-not-present / international")
     customer_age:   Optional[int]   = Field(30,   ge=0, le=120,   description="Cardholder age")
     device_info:    Optional[str]   = Field(None, example="MacOS")
-    addr1:          Optional[str]   = Field(None, example="299",  description="Billing postal/zip code")
+    addr1:          Optional[Union[str, float, int]] = Field(None, example="299",  description="Billing postal/zip code")
     timestamp:      Optional[float] = Field(None,                 description="Unix timestamp")
 
 
@@ -395,8 +433,8 @@ def transform_to_lgbm_features(
     elif isinstance(inputs, dict):
         amt = float(inputs.get("amount", inputs.get("TransactionAmt", 0.0)))
         hr  = int(inputs.get("hour", 0)) % 24
-        pcd = str(inputs.get("product_cd", inputs.get("ProductCD", "W")))
-        dev = str(inputs.get("device_info", inputs.get("DeviceInfo", ""))) if inputs.get("device_info") or inputs.get("DeviceInfo") else "MISSING"
+        pcd = clean_product_cd(inputs.get("product_cd", inputs.get("ProductCD", "W")))
+        dev = clean_device_info(inputs.get("device_info", inputs.get("DeviceInfo", None)))
         addr = float(inputs.get("addr1")) if inputs.get("addr1") is not None and str(inputs.get("addr1")).strip() != "" else np.nan
 
         if profile:
@@ -447,7 +485,13 @@ def transform_to_lgbm_features(
             vec = arr[i]
             if n_dim == 14:
                 # Exact model schema
-                row = {FEATURE_SCHEMA[j]: vec[j] for j in range(14)}
+                row = {
+                    FEATURE_SCHEMA[j]: (
+                        clean_product_cd(vec[j]) if FEATURE_SCHEMA[j] == "ProductCD"
+                        else (clean_device_info(vec[j]) if FEATURE_SCHEMA[j] == "DeviceInfo" else float(vec[j]))
+                    )
+                    for j in range(14)
+                }
             elif n_dim == 224:
                 # Raw IEEE-CIS feature vector
                 amt = float(vec[1])
@@ -509,11 +553,9 @@ def transform_to_lgbm_features(
             rows.append(row)
         df_out = pd.DataFrame(rows)
 
-    # Format categorical types matching training artifact
-    df_out["ProductCD"] = df_out["ProductCD"].fillna("MISSING").astype(str).astype("category")
-    df_out["DeviceInfo"] = df_out["DeviceInfo"].apply(
-        lambda x: x if x in TOP_DEVICES else ("MISSING" if pd.isna(x) else "OTHER")
-    ).astype("category")
+    # Format categorical types matching training artifact exactly
+    df_out["ProductCD"] = df_out["ProductCD"].apply(clean_product_cd).astype(PROD_CAT_TYPE)
+    df_out["DeviceInfo"] = df_out["DeviceInfo"].apply(clean_device_info).astype(DEV_CAT_TYPE)
 
     return df_out[FEATURE_SCHEMA]
 
@@ -524,10 +566,8 @@ def score_transaction_features(X_df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarr
     Returns: (calibrated_probs, binary_preds, confidence)
     """
     X_eval = X_df[FEATURE_SCHEMA].copy()
-    X_eval["ProductCD"] = X_eval["ProductCD"].fillna("MISSING").astype(str).astype("category")
-    X_eval["DeviceInfo"] = X_eval["DeviceInfo"].apply(
-        lambda x: x if x in TOP_DEVICES else ("MISSING" if pd.isna(x) else "OTHER")
-    ).astype("category")
+    X_eval["ProductCD"] = X_eval["ProductCD"].apply(clean_product_cd).astype(PROD_CAT_TYPE)
+    X_eval["DeviceInfo"] = X_eval["DeviceInfo"].apply(clean_device_info).astype(DEV_CAT_TYPE)
 
     raw_probs = lgbm_model.predict_proba(X_eval)[:, 1]
     cal_probs = np.clip(calibrator.predict(raw_probs), 0.0, 1.0)
@@ -567,10 +607,8 @@ def compute_shap_layer(X_df: pd.DataFrame) -> dict:
         }
 
     X_eval = X_df[FEATURE_SCHEMA].copy()
-    X_eval["ProductCD"] = X_eval["ProductCD"].fillna("MISSING").astype(str).astype("category")
-    X_eval["DeviceInfo"] = X_eval["DeviceInfo"].apply(
-        lambda x: x if x in TOP_DEVICES else ("MISSING" if pd.isna(x) else "OTHER")
-    ).astype("category")
+    X_eval["ProductCD"] = X_eval["ProductCD"].apply(clean_product_cd).astype(PROD_CAT_TYPE)
+    X_eval["DeviceInfo"] = X_eval["DeviceInfo"].apply(clean_device_info).astype(DEV_CAT_TYPE)
 
     shap_vals = shap_explainer.shap_values(X_eval)
     if isinstance(shap_vals, list):
@@ -700,32 +738,43 @@ def generate_reason_codes(
             }
         })
 
-    # 4. R21 — RING_ASSOCIATION (compatible hook for future ring_detector.py)
+    # 4. R21 — RING_ASSOCIATION (§5.5)
     meta = context_meta or {}
-    ring_id = meta.get("ring_id") or meta.get("ring_cluster_id")
-    ring_risk = meta.get("ring_risk_score")
+    ring_metrics: Optional[FraudRingMetrics] = meta.get("ring_metrics")
+    ring_size = ring_metrics.ring_size if ring_metrics else int(meta.get("ring_size", 1))
+    is_ring_alert = ring_metrics.is_ring_alert if ring_metrics else bool(meta.get("is_ring_alert", False))
+    shared_devs = ring_metrics.shared_devices if ring_metrics else meta.get("shared_devices", [])
+    connected_accs = ring_metrics.connected_accounts if ring_metrics else meta.get("connected_accounts", [])
+    ring_id = ring_metrics.ring_id if ring_metrics else meta.get("ring_id", "RING_0")
+    ring_risk = ring_metrics.risk_level if ring_metrics else meta.get("ring_risk_level", "LOW")
 
-    if ring_id is not None or ring_risk is not None:
+    if ring_size > 1 or is_ring_alert or ring_risk in ("ELEVATED", "CRITICAL"):
         active_reasons.append({
             "code": "R21",
             "name": "RING_ASSOCIATION",
-            "shap_contribution": float(ring_risk or 0.5),
+            "shap_contribution": 0.1800 if is_ring_alert else 0.0800,
             "category": "CONTEXTUAL_GRAPH_EVIDENCE",
-            "explanation": f"Entity is affiliated with known fraud ring cluster '{ring_id}' (risk: {ring_risk}).",
+            "explanation": (
+                f"Account associated with an active fraud-ring cluster '{ring_id}' of {ring_size} accounts "
+                f"sharing entity linkage (shared devices: {len(shared_devs)})."
+            ),
             "evidence": {
                 "ring_id": str(ring_id),
-                "ring_risk_score": float(ring_risk or 0.0)
+                "ring_size": ring_size,
+                "is_ring_alert": is_ring_alert,
+                "risk_level": ring_risk,
+                "shared_devices": shared_devs,
+                "connected_accounts_count": len(connected_accs)
             }
         })
     else:
-        # Document explicit unavailable status for ring association
         active_reasons.append({
             "code": "R21",
             "name": "RING_ASSOCIATION",
-            "status": "UNAVAILABLE",
+            "status": "NORMAL",
             "category": "CONTEXTUAL_GRAPH_EVIDENCE",
-            "explanation": "No fraud-ring graph association evidence present in input (pending ring_detector.py integration).",
-            "evidence": None
+            "explanation": "No coordinated fraud-ring graph association detected for this entity.",
+            "evidence": {"ring_size": 1, "is_ring_alert": False, "risk_level": "LOW"}
         })
 
     # Rank active reasons by SHAP contribution magnitude descending (unavailable placed at end)
@@ -1005,27 +1054,40 @@ def _fusion_baseline() -> np.ndarray:
     return np.zeros(len(FEATURE_NAMES), dtype=np.float64)
 
 
-def decide_action(compromise_prob: float, p1_risk: float) -> str:
-    """Map compromise probability + P1 risk to a recommended action."""
-    if compromise_prob >= HIGH_THRESHOLD:
-        return "FREEZE_AND_NOTIFY" if p1_risk > THRESHOLD else "STEP_UP_AUTHENTICATION"
-    if compromise_prob >= ELEVATED_THRESHOLD:
-        return "MONITOR_AND_FLAG"
-    return "APPROVE"
+def decide_action(compromise_prob: float, p1_risk: float, amount: float = 200.0) -> str:
+    """
+    Cost-Sensitive Decision Router (SOLUTION_BLUEPRINT §5.2).
+    Evaluates expected financial losses across ALLOW, STEP_UP, and BLOCK.
+    Returns legacy-compatible recommended action string:
+      - 'APPROVE'
+      - 'STEP_UP_AUTHENTICATION'
+      - 'FREEZE_AND_NOTIFY'
+    """
+    effective_p = max(float(compromise_prob), float(p1_risk))
+    return cost_router_engine.decide_action(effective_p, amount)
 
 
 # ── Static UI Servicing ───────────────────────────────────────────────────────
 
+@app.get("/", response_class=FileResponse)
+@app.get("/guardian", response_class=FileResponse)
+def serve_guardian():
+    """Serve the integrated Guardian payment-intelligence workspace."""
+    guardian_path = os.path.join(BASE, "guardian.html")
+    return FileResponse(guardian_path, media_type="text/html")
+
 @app.get("/panel", response_class=FileResponse)
 @app.get("/dashboard", response_class=FileResponse)
-def serve_panel():
+def serve_legacy_panel():
+    """Keep the original dashboard available for backwards compatibility."""
     panel_path = os.path.join(BASE, "panel.html")
     return FileResponse(panel_path, media_type="text/html")
 
 
 # ── API Endpoints ─────────────────────────────────────────────────────────────
 
-@app.get("/")
+@app.get("/api")
+@app.get("/status")
 def root():
     metrics = LGBM_METADATA.get("metrics", {})
     return {
@@ -1038,7 +1100,7 @@ def root():
         "operating_threshold": THRESHOLD,
         "fusion_auc": fusion_config.get("fusion_auc"),
         "latency_ms": 0.05,
-        "dashboard_url": "/panel"
+        "dashboard_url": "/"
     }
 
 @app.get("/health")
@@ -1269,6 +1331,16 @@ def score_form_full(req: FullFormRequest, explain: bool = Query(False)):
         }
         ctx_vec, ctx_named = compute_contextual_features(X_clean, profile, txn_meta)
 
+        # Step 4b: Update fraud ring graph (P6)
+        ring_metrics = ring_detector_engine.add_transaction(
+            account_id=str(req.account_id),
+            device_info=req.device_info,
+            addr1=req.addr1,
+            timestamp=now_ts,
+            txn_seq=int(ctx_named.get("txn_seq", 0))
+        )
+        txn_meta["ring_metrics"] = ring_metrics
+
         # Step 5: FusionNet v3 inference
         if TORCH_AVAILABLE and fusion_model is not None and fusion_scaler is not None:
             ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
@@ -1281,7 +1353,7 @@ def score_form_full(req: FullFormRequest, explain: bool = Query(False)):
             compromise_prob = float(np.clip(0.6 * p1_risk + 0.2 * ctx_vec[0, 4] + 0.2 * (ctx_vec[0, 5] > 1.0), 0.0, 1.0))
             attn_weights_np = np.ones(len(FEATURE_NAMES), dtype=np.float32) / max(1, len(FEATURE_NAMES))
 
-        # Step 6: Decision tiers
+        # Step 6: Decision tiers & Cost-Sensitive Router (P4)
         if compromise_prob >= HIGH_THRESHOLD:
             decision = "HIGH"
         elif compromise_prob >= ELEVATED_THRESHOLD:
@@ -1289,7 +1361,8 @@ def score_form_full(req: FullFormRequest, explain: bool = Query(False)):
         else:
             decision = "LOW"
 
-        rec_action = decide_action(compromise_prob, p1_risk)
+        cost_details = cost_router_engine.route(p=float(p1_risk), amount=float(req.amount))
+        rec_action = cost_details.recommended_action
 
         explainability = {
             FEATURE_NAMES[i]: round(float(attn_weights_np[i]), 4)
@@ -1325,6 +1398,8 @@ def score_form_full(req: FullFormRequest, explain: bool = Query(False)):
             "compromise_probability": round(compromise_prob, 4),
             "decision":               decision,
             "recommended_action":     rec_action,
+            "cost_routing":           cost_details.to_dict(),
+            "ring_association":       ring_metrics.to_dict(),
             "p1_risk_score":          round(p1_risk, 4),
             "p1_decision":            p1_dec,
             "p1_confidence":          round(p1_conf, 4),
@@ -1354,7 +1429,10 @@ def account_compromise_score(req: CompromiseRequest, explain: bool = Query(False
     try:
         profile = profile_store.get_or_empty(str(req.account_id))
 
-        features_np = np.array(req.features, dtype=np.float32).reshape(1, -1)
+        if req.features:
+            features_np = np.array(req.features, dtype=np.float32).reshape(1, -1)
+        else:
+            features_np = np.zeros((1, 14), dtype=np.float32)
         meta = {
             "amount":      req.amount,
             "hour":        req.hour,
@@ -1402,7 +1480,9 @@ def account_compromise_score(req: CompromiseRequest, explain: bool = Query(False
         else:
             decision = "LOW"
 
-        rec_action = decide_action(compromise_prob, p1_risk)
+        amt_val = float(txn_meta["amount"] or 200.0)
+        cost_details = cost_router_engine.route(p=float(p1_risk), amount=amt_val)
+        rec_action = cost_details.recommended_action
 
         explainability = {
             FEATURE_NAMES[i]: round(float(attn_weights_np[i]), 4)
@@ -1437,6 +1517,7 @@ def account_compromise_score(req: CompromiseRequest, explain: bool = Query(False
             "compromise_probability": round(compromise_prob, 4),
             "decision":               decision,
             "p1_risk_score":          round(p1_risk, 4),
+            "cost_routing":           cost_details.to_dict(),
             "behavioral_drift_score": ctx_named["behavioral_drift"],
             "contextual_features":    ctx_named,
             "explainability":         explainability,
@@ -1607,3 +1688,54 @@ def score_explain_endpoint(req: ExplainTransactionRequest):
         return explanation
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Cost Router & Fraud Ring API Endpoints (P4 + P6) ───────────────────────────
+
+class CostRouteRequest(BaseModel):
+    probability: Optional[float] = Field(None, ge=0.0, le=1.0, description="Calibrated fraud probability [0.0, 1.0]")
+    p: Optional[float] = Field(None, ge=0.0, le=1.0, description="Alias for probability")
+    amount: float = Field(..., ge=0.0, description="Transaction amount in INR")
+    gamma: Optional[float] = Field(0.85, description="Fraction of fraud defeated by step-up authentication")
+    c_step: Optional[float] = Field(20.0, description="Friction cost of step-up challenge in INR")
+    c_block: Optional[float] = Field(400.0, description="Business insult cost of blocking legitimate customer in INR")
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_probability_field(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if data.get("probability") is None and data.get("p") is not None:
+                data["probability"] = data["p"]
+            elif data.get("p") is None and data.get("probability") is not None:
+                data["p"] = data["probability"]
+        return data
+
+
+@app.post("/cost/route")
+def route_transaction_cost(req: CostRouteRequest):
+    """
+    P4: Cost-Sensitive Decision Router (SOLUTION_BLUEPRINT §5.2).
+    Evaluates expected financial losses across ALLOW, STEP_UP, and BLOCK.
+    """
+    p_val = req.probability if req.probability is not None else (req.p if req.p is not None else 0.0)
+    router = CostSensitiveRouter(c_step=req.c_step, c_block=req.c_block, gamma=req.gamma)
+    decision = router.route(p=p_val, amount=req.amount)
+    return decision.to_dict()
+
+
+@app.get("/ring/graph/{account_id}")
+def get_fraud_ring_graph(account_id: str, depth: int = Query(2, ge=1, le=4)):
+    """
+    P6: Fraud Ring Network Subgraph Export (SOLUTION_BLUEPRINT §5.5).
+    Returns D3 / HTML5 Canvas visualization payload for connected ego-net.
+    """
+    return ring_detector_engine.export_subgraph(str(account_id), max_depth=depth)
+
+
+@app.get("/ring/metrics/{account_id}")
+def get_fraud_ring_metrics(account_id: str):
+    """
+    P6: Real-time fraud ring component summary metrics for an account.
+    """
+    metrics = ring_detector_engine.get_account_ring(str(account_id))
+    return metrics.to_dict()

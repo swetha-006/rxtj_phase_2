@@ -280,6 +280,19 @@ class FraudRingDetector:
             explanation=f"Account {account_id} has no linked ring associations.",
         )
 
+    def get_account_ring(self, account_id: str) -> FraudRingMetrics:
+        """
+        Retrieve current FraudRingMetrics for a given account.
+        """
+        clean_acct = self._sanitize_id(account_id)
+        if not clean_acct:
+            return self._empty_metrics(account_id)
+        card_node = self._node_card(clean_acct)
+        with self._lock:
+            if not self.graph.has_node(card_node):
+                return self._empty_metrics(clean_acct)
+            return self._extract_metrics(clean_acct, card_node, self._latest_timestamp)
+
     def export_subgraph(self, account_id: str, max_depth: int = 2) -> Dict[str, Any]:
         """
         Export a local ego subgraph suitable for direct D3.js or HTML5 Canvas rendering.

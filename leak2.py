@@ -1,6 +1,8 @@
-import pandas as pd, numpy as np
+import os, pandas as pd, numpy as np
 
-df = pd.read_parquet("/home/vishu/Projects/rxtj_phase_2/data/tx_snapshot.parquet")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data", "tx_snapshot.parquet")
+df = pd.read_parquet(DATA_PATH)
 d = df.sort_values(["card1", "TransactionDT"]).copy()
 g = d.groupby("card1", sort=False)
 
