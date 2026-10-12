@@ -395,3 +395,39 @@ Open `http://127.0.0.1:8000/`, create an account with a password of at least 10 
 ### Important deployment limitations
 
 This is an account-enabled product prototype, not a production-certified financial service. Before public launch, add email verification, password reset, login rate limiting / abuse controls, MFA, CSRF defenses appropriate to the deployment, secure secret and cookie configuration, backups and migrations, monitoring, privacy/retention workflows, security review, and stronger server-side domain models for case management. The current per-user record API persists user-scoped transaction and activity snapshots; the existing ML scoring endpoints remain available for local demonstration and have not been redesigned as a fully authenticated payment-provider API. Do not submit real banking credentials or use the prototype to authorize or block real payments.
+
+## Stage 2 — Team workspaces and shared investigations
+
+Guardian now supports organization workspaces layered on top of individual accounts:
+
+- Create a workspace; creator becomes its owner.
+- Invite an existing Guardian account by email with `admin`, `reviewer`, or `viewer` role.
+- Accept an invitation using its one-time token while signed in with the invited email address.
+- Review workspace members and shared investigation cases.
+- Create cases for transaction IDs, assign priorities, update case status, and add persistent investigation notes.
+- Inspect organization audit events through `GET /api/orgs/{org_id}/audit`.
+- Enforce workspace membership and role checks in backend endpoints.
+
+### Local collaboration walkthrough
+
+1. Start Guardian and create/sign in to an account.
+2. Open **Team workspaces** and create an organization.
+3. Invite a teammate using the email address they registered with. In local demo mode, Guardian displays a one-time invitation token instead of sending email.
+4. Sign out and sign in as that teammate (or use a separate browser profile), then open **Team workspaces** and paste the token into **Accept an invitation**.
+5. Return to the owner account, open the workspace, create a shared investigation, update its status, and add notes.
+
+### Stage 2 API routes
+
+- `GET/POST /api/orgs`
+- `GET /api/orgs/{org_id}`
+- `GET /api/orgs/{org_id}/members`
+- `POST /api/orgs/{org_id}/invitations`
+- `POST /api/invitations/accept`
+- `GET/POST /api/orgs/{org_id}/cases`
+- `GET/PATCH /api/orgs/{org_id}/cases/{case_id}`
+- `POST /api/orgs/{org_id}/cases/{case_id}/notes`
+- `GET /api/orgs/{org_id}/audit`
+
+### Stage 2 security notes
+
+This is still a prototype. Invitations are shown as tokens in the UI because outbound email delivery is not configured; share tokens only in a controlled demo. Use HTTPS, secure cookie configuration, rate limiting, email verification, invitation revocation, CSRF defenses appropriate to the deployment, managed secrets, backups, and a security review before exposing it publicly. Workspace audit events are application audit records, not tamper-proof compliance evidence. The transaction-scoring engine is not a payment processor and does not authorize real payments.
