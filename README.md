@@ -1,455 +1,516 @@
 <div align="center">
 
-<h1>🛡️ RXT-J+ v4 "Glass Box"</h1>
-<h3>Real-Time Digital Fraud Detection & Cost-Aware Decision Engine</h3>
+# 🛡️ RXT-J+ Guardian
+### Intelligent Payment Fraud Detection & Investigation Platform
+
+**Score risk. Explain decisions. Prioritize reviews. Coordinate investigations.**
 
 <p>
-  <img src="https://img.shields.io/badge/Python-3.11%20|%203.12%20|%203.14-3776AB?style=flat-square&logo=python&logoColor=white"/>
-  <img src="https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat-square&logo=fastapi&logoColor=white"/>
-  <img src="https://img.shields.io/badge/LightGBM-v4%20(Calibrated)-00C853?style=flat-square"/>
-  <img src="https://img.shields.io/badge/PR--AUC-0.2072%20(2x%20Baseline)-blue?style=flat-square"/>
-  <img src="https://img.shields.io/badge/Inference-0.05ms-orange?style=flat-square"/>
-  <img src="https://img.shields.io/badge/Audit%20Gate-PASSED%20(6/6)-success?style=flat-square"/>
-  <img src="https://img.shields.io/badge/License-MIT-purple?style=flat-square"/>
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white" />
+  <img alt="FastAPI" src="https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white" />
+  <img alt="Machine Learning" src="https://img.shields.io/badge/ML-LightGBM%20%7C%20scikit--learn-2F6F3E" />
+  <img alt="Interface" src="https://img.shields.io/badge/UI-HTML%20%2B%20JavaScript-orange" />
+  <img alt="Storage" src="https://img.shields.io/badge/Storage-SQLite-lightgrey" />
+  <img alt="Stage" src="https://img.shields.io/badge/Release-Stage%203-6C5CE7" />
 </p>
 
-<p>
-  <strong><a href="#quickstart">Quickstart</a></strong> •
-  <strong><a href="#core-differentiators">Differentiators</a></strong> •
-  <strong><a href="#architecture">Architecture</a></strong> •
-  <strong><a href="#api-reference">API Endpoints</a></strong> •
-  <strong><a href="#audit-gate">Audit Gate</a></strong> •
-  <strong><a href="#docker-deployment">Docker</a></strong>
-</p>
+[Overview](#-project-overview) · [Problem](#-problem-statement) · [Solution](#-the-solution) · [Features](#-key-features) · [Workflow](#-end-to-end-workflow) · [Setup](#-quick-start) · [API](#-api-reference) · [Security](#-security--limitations)
 
 </div>
 
 ---
 
-## 0. The Pitch
+## 📌 Project overview
 
-> Most fraud detection systems are evaluated on AUC over balanced synthetic benchmarks. Banks do not pay in AUC — they pay in **fraud losses**, **analyst review hours**, and **churn from annoyed, falsely blocked customers**. RXT-J+ v4 optimizes those three costs directly.
+**RXT-J+ Guardian** is a fraud-risk scoring and investigation prototype for digital payment transactions. It combines a machine-learning scoring API with decision-cost routing, contextual risk signals, graph-based relationship analysis, reason-code explanations, and a browser-based operations dashboard.
 
-When evaluated on the realistic, severely imbalanced production distribution (3.499% fraud rate), legacy models that claim 0.96 AUC on resampled SMOTE sets collapse, often flagging over 99% of legitimate transactions. 
+The project also includes authenticated user accounts and team workspaces. Analysts can organize shared investigations, track case status, add notes, review high-priority cases, inspect workspace metrics, and export case data to CSV.
 
-**RXT-J+ v4** fixes the entire pipeline:
-1. **Calibrated Gradient-Boosted Scorer:** Swaps opaque compression chains for a clean, leak-free LightGBM model calibrated with Isotonic Regression (**PR-AUC 0.2072**, double the baseline).
-2. **Cost-Sensitive Decision Router:** Evaluates the expected rupee loss of **ALLOW**, **STEP_UP**, and **BLOCK** rather than enforcing an arbitrary static cutoff. A ₹200 coffee and an ₹80,000 wire transfer never receive the same threshold.
-3. **Graph-Based Fraud Ring Detection:** Identifies syndicated fraud by maintaining a real-time bipartite entity graph (`card1 ↔ DeviceInfo ↔ addr1`), surfacing coordinated attacks that individual transaction scorers structurally cannot detect.
-4. **Regulator-Ready Explainability:** Uses exact TreeSHAP contributions to trigger Adverse-Action reason codes (`R07`, `R12`, `R03`, `R21`) and delivers bounded counterfactual guidance (*"Approved if amount ≤ ₹X"*).
-5. **Glass-Box Audit Harness:** Ships with an automated 6-point verification gate (`validate_model.py`) that fails CI builds on label leakage, future-to-past temporal bleed, class imbalance distortions, or degenerate features.
+> **Important:** Guardian provides risk scores and recommended actions. It does not connect to a bank, payment processor, card network, or live authorization system. Treat outputs as decision support—not as a guarantee that a transaction is fraudulent or legitimate.
 
----
+## 🎯 Problem statement
 
-## 1. Core Differentiators
+Digital payment fraud is difficult to detect reliably because fraud is rare compared with legitimate activity, attack patterns change, and a single signal rarely tells the full story. A fraud team must balance several competing outcomes:
 
-### 1. Cost-Sensitive Decision Router (§5.2)
-A flat threshold creates massive false-positive friction on micro-transactions while failing to protect against catastrophic high-value breaches. For every transaction, RXT-J+ computes:
+- **Fraud losses:** missing a fraudulent transaction can create direct financial loss.
+- **False positives:** blocking a legitimate customer creates friction, support costs, and potential customer churn.
+- **Review capacity:** investigators cannot manually inspect every transaction flagged by a model.
+- **Coordinated attacks:** multiple accounts may share devices, addresses, or other attributes that are not suspicious when viewed transaction by transaction.
+- **Explainability:** reviewers need a comprehensible rationale for a risk recommendation, not only a score.
+- **Operational handoff:** a risk signal is less useful if it cannot be assigned, discussed, tracked, and audited by a team.
 
-$$\text{Cost}(\text{ALLOW}) = p \cdot \text{amount}$$
-$$\text{Cost}(\text{STEP\_UP}) = C_{\text{step}} + p \cdot (1 - \gamma) \cdot \text{amount}$$
-$$\text{Cost}(\text{BLOCK}) = C_{\text{block}} \cdot (1 - p)$$
+A single fixed probability threshold does not address all of these needs. Nor does a high model metric by itself guarantee useful decisions in a severely imbalanced, real-world setting.
 
-*Where $p$ = calibrated fraud probability, $\gamma$ = fraud defeat rate via step-up authentication (85%), $C_{\text{step}}$ = user friction cost (₹20), and $C_{\text{block}}$ = customer insult cost (₹400).*
+## 💡 The solution
 
-The engine routes to the action with minimum expected cost:
+Guardian brings risk scoring and case operations into one demonstrator workflow:
 
-| Amount | Fraud Prob ($p$) | ALLOW Cost | STEP_UP Cost | BLOCK Cost | Decision | Business Rationale |
-|---|---|---|---|---|---|---|
-| **₹200** | 0.30 | ₹60.00 | **₹29.00** | ₹280.00 | **STEP_UP** | Micro-transaction: challenge saves ₹31 vs allow |
-| **₹200** | 0.70 | ₹140.00 | **₹41.00** | ₹120.00 | **STEP_UP** | High risk, but amount is too small to insult customer |
-| **₹80,000** | 0.30 | ₹24,000.00 | ₹3,620.00 | **₹280.00** | **BLOCK** | Moderate probability on large transfer demands freeze |
-| **₹80,000** | 0.08 | ₹6,400.00 | ₹980.00 | **₹368.00** | **BLOCK** | Even at 8% risk, potential loss justifies immediate block |
+1. **Prepare transaction context** from supplied fields and derived behavioural or historical signals.
+2. **Estimate fraud risk** using the project's calibrated LightGBM scoring path, with additional contextual/fusion components available in the codebase.
+3. **Evaluate a recommended action** through a cost-aware router that compares the expected costs of allowing, challenging, or blocking a transaction.
+4. **Enrich the result** with relationship/ring signals and explanatory reason codes where supported by the request path.
+5. **Present results** through the API and dashboard so an operator can inspect risk and supporting information.
+6. **Create a shared investigation** when a transaction needs follow-up, then assign work, add notes, update status, review alerts, and export case records.
 
-### 2. Fraud Ring Network Detection (§5.5)
-Coordinated syndicates execute small, unremarkable transactions across multiple cards using shared device fingerprints and billing addresses.
-- **Bipartite Graph Architecture:** Accounts link through shared `DeviceInfo` and `addr1` nodes.
-- **Component Clustering:** Real-time connected component analysis extracts cluster size, new account ratio, and burst velocity.
-- **Null Safety:** Missing or sentinel values (`None`, `"nan"`, `"MISSING"`) are strictly isolated to prevent false mega-clusters.
+The goal is not to automate every fraud decision. It is to help reviewers make more consistent, context-aware decisions and move from a model output to a traceable investigation.
 
-### 3. Glass-Box Explainability (§5.4)
-- **Layer 1 — TreeSHAP:** Instant mathematical decomposition of the raw booster margin into positive and negative feature contributions.
-- **Layer 2 — Adverse Action Reason Codes:**
-  - `R07 AMOUNT_ANOMALY` — Transaction deviates by multiple standard deviations from account history.
-  - `R12 DEVICE_UNRECOGNIZED` — Unrecognized device fingerprint never before associated with the account.
-  - `R03 VELOCITY_SPIKE` — Surge in transaction frequency within a 1h/24h rolling window.
-  - `R21 RING_ASSOCIATION` — Entity linked to a multi-account network cluster.
-- **Layer 3 — Bounded Counterfactual:** Binary search identifies the maximum permissible transaction amount that would allow approval holding anomalous context fixed.
+## ✨ Key features
 
-### 4. Alert-Budget Capacity Optimizer (§5.3)
-Operational reality dictates that fraud teams have a finite number of analysts who can review alerts each day. The built-in optimizer allows operators to select their capacity budget and inspect empirical trade-offs:
-- **Top 0.1% alerts:** 81.8% Precision | 2.3% Recall
-- **Top 0.5% alerts:** 52.5% Precision | 7.5% Recall
-- **Top 1.0% alerts:** 40.9% Precision | 11.7% Recall
+### 1. Transaction risk scoring
 
----
+- FastAPI service with validated request/response schemas.
+- Calibrated LightGBM model assets and feature transformation code.
+- Single-transaction and batch scoring routes.
+- Demo samples and model metadata endpoints for exploration.
+- Optional explanation paths for supported scoring endpoints.
 
-## 2. Architecture
+### 2. Cost-aware action recommendations
 
+The cost router compares the estimated expected cost of three conceptual actions:
+
+- **ALLOW** — accept the transaction without an additional challenge.
+- **STEP UP** — request an additional verification step.
+- **BLOCK** — decline or stop the transaction in the modeled workflow.
+
+The router is designed to account for transaction amount, estimated fraud probability, and configurable cost assumptions rather than relying only on one global risk threshold. The returned action is a recommendation; no real payment is authorized or blocked by this demo.
+
+### 3. Explainability and reason codes
+
+The codebase includes model explanation logic, feature-contribution analysis, reason-code generation, and bounded counterfactual guidance for supported paths. These mechanisms are intended to help an analyst understand which signals influenced a recommendation.
+
+Explanations are model- and data-dependent. They should be reviewed and validated before being used for regulated adverse-action decisions.
+
+### 4. Fraud-ring and relationship analysis
+
+- Graph-oriented analysis of related account, device, and address signals.
+- Ring graph and ring metric endpoints.
+- Relationship enrichment that can surface patterns that are difficult to see from an isolated transaction.
+- Handling for missing or sentinel-like entity values in graph logic.
+
+Graph output is a lead for investigation—not proof of coordinated fraud.
+
+### 5. User accounts and personal records
+
+- Register, sign in, inspect the current user, and sign out.
+- Session-cookie-based authentication.
+- User-scoped record synchronization endpoints.
+- Password hashing and hashed opaque session tokens in the SQLite account store.
+
+### 6. Team workspaces and collaboration
+
+- Create and list workspaces.
+- Invite teammates with workspace roles.
+- Accept invitations.
+- View workspace members and their roles.
+- Create shared investigation cases tied to transaction IDs.
+- Add investigation notes and update case statuses.
+- Inspect workspace audit events.
+
+The workspace roles in the current implementation are `owner`, `admin`, `reviewer`, and `viewer`. Invitations are suitable for local demonstration: the API returns the invitation token rather than delivering an email.
+
+### 7. Stage 3 operations tools
+
+- **Workspace analytics:** total, assigned, unassigned, and resolved-case metrics, plus recent case-creation summaries.
+- **Priority alerts:** a workspace view of unresolved high- and critical-priority cases.
+- **Case filtering:** server-side filters for status, priority, assignment, and text search where supported by the API.
+- **CSV export:** export workspace case records for offline review and reporting.
+- **Access checks:** workspace endpoints check membership before returning organization data.
+
+Alerts currently derive from investigation cases. They are not live payment-stream alerts, and the project does not send external email, SMS, or push notifications.
+
+### 8. Operational and developer support
+
+- Interactive OpenAPI/Swagger documentation.
+- Health and model-information endpoints.
+- Automated tests for API behavior, routing, accounts, graph logic, workspaces, and Stage 3 operations.
+- Dockerfile and Docker Compose configuration.
+- CI workflow and model validation tooling in the repository.
+
+## 🔄 End-to-end workflow
+
+```mermaid
+flowchart TD
+    A[Transaction input] --> B[Validate and prepare features]
+    B --> C[ML risk scoring]
+    C --> D[Context and relationship signals]
+    D --> E[Cost-aware action recommendation]
+    E --> F[Risk result and explanation]
+    F --> G{Needs investigation?}
+    G -- No --> H[Review result]
+    G -- Yes --> I[Create shared case]
+    I --> J[Assign and collaborate]
+    J --> K[Add notes and update status]
+    K --> L[Analytics, alerts and CSV export]
 ```
-                          ┌──────────────────────────────────────────┐
-    Transaction  ────────▶│  1. FEATURE ASSEMBLY                     │
-    (JSON / Kafka)        │     amount · frequency · location        │
-                          │     device · timing · history            │
-                          │     ProfileStore EMA lookup  (<1ms)      │
-                          └────────────────┬─────────────────────────┘
-                                           │
-                                           ▼
-                          ┌──────────────────────────────────────────┐
-                          │  2. RING GRAPH ENRICHMENT                │
-                          │     card ↔ device ↔ address components   │
-                          │     NetworkX bipartite clustering        │
-                          └────────────────┬─────────────────────────┘
-                                           │
-                                           ▼
-                          ┌──────────────────────────────────────────┐
-                          │  3. GRADIENT-BOOSTED SCORER              │
-                          │     Calibrated LightGBM (14 features)    │
-                          │     → Calibrated P(fraud) in <0.05ms     │
-                          └────────────────┬─────────────────────────┘
-                                           │
-                                           ▼
-                          ┌──────────────────────────────────────────┐
-                          │  4. COST-SENSITIVE ROUTER                │
-                          │     argmin of expected rupee cost        │
-                          │     ALLOW / STEP-UP / BLOCK              │
-                          └────────────────┬─────────────────────────┘
-                                           │
-                                           ▼
-                          ┌──────────────────────────────────────────┐
-                          │  5. EXPLANATION LAYER                    │
-                          │     TreeSHAP contributions               │
-                          │     Adverse Reason Codes (R07, R12, etc) │
-                          │     Counterfactual ("Approved if ≤ ₹X")  │
-                          └────────────────┬─────────────────────────┘
-                                           │
-                                           ▼
-                          ┌──────────────────────────────────────────┐
-                          │  6. GLASS-BOX AUDIT GATE (CI / CD)       │
-                          │     blocks deploy on leak / imbalance /  │
-                          │     degenerate-feature / flag-rate fail  │
-                          └──────────────────────────────────────────┘
+
+### Typical analyst journey
+
+1. Sign in to Guardian or create a demo account.
+2. Review the dashboard and use a sample transaction or submit a scoring request.
+3. Inspect the score, recommended action, and available explanation or relationship signals.
+4. Open **Team Workspaces** and create a workspace, or select one you already belong to.
+5. Invite teammates if collaboration is needed. For the demo, copy the returned invitation token and have the invitee accept it while signed in to the appropriate account.
+6. Create a case using a transaction ID and a descriptive title; select a priority.
+7. Track the case by changing its status and adding investigation notes.
+8. Review workspace analytics and high-priority alerts.
+9. Export case records to CSV when an offline report is useful.
+10. Review the workspace audit history when you need to inspect recorded activity.
+
+## 🧱 Architecture
+
+```text
+Browser UI (guardian.html / panel.html)
+              │
+              ▼
+        FastAPI application (app.py)
+              │
+     ┌────────┼───────────────┐
+     ▼        ▼               ▼
+ Risk/ML   Cost router     Graph/ring analysis
+ pipeline  (cost_router)   (ring_detector)
+     │        │               │
+     └────────┼───────────────┘
+              ▼
+      Scoring response / explanation
+
+Account service ───────── SQLite account/session store
+Workspace service ─────── SQLite org/case/note/audit tables
+              │
+              ▼
+     Analytics / alerts / CSV export
 ```
 
----
+### Main modules
 
-## 3. Quickstart
+| File or directory | Responsibility |
+|---|---|
+| `app.py` | FastAPI application, scoring routes, health/model endpoints, auth and workspace APIs |
+| `guardian.html` | Main Guardian browser interface, including team workspace operations |
+| `panel.html` | Additional/legacy model dashboard interface |
+| `guardian_accounts.py` | User registration, password hashing, sessions, user-scoped records |
+| `guardian_orgs.py` | Workspaces, membership, invitations, cases, notes, and audit events |
+| `cost_router.py` | Cost-sensitive action recommendation logic |
+| `ring_detector.py` | Relationship graph and fraud-ring signals |
+| `profile_store.py` / `profile_consumer.py` | Behavioural profile support and optional event consumption components |
+| `preprocessing.py` | Input preparation and feature preprocessing helpers |
+| `models/` | Serialized model and preprocessing assets required by scoring paths |
+| `data/` | Demo data, feature metadata, profile data, and local runtime data |
+| `tests/` | Automated tests for API and core functionality |
+| `validate_model.py` | Model/data validation checks used by the project |
+| `Dockerfile` / `docker-compose.yml` | Container build and run configuration |
+
+## 🧰 Technology stack
+
+- **Language:** Python
+- **API:** FastAPI, Uvicorn, Pydantic
+- **Machine learning:** LightGBM, scikit-learn, NumPy, pandas, joblib, SHAP
+- **Graph analysis:** NetworkX
+- **Storage:** SQLite for account/session and workspace operations; project data/model assets are stored in files
+- **Frontend:** HTML, CSS, JavaScript
+- **Testing:** pytest and HTTPX
+- **Deployment:** Docker / Docker Compose
+
+## 🚀 Quick start
 
 ### Prerequisites
-- Python 3.11, 3.12, 3.13, or 3.14
-- Linux, macOS, or Windows
 
-### Local Setup
+- Python **3.11** is the recommended baseline for the supplied Docker configuration.
+- Git (if cloning the repository).
+- A virtual environment is recommended.
+- The repository's model and data assets must remain in the expected relative locations.
+
+### 1. Get the project
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/swetha-006/rxtj_phase_2.git
-cd rxtj_phase_2
+git clone <YOUR_REPOSITORY_URL>
+cd <PROJECT_DIRECTORY>
+```
 
-# 2. Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate       # On Windows: venv\Scripts\activate
+If you downloaded a ZIP instead, extract it and open a terminal in the extracted project folder—the folder containing `app.py` and `requirements.txt`.
 
-# 3. Install dependencies
+### 2. Create a virtual environment
+
+**Windows PowerShell**
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux**
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-# 4. Run the Glass-Box Audit Gate
+Some ML libraries use native components. If installation fails, use Python 3.11 and follow the relevant library's platform-specific installation instructions.
+
+### 4. Start the application
+
+```bash
+uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Keep the terminal open while using the app. For local development, binding to `127.0.0.1` keeps the service on your machine. Do not expose the development server directly to the public internet.
+
+### 5. Open the app
+
+| Destination | URL | Purpose |
+|---|---|---|
+| Guardian UI | [http://127.0.0.1:8000/](http://127.0.0.1:8000/) | Main application interface |
+| Guardian route | [http://127.0.0.1:8000/guardian](http://127.0.0.1:8000/guardian) | Main UI alias |
+| Legacy/model dashboard | [http://127.0.0.1:8000/panel](http://127.0.0.1:8000/panel) | Additional dashboard |
+| Swagger UI | [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) | Explore and call API endpoints |
+| ReDoc | [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc) | Alternative API documentation |
+| Health | [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) | Service/model status summary |
+| Model info | [http://127.0.0.1:8000/model/info](http://127.0.0.1:8000/model/info) | Model metadata and configured thresholds |
+| Demo samples | [http://127.0.0.1:8000/demo-samples](http://127.0.0.1:8000/demo-samples) | Sample inputs for exploration |
+
+## 👤 How to use the application
+
+### Create an account and sign in
+
+1. Open the Guardian UI.
+2. Choose **Create an account**.
+3. Enter a display name, email address, and password (the current application requires 10–128 characters).
+4. Sign in with the account you created.
+
+This is a local demo account system. Email verification, password reset, MFA, and enterprise identity integration are not implemented as a complete production workflow.
+
+### Score a transaction
+
+You can explore scoring in two ways:
+
+- Use the dashboard's available transaction/sample workflow.
+- Open Swagger at `/docs`, find the relevant scoring endpoint, select **Try it out**, enter a valid request body, and execute it.
+
+The API includes routes for single, form-based, direct-feature, batch, and full-form scoring. The exact request schema differs by endpoint; use the Pydantic schema displayed in `/docs` as the source of truth rather than copying a request body from a different scoring route.
+
+After submitting a request, inspect the returned risk score, recommended action, latency/context fields, and explanation fields if requested and supported by that endpoint. The exact fields depend on the selected route.
+
+### Create a team workspace
+
+1. Open **Team Workspaces** in Guardian.
+2. Create a workspace with a descriptive name.
+3. Select **Open workspace** to view its members, cases, metrics, and alerts.
+4. To invite someone, provide the invitee's email and choose a supported role.
+5. Copy the returned invitation token. The demo does not send invitation emails automatically.
+6. The invitee must sign in to the intended account and submit the token through the invitation-accept workflow.
+
+### Manage an investigation
+
+1. In a workspace, create a case using the transaction ID and a clear title.
+2. Select a priority appropriate to the investigation.
+3. Update the status as work progresses (for example, open, investigating, escalated, resolved, confirmed fraud, or legitimate).
+4. Add notes to record observations and rationale.
+5. Review alerts and workspace metrics to prioritize unresolved work.
+6. Use the case CSV export link to download records for offline analysis.
+
+Avoid putting unnecessary personal, payment-card, authentication, or other sensitive data into demo case titles and notes.
+
+## 🔌 API reference
+
+The complete, interactive API specification is generated by FastAPI at **`/docs`**. Core routes include the following; request schemas and response fields should be confirmed in Swagger for the exact project version you are running.
+
+### Service and model
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/` | Main UI |
+| `GET` | `/health` | Health/model status summary |
+| `GET` | `/model/info` | Model metadata, feature and threshold information |
+| `GET` | `/demo-samples` | Example/demo samples |
+| `GET` | `/status` | Service status alias |
+
+### Transaction scoring and analysis
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/score` | Score a feature-vector request |
+| `POST` | `/score/form` | Score a form-oriented request |
+| `POST` | `/score/direct` | Score direct feature input |
+| `POST` | `/score/batch` | Batch scoring |
+| `POST` | `/score/form-full` | Full-form scoring and enrichment path |
+| `POST` | `/score/explain` | Request a transaction explanation |
+| `POST` | `/cost/route` | Evaluate cost-aware action routing |
+| `POST` | `/account/compromise-score` | Account compromise-risk scoring |
+| `GET` | `/account/profile/{account_id}` | Read an account profile |
+| `GET` | `/account/history/{account_id}` | Read account history |
+| `GET` | `/account/alerts` | Retrieve account-level risk alerts |
+| `GET` | `/ring/graph/{account_id}` | Retrieve relationship graph data |
+| `GET` | `/ring/metrics/{account_id}` | Retrieve graph/ring metrics |
+
+### Authentication and personal records
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/auth/register` | Create a user account |
+| `POST` | `/auth/login` | Sign in and create a session |
+| `GET` | `/auth/me` | Read the current user |
+| `POST` | `/auth/logout` | End the current session |
+| `GET` | `/api/me/records/{record_type}` | Read user-scoped records |
+| `PUT` | `/api/me/records/{record_type}` | Save/synchronize user-scoped records |
+
+### Team workspaces and Stage 3 operations
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` / `POST` | `/api/orgs` | List or create workspaces |
+| `GET` | `/api/orgs/{org_id}` | Read workspace details |
+| `GET` | `/api/orgs/{org_id}/members` | List workspace members |
+| `POST` | `/api/orgs/{org_id}/invitations` | Create a workspace invitation |
+| `POST` | `/api/invitations/accept` | Accept an invitation token |
+| `GET` | `/api/orgs/{org_id}/cases` | List cases; supports available filters |
+| `POST` | `/api/orgs/{org_id}/cases` | Create an investigation case |
+| `GET` / `PATCH` | `/api/orgs/{org_id}/cases/{case_id}` | Read or update a case |
+| `POST` | `/api/orgs/{org_id}/cases/{case_id}/notes` | Add a case note |
+| `GET` | `/api/orgs/{org_id}/analytics` | Workspace case analytics |
+| `GET` | `/api/orgs/{org_id}/alerts` | High-priority unresolved case alerts |
+| `GET` | `/api/orgs/{org_id}/cases-export.csv` | Export case records as CSV |
+| `GET` | `/api/orgs/{org_id}/audit` | Read workspace audit events |
+
+### Example: inspect health
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+### Example: score a transaction
+
+Use Swagger (`/docs`) to obtain the exact schema for the scoring route you choose. For example, `/score` accepts a transaction ID and feature vector; the vector shape must match one of the supported schemas documented by the API. Do not assume that raw payment fields can be passed to every scoring endpoint.
+
+## 🐳 Docker
+
+The repository includes a `Dockerfile` and `docker-compose.yml`. From the project root:
+
+```bash
+docker compose up --build
+```
+
+Then open `http://127.0.0.1:8000`. To stop the service, press `Ctrl+C` or run `docker compose down` from another terminal.
+
+The supplied Compose configuration mounts the `data/` and `models/` directories read-only. The account/workspace SQLite database needs a writable persistent location in a real deployment; adjust the volume and database configuration before using Docker for persistent multi-user data. Container startup and model compatibility should be validated on the target host.
+
+## 🧪 Tests and validation
+
+Install the dependencies first, then run:
+
+```bash
+python -m pytest -q
+```
+
+For verbose test names:
+
+```bash
+python -m pytest -v
+```
+
+The repository contains tests covering API integration, cost routing, account/session behavior, ring detection, workspace collaboration, and Stage 3 operations. A passing test suite confirms only the behaviors exercised by those tests; it is not a penetration test, model certification, or guarantee of fraud-detection performance.
+
+The project also includes `validate_model.py`. Run it only after confirming its assumptions and input data are appropriate for your environment:
+
+```bash
 python validate_model.py
-
-# 5. Run the complete test suite
-pytest tests/ -v
-
-# 6. Start the API service
-uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-Once running:
-- **Interactive UI Dashboard:** [http://localhost:8000/panel](http://localhost:8000/panel)
-- **Interactive Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc Specification:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+## 📊 Understanding outputs and model performance
 
----
+- **Risk score / probability:** a model estimate under its training and calibration assumptions, not certainty.
+- **Recommended action:** the output of configured decision logic, not a live payment decision.
+- **Reason code / feature attribution:** an explanation aid that depends on the model path and available fields.
+- **Ring association:** a graph-derived relationship signal; shared attributes may have legitimate explanations.
+- **Alert:** in Stage 3, an alert is derived from a high- or critical-priority unresolved investigation case.
+- **Analytics:** operational case metrics; they are not automatically the same as model precision, recall, or fraud-loss reduction.
 
-## 4. Docker Deployment
+Performance depends on training data, class balance, feature availability, calibration, drift, and the evaluation protocol. Any metric displayed in model metadata should be accompanied by its dataset, split, date, and methodology before being used in a business claim. Benchmark results from a demo dataset must not be represented as proven live-production performance.
 
-### Run via Docker Compose
-```bash
-docker-compose up --build -d
-```
+## 🔐 Security, privacy, and production-readiness
 
-### Run via Single Docker Container
-```bash
-docker build -t rxtj-v4-fraud-engine .
-docker run -d -p 8000:8000 --name rxtj-engine rxtj-v4-fraud-engine
-```
+Guardian is a **prototype / demonstration system**, not a production-certified fraud platform. Before any public deployment or processing of real customer/payment information, address at least the following:
 
-Healthcheck:
-```bash
-curl http://localhost:8000/health
-```
+- Deploy behind HTTPS/TLS and set secure cookies (`GUARDIAN_COOKIE_SECURE=1` when HTTPS is correctly configured).
+- Restrict CORS to explicit trusted origins; the current development configuration is permissive and must be reviewed.
+- Add CSRF protections appropriate to cookie-authenticated state-changing endpoints.
+- Add login, registration, scoring, and invitation rate limits; monitor abuse.
+- Implement email verification, secure invitation delivery/revocation, password reset, and MFA or enterprise SSO as required.
+- Review authorization at every object and role boundary, including administrative operations.
+- Define retention, deletion, encryption, backup, restore, and audit-log integrity policies.
+- Store secrets outside source control and rotate them as needed.
+- Avoid logging raw payment data or sensitive personal information; minimize stored data.
+- Conduct dependency, threat-model, application-security, and model-risk reviews.
+- Validate model quality on representative, time-separated data; monitor drift and false-positive/false-negative rates.
+- Use human review and documented escalation procedures for consequential decisions.
 
----
+The current project uses SQLite and a local demonstration invitation flow. This is useful for development but is not a substitute for a managed production database, secure notification delivery, resilient deployment, or compliance review.
 
-## 5. API Reference
+## 🗺️ Roadmap ideas
 
-All requests and responses use JSON and are strictly validated via Pydantic v2.
+Potential next steps for a future release include:
 
-### `POST /score/form-full`
-Primary scoring endpoint performing feature generation, LightGBM inference, cost routing, ring association, and reason code extraction.
+- Configurable analyst assignment and richer service-level deadlines.
+- Real notification delivery with verified email and opt-in alert policies.
+- Case evidence attachments with access controls and retention rules.
+- Advanced filters, saved views, scheduled reports, and dashboard drill-downs.
+- Dedicated database migrations and a production database backend.
+- Stronger admin/member lifecycle tools, invitation revocation, and MFA/SSO.
+- Model monitoring for drift, calibration, review outcomes, and analyst feedback.
+- Deployment automation, observability, structured logs, and operational runbooks.
 
-**Request:**
-```json
-{
-  "account_id": "ACC_42",
-  "transaction_id": "TXN_9876",
-  "amount": 80000.0,
-  "hour": 3,
-  "product_cd": "W",
-  "device_info": "MacOS",
-  "addr1": 299.0
-}
-```
+These are roadmap suggestions, not claims that those capabilities are already implemented.
 
-**Response (Sample):**
-```json
-{
-  "account_id": "ACC_42",
-  "transaction_id": "TXN_9876",
-  "recommended_action": "STEP_UP_AUTHENTICATION",
-  "cost_routing": {
-    "action": "STEP_UP",
-    "recommended_action": "STEP_UP_AUTHENTICATION",
-    "p": 0.0071,
-    "amount": 80000.0,
-    "cost_allow": 564.42,
-    "cost_step_up": 104.66,
-    "cost_block": 397.18,
-    "optimal_cost": 104.66,
-    "rupee_savings": 459.75,
-    "explanation": "Moderate risk on ₹80,000. Step-up challenge costs only ₹104.66, saving ₹459.75 vs unchecked approval."
-  },
-  "ring_association": {
-    "ring_id": "RING_ACC_42",
-    "ring_size": 2,
-    "connected_accounts": ["ACC_42", "ACC_88"],
-    "shared_devices": ["MacOS"],
-    "is_ring_alert": false,
-    "risk_level": "LOW"
-  },
-  "p1_risk_score": 0.0071,
-  "latency_ms": 32.4
-}
-```
+## 📁 Repository layout
 
-### `POST /cost/route`
-Standalone cost calculator for any calibrated probability and amount.
-
-**Request:**
-```json
-{
-  "p": 0.30,
-  "amount": 200.0
-}
-```
-
-**Response:**
-```json
-{
-  "action": "STEP_UP",
-  "recommended_action": "STEP_UP_AUTHENTICATION",
-  "p": 0.3,
-  "amount": 200.0,
-  "cost_allow": 60.0,
-  "cost_step_up": 29.0,
-  "cost_block": 280.0,
-  "optimal_cost": 29.0
-}
-```
-
-### `GET /ring/graph/{account_id}`
-Returns ego-network nodes and links formatted for Canvas/D3 force-directed visualizers.
-
-### `GET /ring/metrics/{account_id}`
-Returns cluster degree, connected entity lists, and syndicate risk classification.
-
----
-
-## 6. Glass-Box Audit Gate
-
-Run `validate_model.py` to trigger the pre-deployment integrity suite:
-
-```bash
-python validate_model.py
-```
-
-```
-============================================================================
-  RXT-J+ GLASS-BOX AUDIT GATE REPORT
-  Target: RXT-J+ v4 LightGBM (Calibrated)
-  Status: [ PASS ]
-============================================================================
-
-1. Class-Balance Integrity: [ PASS ]
-   Eval fraud rate (3.480%) matches production prevalence (3.499%) within 0.53% (<20% limit).
-
-2. Degenerate Features:     [ PASS ]
-   All 14 model features exhibit non-zero variance (std >= 0.05).
-
-3. Label Leakage:           [ PASS ]
-   No feature exceeds |corr| > 0.95 with target (max correlation: 0.0936).
-
-4. Temporal Integrity:      [ PASS ]
-   Strict chronological splitting verified: max(train) <= min(val) <= min(test).
-
-5. Flag-Rate Sanity:        [ PASS ]
-   Flag rate of 5.21% at operating threshold 0.15 is well within <20.0% operational limit.
-
-6. Causality Audit:         [ PASS ]
-   Verified derived features use strictly prior rows (no lookahead bias).
-
-============================================================================
-  OVERALL AUDIT GATE RESULT: ALL CHECKS PASSED (EXIT CODE 0)
-============================================================================
-```
-
----
-
-## 7. Project Structure
-
-```
-rxtj_phase_2/
-├── .github/workflows/
-│   └── ci.yml               # Automated CI test & audit gate
-├── data/
-│   ├── tx_snapshot.parquet  # Causal transaction dataset (590k rows)
-│   └── profile_stats.json   # Real-world class distribution stats
+```text
+.
+├── app.py
+├── guardian.html
+├── panel.html
+├── guardian_accounts.py
+├── guardian_orgs.py
+├── cost_router.py
+├── ring_detector.py
+├── preprocessing.py
+├── profile_store.py
+├── profile_consumer.py
 ├── models/
-│   └── lgbm.pkl             # Calibrated LightGBM model artifact
+├── data/
 ├── tests/
-│   ├── test_api_integration.py # 12 endpoint tests & categorical edge cases
-│   ├── test_cost_router.py     # Expected rupee cost verification
-│   └── test_ring_detector.py   # NetworkX syndicate cluster tests
-├── app.py                   # FastAPI application & ML serving core
-├── cost_router.py           # Cost-Sensitive Decision Router
-├── ring_detector.py         # NetworkX Bipartite Ring Graph Detector
-├── panel.html               # Glass-Box interactive dashboard
-├── validate_model.py        # Automated 6-point audit harness
-├── requirements.txt         # Production dependencies
-├── Dockerfile               # Multi-stage production container
-└── docker-compose.yml       # Container orchestration
+├── requirements.txt
+├── validate_model.py
+├── Dockerfile
+├── docker-compose.yml
+├── SOLUTION_BLUEPRINT.md
+└── README.md
 ```
+
+Additional training, analysis, and legacy utilities are present in the repository; the list above highlights the main application files rather than every file.
+
+## 🤝 Contributing
+
+Contributions that improve reliability, documentation, accessibility, test coverage, model evaluation, and secure-by-default configuration are welcome. Before submitting a change:
+
+1. Explain the problem and expected behavior.
+2. Add or update tests for changed behavior.
+3. Run `python -m pytest -q`.
+4. Document new configuration, API fields, and limitations.
+5. Never commit real credentials, customer data, session tokens, or production database files.
+
+## 📄 License and responsible use
+
+Confirm the repository's intended license before redistributing or using it commercially; do not infer a license solely from badges or README text. This project is intended for research, learning, demonstration, and further engineering. Fraud detection can affect access to money and services, so any real deployment requires domain validation, human oversight, privacy safeguards, and applicable legal/compliance review.
 
 ---
 
-## 8. License & Acknowledgments
+<div align="center">
 
-This project is open-source under the **MIT License**.
-Based on research on the IEEE-CIS Fraud Detection dataset and developed for real-time payment fraud prevention.
+**RXT-J+ Guardian — from risk signal to accountable investigation.**
 
----
-
-## RXT-J+ Guardian — integrated product workspace
-
-The default application route (`/`) now opens **Guardian**, a responsive payment-intelligence workspace integrated with the existing FastAPI scoring engine. The original dashboard remains available at `/panel` and `/dashboard`.
-
-### Run locally
-
-```bash
-python -m pip install -r requirements.txt
-python -m uvicorn app:app --reload --port 8000
-```
-
-Open `http://127.0.0.1:8000/`. The API documentation is available at `http://127.0.0.1:8000/docs`.
-
-### Guardian capabilities
-
-- **Overview:** browser-demo activity metrics, risk distribution, recent transactions, and notable risk signals.
-- **Transaction simulator:** sends synthetic transaction context to `/score/form-full` and renders the real backend score, decision, feature attention weights, latency, cost-routing recommendation, and ring association.
-- **Transaction explorer:** searchable/filterable scored transactions and CSV export.
-- **Customer response demo:** records simulated customer confirmation/rejection for the local demo experience.
-- **Fraud network:** queries `/ring/graph/{account_id}` and `/ring/metrics/{account_id}` and renders the returned relationship graph.
-- **Decision lab:** sends probability, amount, and configurable cost assumptions to `/cost/route`.
-- **Review queue and activity log:** demo-only client-side actions for exploring customer responses and analyst outcomes.
-- **Model and system health:** reads `/health`, `/status`, and `/model/info` from the running API.
-
-### Important limitations
-
-Guardian is a hackathon/demo product, **not a production-certified banking application**. Transaction scores, account profile changes, and fraud-ring updates are processed by the existing backend. The front-end demo's transaction list, customer responses, analyst review notes, and activity log are stored in browser `localStorage`; they are not server-side case-management records and can be edited or cleared by the browser user. The application does not authorize payments, connect to bank accounts, or freeze real accounts. Do not enter real payment credentials or sensitive personal information.
-
-The feature-attention values are model outputs and should not be interpreted as causal explanations. The decision lab shows expected costs under configured assumptions, not measured real-world savings. Before any real deployment, implement authenticated server-side case management, access controls, hardened audit logging, operational monitoring, security review, model governance, and validation against representative labelled data.
-
-
-## Guardian multi-user accounts (prototype)
-
-The Guardian web experience now includes account registration, sign-in, sign-out, an HttpOnly session cookie, and per-user transaction/activity record storage backed by SQLite. Passwords are stored as PBKDF2-HMAC-SHA256 hashes with per-user random salts; session tokens are random opaque values and only their SHA-256 hashes are stored. Each user's records are scoped by the authenticated user ID on the server.
-
-### Run locally
-
-```bash
-python -m pip install -r requirements.txt
-python -m uvicorn app:app --reload --port 8000
-```
-
-Open `http://127.0.0.1:8000/`, create an account with a password of at least 10 characters, and sign in. Account and record data are stored in `data/guardian_accounts.db` by default. Set `GUARDIAN_ACCOUNTS_DB` to choose another database path. Set `GUARDIAN_COOKIE_SECURE=1` when deployed behind HTTPS; do not deploy publicly over plain HTTP.
-
-### Important deployment limitations
-
-This is an account-enabled product prototype, not a production-certified financial service. Before public launch, add email verification, password reset, login rate limiting / abuse controls, MFA, CSRF defenses appropriate to the deployment, secure secret and cookie configuration, backups and migrations, monitoring, privacy/retention workflows, security review, and stronger server-side domain models for case management. The current per-user record API persists user-scoped transaction and activity snapshots; the existing ML scoring endpoints remain available for local demonstration and have not been redesigned as a fully authenticated payment-provider API. Do not submit real banking credentials or use the prototype to authorize or block real payments.
-
-## Stage 2 — Team workspaces and shared investigations
-
-Guardian now supports organization workspaces layered on top of individual accounts:
-
-- Create a workspace; creator becomes its owner.
-- Invite an existing Guardian account by email with `admin`, `reviewer`, or `viewer` role.
-- Accept an invitation using its one-time token while signed in with the invited email address.
-- Review workspace members and shared investigation cases.
-- Create cases for transaction IDs, assign priorities, update case status, and add persistent investigation notes.
-- Inspect organization audit events through `GET /api/orgs/{org_id}/audit`.
-- Enforce workspace membership and role checks in backend endpoints.
-
-### Local collaboration walkthrough
-
-1. Start Guardian and create/sign in to an account.
-2. Open **Team workspaces** and create an organization.
-3. Invite a teammate using the email address they registered with. In local demo mode, Guardian displays a one-time invitation token instead of sending email.
-4. Sign out and sign in as that teammate (or use a separate browser profile), then open **Team workspaces** and paste the token into **Accept an invitation**.
-5. Return to the owner account, open the workspace, create a shared investigation, update its status, and add notes.
-
-### Stage 2 API routes
-
-- `GET/POST /api/orgs`
-- `GET /api/orgs/{org_id}`
-- `GET /api/orgs/{org_id}/members`
-- `POST /api/orgs/{org_id}/invitations`
-- `POST /api/invitations/accept`
-- `GET/POST /api/orgs/{org_id}/cases`
-- `GET/PATCH /api/orgs/{org_id}/cases/{case_id}`
-- `POST /api/orgs/{org_id}/cases/{case_id}/notes`
-- `GET /api/orgs/{org_id}/audit`
-
-### Stage 3: investigation operations and reporting
-
-Stage 3 adds workspace-scoped operational views on top of Stage 2:
-
-- `GET /api/orgs/{org_id}/analytics` returns case totals, status/priority distributions, assignment coverage, resolution rate, and a 14-day case-creation series.
-- `GET /api/orgs/{org_id}/alerts` returns unresolved high- and critical-priority investigation cases as actionable alerts.
-- `GET /api/orgs/{org_id}/cases` now supports optional `status`, `priority`, `q`, and `assigned` filters.
-- `GET /api/orgs/{org_id}/cases-export.csv` exports up to 5,000 filtered cases; CSV formula-leading cells are escaped to reduce spreadsheet formula injection risk.
-
-These metrics describe Guardian investigation records, not verified payment outcomes. Alerts are derived from open case priority rather than a live payment gateway or push-notification service. CSV export and analytics require workspace membership; data is not shared across organizations.
-
-### Stage 3 API routes
-
-- `GET /api/orgs/{org_id}/analytics`
-- `GET /api/orgs/{org_id}/alerts`
-- `GET /api/orgs/{org_id}/cases?status=open&priority=high&q=device&assigned=false`
-- `GET /api/orgs/{org_id}/cases-export.csv`
-
-### Stage 2 security notes
-
-This is still a prototype. Invitations are shown as tokens in the UI because outbound email delivery is not configured; share tokens only in a controlled demo. Use HTTPS, secure cookie configuration, rate limiting, email verification, invitation revocation, CSRF defenses appropriate to the deployment, managed secrets, backups, and a security review before exposing it publicly. Workspace audit events are application audit records, not tamper-proof compliance evidence. The transaction-scoring engine is not a payment processor and does not authorize real payments.
-
-### Stage 3 validation
-
-The Stage 3 regression suite covers analytics counts, high/critical case alerts, combined case filters, CSV export, and cross-workspace access denial. Run `python -m pytest -q --disable-warnings` from the project directory to execute the full suite.
+</div>
