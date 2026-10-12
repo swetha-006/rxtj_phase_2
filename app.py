@@ -1069,6 +1069,7 @@ def decide_action(compromise_prob: float, p1_risk: float, amount: float = 200.0)
 
 # ── Static UI Servicing ───────────────────────────────────────────────────────
 
+@app.get("/", response_class=FileResponse)
 @app.get("/panel", response_class=FileResponse)
 @app.get("/dashboard", response_class=FileResponse)
 def serve_panel():
@@ -1078,7 +1079,8 @@ def serve_panel():
 
 # ── API Endpoints ─────────────────────────────────────────────────────────────
 
-@app.get("/")
+@app.get("/api")
+@app.get("/status")
 def root():
     metrics = LGBM_METADATA.get("metrics", {})
     return {
@@ -1091,7 +1093,7 @@ def root():
         "operating_threshold": THRESHOLD,
         "fusion_auc": fusion_config.get("fusion_auc"),
         "latency_ms": 0.05,
-        "dashboard_url": "/panel"
+        "dashboard_url": "/"
     }
 
 @app.get("/health")
