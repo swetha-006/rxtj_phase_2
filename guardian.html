@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>try{if(localStorage.getItem('guardian.theme')==='light')document.documentElement.classList.add('theme-light');}catch(e){}</script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a1220"><title>Guardian · RXT-J+ Payment Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -8,10 +9,608 @@
 <style>
 :root{--bg:#09111e;--panel:#101b2b;--panel2:#142236;--line:#24354b;--text:#edf4fb;--muted:#8fa3b9;--mint:#65e0b2;--mint2:#a0f3d5;--blue:#7daeff;--amber:#f7c76b;--red:#ff7d8c;--radius:18px;--shadow:0 18px 55px #02071144}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 65% -20%,#18334a 0,transparent 42%),var(--bg);color:var(--text);font:14px 'DM Sans',sans-serif;min-height:100vh}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--mint);outline-offset:2px}.app{min-height:100vh;display:grid;grid-template-columns:250px minmax(0,1fr)}aside{border-right:1px solid #233247;background:#091321dd;padding:24px 16px;display:flex;flex-direction:column;gap:28px;position:sticky;top:0;height:100vh}.brand{display:flex;gap:12px;align-items:center;padding:0 8px}.brandmark{height:42px;width:42px;border-radius:14px;background:linear-gradient(140deg,#7ff0c7,#64a6ff);color:#082033;display:grid;place-items:center;box-shadow:0 8px 24px #65e0b22b}.brandmark svg{width:23px;height:23px}.brandname{font:800 17px Manrope,sans-serif;letter-spacing:-.6px}.brandname span{color:var(--mint)}.brandsub{font-size:10px;color:var(--muted);letter-spacing:1.4px;margin-top:2px}.navgroup{display:grid;gap:6px}.navlabel{color:#60758c;font-size:10px;letter-spacing:1.6px;font-weight:700;padding:0 12px;margin:8px 0 4px}.navbtn{border:1px solid transparent;background:transparent;color:#9db0c5;padding:12px;border-radius:12px;display:flex;align-items:center;gap:12px;text-align:left;width:100%;transition:.18s}.navbtn svg{width:17px;height:17px}.navbtn:hover{background:#15243a;color:var(--text)}.navbtn.active{background:linear-gradient(90deg,#173c3a,#14283a);border-color:#2c6558;color:#a2f4d5}.navbtn .navcount{margin-left:auto;font-size:10px;background:#24384b;padding:3px 7px;border-radius:7px;color:#b9c8d7}.asidebottom{margin-top:auto}.environment{border:1px solid var(--line);background:#101d2d;border-radius:14px;padding:13px}.envrow{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px}.dot{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 12px #65e0b266}.envtext{font-size:11px;color:var(--muted);line-height:1.6;margin-top:7px}.main{min-width:0}.topbar{height:76px;padding:0 34px;border-bottom:1px solid #223146a8;display:flex;align-items:center;justify-content:space-between;gap:18px;background:#0913219c;backdrop-filter:blur(18px);position:sticky;top:0;z-index:5}.crumb{font-size:12px;color:var(--muted)}.crumb b{color:#e9f4fd;font-weight:600}.topright{display:flex;align-items:center;gap:12px}.api-pill{border:1px solid var(--line);border-radius:99px;padding:8px 11px;display:flex;align-items:center;gap:8px;color:#a9bed0;font-size:11px}.api-pill .dot{width:6px;height:6px}.avatar{height:34px;width:34px;border-radius:11px;display:grid;place-items:center;background:#20344a;color:#b9d3e9;font-weight:700}.content{max-width:1540px;margin:0 auto;padding:30px 34px 46px}.pagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:25px}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--mint);font-weight:700;margin-bottom:10px}.pagehead h1{font:700 clamp(25px,3vw,34px) Manrope,sans-serif;letter-spacing:-1.2px;margin:0}.pagehead p{color:var(--muted);margin:8px 0 0;line-height:1.6;max-width:670px}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:1px solid var(--line);border-radius:11px;padding:10px 14px;background:#142338;color:#dceaf7;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:12px;transition:.18s}.btn svg{width:15px;height:15px}.btn:hover{border-color:#4b6c83;transform:translateY(-1px)}.btn.primary{background:var(--mint);color:#06271f;border-color:var(--mint);font-weight:700}.btn.primary:hover{background:var(--mint2)}.btn.ghost{background:transparent}.btn.danger{border-color:#75414b;color:#ffb5bd;background:#351e2a}.grid{display:grid;gap:16px}.metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:17px}.card{border:1px solid var(--line);background:linear-gradient(145deg,#122033f2,#0f1a29f2);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}.metric{padding:19px 20px;position:relative;overflow:hidden}.metric:after{content:'';position:absolute;right:-25px;top:-38px;width:100px;height:100px;border-radius:50%;background:#65e0b20a}.metric-top{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px}.metric-icon{height:32px;width:32px;border-radius:10px;background:#1a3443;color:var(--mint);display:grid;place-items:center}.metric-icon svg{width:16px;height:16px}.metric-value{font:700 28px Manrope,sans-serif;letter-spacing:-1px;margin:13px 0 5px}.metric-foot{font-size:11px;color:var(--muted)}.metric-foot strong{color:var(--mint);font-weight:600}.two{grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr)}.three{grid-template-columns:repeat(3,minmax(0,1fr))}.section{padding:21px}.sectionhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.sectionhead h2{font:700 15px Manrope,sans-serif;margin:0;letter-spacing:-.25px}.sectionhead p{margin:5px 0 0;color:var(--muted);font-size:11px}.tinylabel{font-size:10px;color:var(--muted);letter-spacing:.6px}.chartwrap{height:230px;position:relative}.chartwrap canvas{width:100%;height:100%}.legend{display:flex;gap:15px;flex-wrap:wrap;color:var(--muted);font-size:10px}.legend span{display:flex;align-items:center;gap:6px}.legend i{height:7px;width:7px;border-radius:3px;background:var(--mint)}.legend .bluei{background:var(--blue)}.legend .amberi{background:var(--amber)}.signal-list{display:grid;gap:15px}.signal{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:11px}.signalicon{height:34px;width:34px;display:grid;place-items:center;border-radius:10px;background:#253047;color:var(--amber)}.signalicon svg{width:16px;height:16px}.signalname{font-size:12px;font-weight:600}.signaldetail{font-size:10px;color:var(--muted);margin-top:4px}.signalval{font:700 13px Manrope}.tablecard{margin-top:17px;overflow:hidden}.tabletools{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.search{border:1px solid var(--line);border-radius:10px;background:#0b1726;color:var(--text);padding:10px 12px;min-width:190px}.select{border:1px solid var(--line);border-radius:10px;background:#0b1726;color:var(--text);padding:10px 12px}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:760px}th{color:#7890a7;text-transform:uppercase;font-size:9px;letter-spacing:1.2px;text-align:left;padding:13px 19px;border-bottom:1px solid var(--line);font-weight:700}td{padding:15px 19px;border-bottom:1px solid #213146a8;font-size:12px;color:#d7e3ee}tbody tr{transition:background .15s;cursor:pointer}tbody tr:hover{background:#1a2b3d}tbody tr:last-child td{border-bottom:0}.mono{font:11px ui-monospace,SFMono-Regular,monospace;color:#9eb5c9}.amount{font-weight:700;font-variant-numeric:tabular-nums}.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:7px;font-size:10px;font-weight:700;white-space:nowrap}.pill:before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}.pill.low{background:#173a35;color:#79e4bc}.pill.medium{background:#41351e;color:#f4cc78}.pill.high{background:#43232f;color:#ff9cab}.pill.neutral{background:#223246;color:#b4c6d7}.riskcell{display:flex;align-items:center;gap:8px}.riskbar{width:54px;height:4px;background:#26384b;border-radius:10px;overflow:hidden}.riskbar span{display:block;height:100%;background:var(--mint);border-radius:10px}.riskbar .hot{background:var(--red)}.riskbar .warm{background:var(--amber)}.page{display:none;animation:fade .22s ease}.page.active{display:block}@keyframes fade{from{opacity:.3;transform:translateY(3px)}to{opacity:1;transform:none}}.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.field{display:grid;gap:7px}.field label{font-size:11px;color:#a8bbce;font-weight:600}.field input,.field select{width:100%;background:#0a1625;color:var(--text);border:1px solid #2a3d53;border-radius:10px;padding:12px}.field small{font-size:10px;color:var(--muted);line-height:1.5}.field.full{grid-column:1/-1}.checkrow{display:flex;align-items:center;gap:10px;color:#c2d1df;font-size:12px}.checkrow input{accent-color:var(--mint)}.result{padding:22px}.resultempty{height:100%;min-height:330px;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px}.emptyicon{width:52px;height:52px;border:1px solid #2d4358;background:#182a3c;border-radius:16px;display:grid;place-items:center;color:var(--mint);margin:0 auto 14px}.emptyicon svg{width:23px;height:23px}.scorecircle{width:118px;height:118px;border-radius:50%;display:grid;place-items:center;margin:8px auto 15px;background:conic-gradient(var(--mint) var(--pct,0%),#27394a 0);position:relative}.scorecircle:before{content:'';position:absolute;inset:7px;border-radius:50%;background:#101d2c}.scoreinside{position:relative;text-align:center}.scoreinside strong{display:block;font:800 25px Manrope}.scoreinside small{font-size:9px;color:var(--muted);letter-spacing:1px}.resulttitle{text-align:center;font:700 18px Manrope}.resultdesc{text-align:center;color:var(--muted);font-size:12px;line-height:1.6;margin:8px auto 18px;max-width:380px}.resultstats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.resultstat{border:1px solid var(--line);border-radius:12px;padding:12px}.resultstat span{display:block;font-size:10px;color:var(--muted);margin-bottom:7px}.resultstat strong{font:700 14px Manrope}.reasonlist{display:grid;gap:8px;margin-top:15px}.reason{display:flex;gap:10px;align-items:flex-start;background:#172537;border:1px solid #26384b;border-radius:10px;padding:11px;font-size:11px;color:#c5d6e4;line-height:1.5}.reason svg{width:15px;height:15px;color:var(--amber);flex-shrink:0}.callout{padding:13px 14px;border-radius:12px;background:#132f2d;border:1px solid #24574e;color:#a9e8d5;font-size:11px;line-height:1.6}.network{min-height:360px;display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:14px}.graphstage{border:1px solid var(--line);border-radius:14px;background:radial-gradient(circle at 50% 45%,#162a3e,#0b1725 70%);min-height:350px;position:relative;overflow:hidden}.graphstage canvas{width:100%;height:100%;position:absolute;inset:0}.graphhint{position:absolute;left:14px;bottom:12px;color:#7890a7;font-size:10px}.graphside{display:grid;align-content:start;gap:10px}.graphstat{padding:13px;border:1px solid var(--line);border-radius:12px;background:#0e1a29}.graphstat span{font-size:10px;color:var(--muted)}.graphstat strong{display:block;font:700 22px Manrope;margin-top:5px}.toast{position:fixed;bottom:22px;right:22px;z-index:30;padding:13px 16px;border-radius:12px;background:#1c3444;border:1px solid #3c6a69;color:#e7fff7;box-shadow:var(--shadow);max-width:360px;display:none}.toast.show{display:block;animation:fade .2s}.modalback{position:fixed;inset:0;background:#030812b8;backdrop-filter:blur(5px);z-index:20;display:none;align-items:center;justify-content:center;padding:20px}.modalback.show{display:flex}.modal{width:min(620px,100%);max-height:90vh;overflow:auto;background:#101d2d;border:1px solid #34495e;border-radius:20px;padding:24px;box-shadow:var(--shadow)}.modalhead{display:flex;justify-content:space-between;align-items:start;gap:15px}.modalhead h2{margin:0;font:700 20px Manrope}.close{background:#1b2c3e;color:#b9cbdc;border:1px solid var(--line);border-radius:9px;padding:7px;display:grid;place-items:center}.close svg{width:17px;height:17px}.modalbody{margin-top:20px}.modalbody p{color:var(--muted);line-height:1.7;font-size:12px}.modalactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.sliderrow{display:flex;align-items:center;gap:14px}.sliderrow input{flex:1;accent-color:var(--mint)}.sliderrow output{font:700 14px Manrope;min-width:58px;text-align:right}.costcards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.costcard{border:1px solid var(--line);background:#0d1928;border-radius:13px;padding:15px}.costcard.selected{border-color:var(--mint);background:#12302d}.costcard span{font-size:10px;color:var(--muted)}.costcard strong{display:block;font:700 20px Manrope;margin:9px 0 4px}.costcard small{font-size:10px;color:var(--muted)}.healthgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.healthitem{padding:17px;border:1px solid var(--line);border-radius:13px;background:#0d1928}.healthitem .hrow{display:flex;justify-content:space-between;gap:8px;align-items:center}.healthitem strong{font:700 13px Manrope}.healthitem p{font-size:11px;line-height:1.5;color:var(--muted)}.footnote{font-size:10px;color:#748ba1;line-height:1.6;margin-top:14px}.mobilemenu{display:none}.subtabs{display:flex;gap:7px;margin-bottom:16px}.subtab{padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--muted);font-size:11px}.subtab.active{background:#173c3a;color:var(--mint);border-color:#2c6558}.notices{display:grid;gap:10px}.notice{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:12px;background:#0d1928}.noticeicon{height:32px;width:32px;display:grid;place-items:center;border-radius:10px;background:#3c2e1b;color:var(--amber);flex-shrink:0}.noticeicon svg{width:16px}.notice b{font-size:12px}.notice p{font-size:11px;color:var(--muted);margin:5px 0 0;line-height:1.5}
 @media(max-width:1100px){.app{grid-template-columns:215px minmax(0,1fr)}aside{padding:20px 12px}.content{padding:25px 22px}.topbar{padding:0 22px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.network{grid-template-columns:minmax(0,1fr) 200px}}@media(max-width:760px){.app{display:block}aside{position:fixed;z-index:15;left:0;top:0;width:260px;transform:translateX(-105%);transition:transform .2s;box-shadow:var(--shadow)}aside.open{transform:none}.mobilemenu{display:grid;place-items:center;border:1px solid var(--line);background:#142338;color:var(--text);height:36px;width:36px;border-radius:10px}.topbar{height:64px;padding:0 16px}.topright .api-pill{display:none}.content{padding:22px 15px 35px}.pagehead{align-items:flex-start;flex-direction:column}.pagehead .actions{width:100%}.metrics{gap:10px}.metric{padding:15px}.metric-value{font-size:24px}.metric-foot{line-height:1.5}.section{padding:16px}.network{grid-template-columns:1fr}.graphstage{min-height:300px}.graphside{grid-template-columns:repeat(3,minmax(0,1fr))}.graphstat{padding:10px}.graphstat strong{font-size:18px}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.healthgrid{grid-template-columns:1fr}.costcards{grid-template-columns:1fr}.tabletools{width:100%}.search{min-width:0;flex:1;width:100%}.pagehead h1{font-size:28px}}@media(max-width:420px){.metrics{grid-template-columns:1fr 1fr}.metric-value{font-size:21px}.metric-top{font-size:10px}.metric-icon{height:28px;width:28px}.graphside{grid-template-columns:1fr 1fr}.topbar .crumb{font-size:11px}}
+
+/* ==========================================================================
+   Two-Sided Smartphone Mockup & Closed-Loop Verification Styles
+   ========================================================================== */
+.phonemodal-back{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(24,49,78,.55),rgba(4,9,20,.95));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+.phonemodal-back.show{display:flex;animation:phoneModalFadeIn .28s cubic-bezier(.16,1,.3,1)}
+@keyframes phoneModalFadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.phone-wrapper{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:100%}
+.phone-top-bar-controls{display:flex;align-items:center;justify-content:space-between;width:min(470px,95vw);padding:6px 6px 10px}
+.phone-mode-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(16,31,48,.9);border:1px solid #28445e;border-radius:99px;padding:7px 15px;font-size:11.5px;font-weight:700;color:var(--mint);letter-spacing:.3px}
+.phone-mode-pill svg{width:14px;height:14px}
+.phone-close-btn{background:#172638;border:1px solid #2f4963;color:#b4c8db;border-radius:10px;padding:7px 13px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all .16s ease}
+.phone-close-btn:hover{background:#233a52;color:#fff;border-color:#4b6e8f}
+.smartphone-frame{width:min(470px,95vw);height:min(840px,90vh);background:#08101a;border-radius:48px;border:12px solid #162436;box-shadow:0 35px 110px rgba(0,0,0,.9),0 0 0 2px rgba(101,224,178,.22),inset 0 0 0 1px rgba(255,255,255,.08);display:flex;flex-direction:column;position:relative;overflow:hidden;user-select:none}
+.phone-notch-area{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:116px;height:24px;background:#000;border-radius:14px;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-shadow:0 2px 8px rgba(0,0,0,.7)}
+.phone-camera-lens{width:9px;height:9px;border-radius:50%;background:#141c27;border:1px solid #233345}
+.phone-speaker-slit{width:46px;height:4px;border-radius:4px;background:#18202a}
+.phone-status-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 26px 8px;font-size:12px;font-weight:700;color:#c7d8e8;z-index:5}
+.phone-status-icons{display:flex;align-items:center;gap:8px}
+.phone-status-icon{width:14px;height:14px}
+.phone-net-badge{font-size:9.5px;font-weight:800;background:#1d3348;padding:1px 5px;border-radius:4px;color:#7de8be}
+.phone-screen-content{flex:1;overflow-y:auto;padding:10px 22px 28px;display:flex;flex-direction:column;gap:15px;color:#edf4fb;scrollbar-width:thin;scrollbar-color:#23374d transparent}
+.phone-screen-content::-webkit-scrollbar{width:4px}
+.phone-screen-content::-webkit-scrollbar-thumb{background:#23374d;border-radius:4px}
+
+/* Clean Mandate Layout */
+.phone-mandate-header{display:flex;align-items:center;justify-content:space-between;padding:4px 0 2px}
+.phone-bank-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;letter-spacing:-.2px;color:#fff}
+.phone-bank-logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#65e0b2,#5398f5);display:grid;place-items:center;color:#061e2f}
+.phone-bank-logo svg{width:16px;height:16px}
+.phone-card-chip{background:#142234;border:1px solid #243a50;border-radius:8px;padding:4px 10px;font-size:11px;font-family:ui-monospace,monospace;color:#9bb2c8;letter-spacing:.5px}
+
+.phone-mandate-banner{background:linear-gradient(155deg,#261f14 0%,#1a2638 60%,#0f1b2d 100%);border:1px solid #5a4422;border-radius:20px;padding:18px 16px;text-align:center;position:relative;overflow:hidden;box-shadow:0 8px 25px rgba(0,0,0,.45)}
+.phone-mandate-pulse{width:50px;height:50px;border-radius:50%;background:#3d2c16;border:2px solid #f7c76b;color:#f7c76b;display:grid;place-items:center;margin:0 auto 10px;box-shadow:0 0 22px rgba(247,199,107,.35);animation:pulseBadge 2s infinite ease-in-out}
+.phone-mandate-pulse.danger{background:#3a1823;border-color:#ff7d8c;color:#ff7d8c;box-shadow:0 0 22px rgba(255,125,140,.4)}
+.phone-mandate-pulse.success{background:#12382c;border-color:#65e0b2;color:#65e0b2;box-shadow:0 0 22px rgba(101,224,178,.4)}
+.phone-mandate-pulse svg{width:24px;height:24px}
+.phone-mandate-title{font-family:Manrope,sans-serif;font-weight:800;font-size:18px;letter-spacing:-.3px;margin:0 0 4px;color:#fef08a}
+.phone-mandate-subtitle{font-size:11.5px;color:#a8c0d6;line-height:1.5}
+
+.phone-mandate-hero{background:#0b1727;border:1px solid #1f3650;border-radius:20px;padding:18px 18px 16px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.phone-mandate-label{font-size:10px;color:#7e98b0;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px}
+.phone-mandate-amount{font-family:Manrope,sans-serif;font-weight:800;font-size:36px;color:#ffffff;letter-spacing:-1px;margin:2px 0 14px;line-height:1.1}
+.phone-mandate-meta{display:grid;gap:8px;border-top:1px solid #1b2f44;padding-top:12px;text-align:left}
+.mandate-meta-item{display:flex;align-items:center;gap:9px;font-size:12px;color:#b2c8dc}
+.mandate-meta-item svg{width:14px;height:14px;color:#7de8be;flex-shrink:0}
+
+.phone-mandate-reason-box{background:#0e1d2e;border:1px solid #233e5b;border-radius:16px;padding:14px 15px;text-align:left}
+.phone-mandate-reason-head{display:flex;align-items:center;gap:7px;font-weight:800;font-size:12px;color:#f7c76b;margin-bottom:7px}
+.phone-mandate-reason-head svg{width:15px;height:15px}
+.phone-mandate-reason-body{font-size:12.5px;line-height:1.65;color:#d8e7f5}
+
+.phone-mandate-actions{display:flex;flex-direction:column;gap:10px;margin-top:2px}
+.phone-mandate-btn{width:100%;border-radius:15px;padding:14px 16px;font-size:13.5px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;border:1px solid transparent;transition:all .16s ease;font-family:inherit}
+.phone-mandate-btn svg{width:18px;height:18px}
+.phone-mandate-btn.approve{background:linear-gradient(135deg,#10b981,#059669);color:#ffffff;box-shadow:0 6px 20px rgba(16,185,129,.35)}
+.phone-mandate-btn.approve:hover{background:linear-gradient(135deg,#34d399,#059669);transform:translateY(-1px)}
+.phone-mandate-btn.reject{background:linear-gradient(135deg,#dc2626,#991b1b);color:#ffffff;box-shadow:0 6px 20px rgba(220,38,38,.35)}
+.phone-mandate-btn.reject:hover{background:linear-gradient(135deg,#ef4444,#b91c1c);transform:translateY(-1px)}
+.phone-mandate-btn.family{background:#142438;color:#9cc7f5;border-color:#2a4563}
+.phone-mandate-btn.family:hover{background:#1b324d;color:#ffffff;border-color:#3f6791;transform:translateY(-1px)}
+
+.phone-mandate-footer{text-align:center;font-size:10.5px;color:#7e96ac;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px}
+.phone-mandate-footer svg{width:12px;height:12px}
+
+/* Approved & Frozen Outcome States */
+.mandate-outcome-card{border-radius:20px;padding:24px 18px;text-align:center}
+.mandate-outcome-card.approved{background:linear-gradient(155deg,#0e2c22 0%,#112435 60%,#091522 100%);border:1px solid #236553}
+.mandate-outcome-card.frozen{background:linear-gradient(155deg,#321520 0%,#1e1b29 60%,#0d111c 100%);border:1px solid #7a3141}
+.outcome-badge{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px}
+.outcome-badge.approved{background:#133d2f;border:2px solid #65e0b2;color:#65e0b2;box-shadow:0 0 25px rgba(101,224,178,.4)}
+.outcome-badge.frozen{background:#3a1822;border:2px solid #ff7d8c;color:#ff7d8c;box-shadow:0 0 25px rgba(255,125,140,.4)}
+.outcome-badge svg{width:28px;height:28px}
+.outcome-title{font:800 21px Manrope;margin:0 0 6px}
+.outcome-title.approved{color:#65e0b2}
+.outcome-title.frozen{color:#ff7d8c}
+.outcome-desc{font-size:12px;color:#a9bfd3;line-height:1.6;margin:0 auto 16px;max-width:320px}
+.outcome-amount-pill{display:inline-block;background:rgba(0,0,0,.35);border:1px solid #2b445c;border-radius:10px;padding:6px 14px;font:700 16px Manrope;color:#fff;margin-bottom:14px}
+
+.phone-family-card{background:#101c2a;border:1px solid #233c54;border-radius:18px;padding:16px;text-align:left}
+.phone-family-contact{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.phone-family-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f7c76b,#ea9a4e);display:grid;place-items:center;font-size:22px}
+.phone-family-info strong{display:block;font-size:14px;color:#fff}
+.phone-family-info small{font-size:11.5px;color:#8da4ba}
+.phone-home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:4px;border-radius:4px;background:#556c82;opacity:.6}
+
+/* Simulator Modernization & Readability Classes */
+.simulator-scenarios-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px 16px;background:linear-gradient(135deg,#0d1a29,#101f31);border:1px solid #1f344b;border-radius:14px;flex-wrap:wrap}
+.scenario-bar-label{font-size:12px;color:#8fa3b9;display:flex;align-items:center;gap:7px}
+.scenario-bar-label svg{width:15px;height:15px;color:var(--mint)}
+.scenario-bar-label strong{color:var(--text)}
+.scenario-pills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.scenario-pill{border:1px solid #273e56;background:#142438;color:#c0d2e5;border-radius:99px;padding:6px 13px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all .18s ease}
+.scenario-pill svg{width:13px;height:13px}
+.scenario-pill:hover{background:#1b324d;color:#fff;border-color:#3d6185}
+.scenario-pill.active{background:linear-gradient(135deg,#173c3a,#14283a);border-color:#2c6558;color:#a2f4d5;font-weight:700;box-shadow:0 0 14px rgba(101,224,178,.18)}
+
+.form-section-title{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;color:var(--mint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.form-section-title svg{width:14px;height:14px}
+.input-with-prefix{position:relative;display:flex;align-items:center}
+.input-prefix{position:absolute;left:12px;color:var(--mint);font-weight:700;font-size:14px}
+.input-with-prefix input{padding-left:28px!important}
+
+.flag-switch-card{background:#0a1727;border:1px solid #243a50;border-radius:12px;padding:12px 14px}
+.flag-switch-label{display:flex;align-items:center;gap:12px;cursor:pointer}
+.flag-switch-input{width:18px;height:18px;accent-color:var(--mint);cursor:pointer}
+.flag-switch-text strong{display:block;font-size:12px;color:var(--text)}
+.flag-switch-text small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+
+.score-main-btn{width:100%;padding:14px;font-size:13.5px;font-weight:800;border-radius:12px;margin-top:16px;box-shadow:0 6px 20px rgba(101,224,178,.25)}
+
+/* Result Panel Modernization */
+.result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.result-header h2{font:700 16px Manrope;margin:0}
+.result-header p{margin:4px 0 0;font-size:11px;color:var(--muted)}
+
+.result-hero-box{display:grid;grid-template-columns:120px minmax(0,1fr);align-items:center;gap:16px;padding:16px 18px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(135deg,#0d1928,#122236);margin-bottom:14px}
+.result-hero-box.tier-high{border-color:#6c2d3a;background:linear-gradient(135deg,#23141c,#141e2d)}
+.result-hero-box.tier-medium{border-color:#654823;background:linear-gradient(135deg,#221c13,#141e2d)}
+.result-hero-box.tier-low{border-color:#225547;background:linear-gradient(135deg,#0e261f,#141e2d)}
+
+.decision-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.decision-pill.tier-high{background:#43232f;color:#ff9cab}
+.decision-pill.tier-medium{background:#41351e;color:#f4cc78}
+.decision-pill.tier-low{background:#173a35;color:#79e4bc}
+.decision-pill svg{width:14px;height:14px}
+
+.decision-rationale{font-size:12px;line-height:1.6;color:#d5e4f2;margin-bottom:6px}
+.router-note{font-size:11px;color:#8ea9c2;line-height:1.5;padding:6px 9px;background:rgba(0,0,0,.25);border-radius:8px}
+
+.result-mobile-cta{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,#13352f,#12283a);border:1px solid #286455;border-radius:14px;padding:14px 16px;margin:14px 0;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.mobile-cta-info{display:flex;align-items:center;gap:12px}
+.mobile-cta-icon{width:40px;height:40px;border-radius:10px;background:#184238;color:var(--mint);display:grid;place-items:center;flex-shrink:0}
+.mobile-cta-icon svg{width:20px;height:20px}
+.mobile-cta-info b{display:block;font-size:12.5px;color:#d6f6e8}
+.mobile-cta-info span{display:block;font-size:11px;color:#8db2b0;margin-top:2px}
+.mobile-cta-launch-btn{white-space:nowrap;padding:10px 14px;font-size:12px;font-weight:700}
+
+.result-closed-loop{padding:13px 15px;border-radius:13px;margin:14px 0}
+.result-closed-loop.verified{background:#113327;border:1px solid #236551;color:#a4f0d3}
+.result-closed-loop.frozen{background:#321520;border:1px solid #6c2b37;color:#ffb5c0}
+.closed-loop-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.closed-loop-title{display:flex;align-items:center;gap:7px;font-size:12px}
+.closed-loop-title svg{width:16px;height:16px}
+.closed-loop-detail{margin:6px 0 0;font-size:11.5px;opacity:.95;line-height:1.5}
+
+/* Feature Attributions Progress Bars */
+.signal-bars{display:grid;gap:10px;margin-top:10px}
+.signal-bar-row{background:#122132;border:1px solid #20364d;border-radius:10px;padding:9px 12px}
+.signal-bar-info{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:6px}
+.signal-bar-name{font-weight:600;color:#c8dbec}
+.signal-bar-pct{font-weight:700;color:var(--mint)}
+.signal-bar-track{height:5px;background:#1c2d3f;border-radius:6px;overflow:hidden}
+.signal-bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--mint));border-radius:6px}
+.signal-bar-fill.hot{background:linear-gradient(90deg,var(--amber),var(--red))}
+
+
+/* ==========================================================================
+   White Theme (Light Mode) Styling
+   Default Blue theme remains 100% untouched.
+   All white theme styles are cleanly scoped under html.theme-light
+   ========================================================================== */
+.theme-toggle-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;font-size:11.5px;font-weight:600;transition:all .18s ease}
+.theme-toggle-btn svg{width:15px;height:15px}
+
+html.theme-light{--bg:#f4f7fb;--panel:#ffffff;--panel2:#f8fafc;--line:#e2e8f0;--text:#0f172a;--muted:#64748b;--mint:#059669;--mint2:#10b981;--blue:#2563eb;--amber:#d97706;--red:#e11d48;--shadow:0 10px 30px rgba(15,23,42,.06)}
+html.theme-light body{background:radial-gradient(ellipse at 65% -20%,#e2eeff 0,transparent 48%),#f4f7fb;color:#0f172a}
+html.theme-light aside{background:#ffffff;border-right:1px solid #e2e8f0;box-shadow:2px 0 16px rgba(15,23,42,.03)}
+html.theme-light .brandname{color:#0f172a}
+html.theme-light .brandsub{color:#64748b}
+html.theme-light .navlabel{color:#94a3b8}
+html.theme-light .navbtn{color:#475569}
+html.theme-light .navbtn:hover{background:#f1f5f9;color:#0f172a}
+html.theme-light .navbtn.active{background:#ecfdf5;border-color:#a7f3d0;color:#047857;font-weight:700}
+html.theme-light .navbtn .navcount{background:#e2e8f0;color:#334155}
+html.theme-light .environment{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .envtext{color:#64748b}
+html.theme-light .topbar{background:rgba(255,255,255,.88);border-bottom:1px solid #e2e8f0}
+html.theme-light .crumb{color:#64748b}
+html.theme-light .crumb b{color:#0f172a}
+html.theme-light .api-pill{border:1px solid #e2e8f0;background:#ffffff;color:#334155}
+html.theme-light .avatar{background:#e2e8f0;color:#0f172a}
+html.theme-light .mobilemenu{background:#ffffff;border-color:#cbd5e1;color:#0f172a}
+html.theme-light .pagehead h1{color:#0f172a}
+html.theme-light .pagehead p{color:#64748b}
+html.theme-light .eyebrow{color:#059669}
+html.theme-light .card{background:#ffffff;border:1px solid #e2e8f0;box-shadow:0 4px 20px rgba(15,23,42,.05)}
+html.theme-light .metric{background:#ffffff}
+html.theme-light .metric:after{background:rgba(5,150,105,.04)}
+html.theme-light .metric-value{color:#0f172a}
+html.theme-light .metric-top{color:#64748b}
+html.theme-light .metric-foot{color:#64748b}
+html.theme-light .metric-icon{background:#ecfdf5;color:#059669}
+html.theme-light .sectionhead h2{color:#0f172a}
+html.theme-light .sectionhead p{color:#64748b}
+html.theme-light .tinylabel{color:#64748b}
+html.theme-light .btn{background:#ffffff;border:1px solid #cbd5e1;color:#1e293b}
+html.theme-light .btn:hover{background:#f8fafc;border-color:#94a3b8;color:#0f172a}
+html.theme-light .btn.primary{background:#059669;border-color:#059669;color:#ffffff}
+html.theme-light .btn.primary:hover{background:#047857}
+html.theme-light .btn.ghost{background:transparent;border-color:transparent;color:#475569}
+html.theme-light .btn.ghost:hover{background:#f1f5f9;color:#0f172a}
+html.theme-light .btn.danger{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+html.theme-light .btn.danger:hover{background:#fee2e2}
+html.theme-light table th{background:#f8fafc;color:#64748b;border-bottom:1px solid #e2e8f0}
+html.theme-light table td{border-bottom:1px solid #f1f5f9;color:#1e293b}
+html.theme-light tbody tr:hover{background:#f8fafc}
+html.theme-light .mono{color:#475569}
+html.theme-light .pill.low{background:#ecfdf5;color:#047857}
+html.theme-light .pill.medium{background:#fffbeb;color:#b45309}
+html.theme-light .pill.high{background:#fef2f2;color:#b91c1c}
+html.theme-light .pill.neutral{background:#f1f5f9;color:#475569}
+html.theme-light .riskbar{background:#e2e8f0}
+html.theme-light .field label{color:#334155}
+html.theme-light .field small{color:#64748b}
+html.theme-light .field input,html.theme-light .field select,html.theme-light .search,html.theme-light .select{background:#ffffff;border:1px solid #cbd5e1;color:#0f172a}
+html.theme-light .field input:focus,html.theme-light .field select:focus,html.theme-light .search:focus,html.theme-light .select:focus{border-color:#059669;outline:2px solid #a7f3d0}
+html.theme-light .checkrow{color:#334155}
+html.theme-light .resultempty{color:#64748b}
+html.theme-light .emptyicon{background:#f1f5f9;border-color:#cbd5e1;color:#059669}
+html.theme-light .scorecircle{background:conic-gradient(var(--mint) var(--pct,0%),#e2e8f0 0)}
+html.theme-light .scorecircle:before{background:#ffffff}
+html.theme-light .scoreinside strong{color:#0f172a}
+html.theme-light .scoreinside small{color:#64748b}
+html.theme-light .resulttitle{color:#0f172a}
+html.theme-light .resultdesc{color:#64748b}
+html.theme-light .resultstat{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .resultstat span{color:#64748b}
+html.theme-light .resultstat strong{color:#0f172a}
+html.theme-light .reason{background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b}
+html.theme-light .callout{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+html.theme-light .notice{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .notice b{color:#0f172a}
+html.theme-light .notice p{color:#64748b}
+html.theme-light .phone-cta-banner{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0;box-shadow:0 4px 16px rgba(16,185,129,.08)}
+html.theme-light .phone-cta-icon{background:#d1fae5;color:#059669}
+html.theme-light .phone-cta-text b{color:#065f46}
+html.theme-light .phone-cta-text span{color:#047857}
+html.theme-light .modal{background:#ffffff;border:1px solid #cbd5e1;box-shadow:0 25px 60px rgba(15,23,42,.18);color:#0f172a}
+html.theme-light .close{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
+html.theme-light .modalbody p{color:#64748b}
+html.theme-light .costcard{background:#f8fafc;border:1px solid #e2e8f0;color:#0f172a}
+html.theme-light .costcard.selected{background:#ecfdf5;border-color:#059669}
+html.theme-light .costcard span,html.theme-light .costcard small{color:#64748b}
+html.theme-light .costcard strong{color:#0f172a}
+html.theme-light .healthitem{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .healthitem strong{color:#0f172a}
+html.theme-light .healthitem p{color:#64748b}
+html.theme-light #modelInfo{background:#f8fafc;border:1px solid #e2e8f0;color:#334155}
+html.theme-light .graphstage{background:radial-gradient(circle at 50% 45%,#ffffff,#f1f5f9 70%);border:1px solid #e2e8f0}
+html.theme-light .graphstat{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .graphstat span{color:#64748b}
+html.theme-light .graphstat strong{color:#0f172a}
+html.theme-light .graphhint{color:#64748b}
+html.theme-light .authbox{background:#ffffff;border:1px solid #cbd5e1;box-shadow:0 25px 70px rgba(15,23,42,.18)}
+html.theme-light .authbox h1{color:#0f172a}
+html.theme-light .authbrand strong{color:#0f172a}
+html.theme-light .authsub{color:#64748b}
+html.theme-light .authfield{color:#334155}
+html.theme-light .authinput{background:#ffffff;border:1px solid #cbd5e1;color:#0f172a}
+html.theme-light .authfine{color:#64748b}
+html.theme-light .userchip{background:#ffffff;border:1px solid #e2e8f0;color:#0f172a}
+html.theme-light .userchip button{color:#64748b}
+html.theme-light .toast{background:#ffffff;border:1px solid #cbd5e1;color:#0f172a;box-shadow:0 10px 30px rgba(15,23,42,.12)}
+
+
+/* Smartphone Simulator White Theme (Apple Light) Overrides
+   Active when html.theme-light OR .phonemodal-back.phone-theme-light
+   Blue Theme remains 100% untouched when not in light mode */
+html.theme-light .phonemodal-back:not(.phone-theme-dark),
+.phonemodal-back.phone-theme-light{background:radial-gradient(ellipse at 50% 30%,rgba(226,238,255,.88),rgba(15,23,42,.65));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mode-pill,
+.phonemodal-back.phone-theme-light .phone-mode-pill{background:#ffffff;border:1px solid #cbd5e1;color:#059669;box-shadow:0 4px 14px rgba(15,23,42,.06)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-close-btn,
+.phonemodal-back.phone-theme-light .phone-close-btn{background:#ffffff;border:1px solid #cbd5e1;color:#1e293b;box-shadow:0 4px 14px rgba(15,23,42,.06)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-close-btn:hover,
+.phonemodal-back.phone-theme-light .phone-close-btn:hover{background:#f8fafc;border-color:#94a3b8;color:#0f172a}
+
+.phone-theme-btn{background:#172638;border:1px solid #2f4963;color:#f7c76b;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all .16s ease}
+.phone-theme-btn:hover{background:#233a52;color:#fff;border-color:#4b6e8f}
+.phone-theme-btn svg{width:13px;height:13px}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-theme-btn,
+.phonemodal-back.phone-theme-light .phone-theme-btn{background:#ffffff;border:1px solid #cbd5e1;color:#0f172a;box-shadow:0 4px 14px rgba(15,23,42,.06)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-theme-btn:hover,
+.phonemodal-back.phone-theme-light .phone-theme-btn:hover{background:#f8fafc;border-color:#94a3b8;color:#059669}
+
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .smartphone-frame,
+.phonemodal-back.phone-theme-light .smartphone-frame{background:#ffffff;border:11px solid #d5dbe3;box-shadow:0 32px 90px rgba(15,23,42,.28),0 0 0 2px rgba(5,150,105,.2),inset 0 0 0 1px rgba(0,0,0,.08)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-notch-area,
+.phonemodal-back.phone-theme-light .phone-notch-area{background:#000000;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-camera-lens,
+.phonemodal-back.phone-theme-light .phone-camera-lens{background:#182230;border-color:#293749}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-speaker-slit,
+.phonemodal-back.phone-theme-light .phone-speaker-slit{background:#202b3a}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-status-bar,
+.phonemodal-back.phone-theme-light .phone-status-bar{color:#0f172a}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-net-badge,
+.phonemodal-back.phone-theme-light .phone-net-badge{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-screen-content,
+.phonemodal-back.phone-theme-light .phone-screen-content{background:#ffffff;color:#0f172a;scrollbar-color:#cbd5e1 transparent}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-screen-content::-webkit-scrollbar-thumb,
+.phonemodal-back.phone-theme-light .phone-screen-content::-webkit-scrollbar-thumb{background:#e2e8f0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-bank-brand,
+.phonemodal-back.phone-theme-light .phone-bank-brand{color:#0f172a}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-bank-logo,
+.phonemodal-back.phone-theme-light .phone-bank-logo{background:linear-gradient(135deg,#059669,#3b82f6);color:#ffffff}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-card-chip,
+.phonemodal-back.phone-theme-light .phone-card-chip{background:#f8fafc;border:1px solid #e2e8f0;color:#475569}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero,
+.phonemodal-back.phone-theme-light .phone-alert-hero{background:linear-gradient(155deg,#fffbeb 0%,#fef3c7 65%,#ffffff 100%);border:1px solid #fde68a;box-shadow:0 8px 24px rgba(217,119,6,.1)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero .phone-alert-title,
+.phonemodal-back.phone-theme-light .phone-alert-hero .phone-alert-title{color:#92400e}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero .phone-alert-sub,
+.phonemodal-back.phone-theme-light .phone-alert-hero .phone-alert-sub{color:#b45309}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-badge-pulse,
+.phonemodal-back.phone-theme-light .phone-badge-pulse{background:#fef3c7;border:2px solid #f59e0b;color:#b45309;box-shadow:0 0 20px rgba(245,158,11,.35)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.approved-theme,
+.phonemodal-back.phone-theme-light .phone-alert-hero.approved-theme{background:linear-gradient(155deg,#ecfdf5 0%,#d1fae5 65%,#ffffff 100%);border-color:#a7f3d0;box-shadow:0 8px 24px rgba(5,150,105,.12)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.approved-theme .phone-alert-title,
+.phonemodal-back.phone-theme-light .phone-alert-hero.approved-theme .phone-alert-title{color:#047857!important}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.approved-theme .phone-alert-sub,
+.phonemodal-back.phone-theme-light .phone-alert-hero.approved-theme .phone-alert-sub{color:#065f46}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-badge-pulse.success,
+.phonemodal-back.phone-theme-light .phone-badge-pulse.success{background:#d1fae5;border-color:#059669;color:#059669;box-shadow:0 0 20px rgba(5,150,105,.35)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.frozen-theme,
+.phonemodal-back.phone-theme-light .phone-alert-hero.frozen-theme{background:linear-gradient(155deg,#fef2f2 0%,#fee2e2 65%,#ffffff 100%);border-color:#fecaca;box-shadow:0 8px 24px rgba(225,29,72,.12)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.frozen-theme .phone-alert-title,
+.phonemodal-back.phone-theme-light .phone-alert-hero.frozen-theme .phone-alert-title{color:#b91c1c!important}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.frozen-theme .phone-alert-sub,
+.phonemodal-back.phone-theme-light .phone-alert-hero.frozen-theme .phone-alert-sub{color:#991b1b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-badge-pulse.danger,
+.phonemodal-back.phone-theme-light .phone-badge-pulse.danger{background:#fee2e2;border-color:#e11d48;color:#e11d48;box-shadow:0 0 20px rgba(225,29,72,.35)}
+.phone-alert-hero.family-theme{background:linear-gradient(155deg,#16273c 0%,#122234 60%,#0c1724 100%);border-color:#2a4968}
+.phone-badge-pulse.family-badge{background:#172c40;border-color:var(--blue);color:var(--blue)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.family-theme,
+.phonemodal-back.phone-theme-light .phone-alert-hero.family-theme{background:linear-gradient(155deg,#eff6ff 0%,#dbeafe 65%,#ffffff 100%);border-color:#bfdbfe;box-shadow:0 8px 24px rgba(37,99,235,.1)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.family-theme .phone-alert-title,
+.phonemodal-back.phone-theme-light .phone-alert-hero.family-theme .phone-alert-title{color:#1e40af!important}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-alert-hero.family-theme .phone-alert-sub,
+.phonemodal-back.phone-theme-light .phone-alert-hero.family-theme .phone-alert-sub{color:#2563eb}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-badge-pulse.family-badge,
+.phonemodal-back.phone-theme-light .phone-badge-pulse.family-badge{background:#dbeafe;border:2px solid #3b82f6;color:#2563eb;box-shadow:0 0 20px rgba(59,130,246,.3)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-amount-card,
+.phonemodal-back.phone-theme-light .phone-amount-card{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-amount-label,
+.phonemodal-back.phone-theme-light .phone-amount-label{color:#64748b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-amount-value,
+.phonemodal-back.phone-theme-light .phone-amount-value{color:#0f172a}
+.phone-amount-value.approved-val{color:var(--mint)}
+.phone-amount-value.frozen-val{color:var(--red)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-amount-value.approved-val,
+.phonemodal-back.phone-theme-light .phone-amount-value.approved-val{color:#059669}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-amount-value.frozen-val,
+.phonemodal-back.phone-theme-light .phone-amount-value.frozen-val{color:#b91c1c}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-tx-meta-row,
+.phonemodal-back.phone-theme-light .phone-tx-meta-row{border-top:1px solid #e2e8f0;color:#475569}
+.phone-device-row{font-size:11px;color:#7893ab;margin-top:6px;display:flex;align-items:center;gap:6px}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-device-row,
+.phonemodal-back.phone-theme-light .phone-device-row{color:#64748b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-explain-box,
+.phonemodal-back.phone-theme-light .phone-explain-box{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-explain-head,
+.phonemodal-back.phone-theme-light .phone-explain-head{color:#059669}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-explain-text,
+.phonemodal-back.phone-theme-light .phone-explain-text{color:#1e293b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-reason-chip,
+.phonemodal-back.phone-theme-light .phone-reason-chip{background:#fffbeb;border:1px solid #fef08a;color:#92400e}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-reason-chip.crit,
+.phonemodal-back.phone-theme-light .phone-reason-chip.crit{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-counterfactual-note,
+.phonemodal-back.phone-theme-light .phone-counterfactual-note{background:#ecfdf5;border-left:3px solid #059669;color:#065f46}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-question-label,
+.phonemodal-back.phone-theme-light .phone-question-label{color:#334155}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-approve,
+.phonemodal-back.phone-theme-light .phone-btn-approve{background:linear-gradient(135deg,#059669,#047857);color:#ffffff;box-shadow:0 4px 14px rgba(5,150,105,.3)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-approve:hover,
+.phonemodal-back.phone-theme-light .phone-btn-approve:hover{background:linear-gradient(135deg,#10b981,#059669)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-reject,
+.phonemodal-back.phone-theme-light .phone-btn-reject{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-reject:hover,
+.phonemodal-back.phone-theme-light .phone-btn-reject:hover{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-family,
+.phonemodal-back.phone-theme-light .phone-btn-family{background:#f1f5f9;border:1px solid #cbd5e1;color:#1e293b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-family:hover,
+.phonemodal-back.phone-theme-light .phone-btn-family:hover{background:#e2e8f0;color:#0f172a}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-outline,
+.phonemodal-back.phone-theme-light .phone-btn-outline{background:#ffffff;border:1px solid #cbd5e1;color:#1e293b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-btn-outline:hover,
+.phonemodal-back.phone-theme-light .phone-btn-outline:hover{background:#f8fafc;border-color:#94a3b8}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-family-card,
+.phonemodal-back.phone-theme-light .phone-family-card{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-family-info strong,
+.phonemodal-back.phone-theme-light .phone-family-info strong{color:#0f172a}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-family-info small,
+.phonemodal-back.phone-theme-light .phone-family-info small{color:#64748b}
+.phone-family-desc{font-size:11.5px;color:#a8c0d5;margin:0;line-height:1.6}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-family-desc,
+.phonemodal-back.phone-theme-light .phone-family-desc{color:#334155}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-home-indicator,
+.phonemodal-back.phone-theme-light .phone-home-indicator{background:#94a3b8;opacity:.7}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-callout-approved,
+.phonemodal-back.phone-theme-light .phone-callout-approved{background:#ecfdf5!important;border-color:#a7f3d0!important;color:#065f46!important}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-callout-frozen,
+.phonemodal-back.phone-theme-light .phone-callout-frozen{background:#fef2f2!important;border-color:#fecaca!important;color:#991b1b!important}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-footer-note,
+.phonemodal-back.phone-theme-light .phone-footer-note{color:#64748b!important}
+
+/* Simulator modern light styling */
+html.theme-light .simulator-scenarios-bar{background:#ffffff;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.04)}
+html.theme-light .scenario-bar-label{color:#64748b}
+html.theme-light .scenario-bar-label strong{color:#0f172a}
+html.theme-light .scenario-pill{background:#f8fafc;border:1px solid #cbd5e1;color:#334155}
+html.theme-light .scenario-pill:hover{background:#f1f5f9;color:#0f172a;border-color:#94a3b8}
+html.theme-light .scenario-pill.active{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+html.theme-light .flag-switch-card{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .flag-switch-text strong{color:#0f172a}
+html.theme-light .flag-switch-text small{color:#64748b}
+html.theme-light .result-hero-box{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .result-hero-box.tier-high{background:#fff5f5;border-color:#fecaca}
+html.theme-light .result-hero-box.tier-medium{background:#fffbeb;border-color:#fde68a}
+html.theme-light .result-hero-box.tier-low{background:#f0fdf4;border-color:#bbf7d0}
+html.theme-light .decision-pill.tier-high{background:#fee2e2;color:#b91c1c}
+html.theme-light .decision-pill.tier-medium{background:#fef3c7;color:#b45309}
+html.theme-light .decision-pill.tier-low{background:#dcfce7;color:#15803d}
+html.theme-light .decision-rationale{color:#1e293b}
+html.theme-light .router-note{background:#f1f5f9;color:#475569}
+html.theme-light .result-mobile-cta{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0;color:#065f46;box-shadow:0 4px 16px rgba(16,185,129,.1)}
+html.theme-light .mobile-cta-icon{background:#d1fae5;color:#059669}
+html.theme-light .mobile-cta-info b{color:#065f46}
+html.theme-light .mobile-cta-info span{color:#047857}
+html.theme-light .signal-bar-row{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .signal-bar-name{color:#1e293b}
+html.theme-light .signal-bar-track{background:#e2e8f0}
+
+/* Mandate styles in light mode */
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-banner,
+.phonemodal-back.phone-theme-light .phone-mandate-banner{background:linear-gradient(155deg,#fffbeb 0%,#fef3c7 65%,#ffffff 100%);border:1px solid #fde68a;box-shadow:0 4px 16px rgba(217,119,6,.1)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-pulse,
+.phonemodal-back.phone-theme-light .phone-mandate-pulse{background:#fef3c7;border:2px solid #f59e0b;color:#b45309;box-shadow:0 0 20px rgba(245,158,11,.35)}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-title,
+.phonemodal-back.phone-theme-light .phone-mandate-title{color:#92400e}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-subtitle,
+.phonemodal-back.phone-theme-light .phone-mandate-subtitle{color:#b45309}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-hero,
+.phonemodal-back.phone-theme-light .phone-mandate-hero{background:#f8fafc;border:1px solid #e2e8f0;box-shadow:none}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-label,
+.phonemodal-back.phone-theme-light .phone-mandate-label{color:#64748b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-amount,
+.phonemodal-back.phone-theme-light .phone-mandate-amount{color:#0f172a}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-meta,
+.phonemodal-back.phone-theme-light .phone-mandate-meta{border-color:#e2e8f0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .mandate-meta-item,
+.phonemodal-back.phone-theme-light .mandate-meta-item{color:#334155}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .mandate-meta-item svg,
+.phonemodal-back.phone-theme-light .mandate-meta-item svg{color:#059669}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-reason-box,
+.phonemodal-back.phone-theme-light .phone-mandate-reason-box{background:#f8fafc;border:1px solid #e2e8f0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-reason-head,
+.phonemodal-back.phone-theme-light .phone-mandate-reason-head{color:#b45309}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-reason-body,
+.phonemodal-back.phone-theme-light .phone-mandate-reason-body{color:#1e293b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-btn.family,
+.phonemodal-back.phone-theme-light .phone-mandate-btn.family{background:#f1f5f9;border-color:#cbd5e1;color:#1e293b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-btn.family:hover,
+.phonemodal-back.phone-theme-light .phone-mandate-btn.family:hover{background:#e2e8f0;color:#0f172a}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-mandate-footer,
+.phonemodal-back.phone-theme-light .phone-mandate-footer{color:#64748b}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .mandate-outcome-card.approved,
+.phonemodal-back.phone-theme-light .mandate-outcome-card.approved{background:linear-gradient(155deg,#ecfdf5 0%,#d1fae5 65%,#ffffff 100%);border:1px solid #a7f3d0}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .mandate-outcome-card.frozen,
+.phonemodal-back.phone-theme-light .mandate-outcome-card.frozen{background:linear-gradient(155deg,#fef2f2 0%,#fee2e2 65%,#ffffff 100%);border:1px solid #fecaca}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .outcome-desc,
+.phonemodal-back.phone-theme-light .outcome-desc{color:#475569}
+html.theme-light .phonemodal-back:not(.phone-theme-dark) .outcome-amount-pill,
+.phonemodal-back.phone-theme-light .outcome-amount-pill{background:rgba(0,0,0,.06);border:1px solid #cbd5e1;color:#0f172a}
+
 </style></head>
-<body><div class="app"><aside id="sidebar"><div class="brand"><div class="brandmark"><i data-lucide="shield-check"></i></div><div><div class="brandname">RXT-J+ <span>Guardian</span></div><div class="brandsub">PAYMENT INTELLIGENCE</div></div></div><nav class="navgroup"><div class="navlabel">WORKSPACE</div><button class="navbtn active" data-page="overview"><i data-lucide="layout-dashboard"></i> Overview</button><button class="navbtn" data-page="simulator"><i data-lucide="scan-line"></i> Transaction simulator</button><button class="navbtn" data-page="transactions"><i data-lucide="arrow-left-right"></i> Transactions <span class="navcount" id="navCount">0</span></button><button class="navbtn" data-page="network"><i data-lucide="network"></i> Fraud network</button><button class="navbtn" data-page="decision"><i data-lucide="sliders-horizontal"></i> Decision lab</button><div class="navlabel">PLATFORM</div><button class="navbtn" data-page="reviews"><i data-lucide="clipboard-check"></i> Review queue</button><button class="navbtn" data-page="workspaces"><i data-lucide="users"></i> Team workspaces</button><button class="navbtn" data-page="health"><i data-lucide="activity"></i> Model & system health</button><button class="navbtn" data-page="audit"><i data-lucide="scroll-text"></i> Activity log</button></nav><div class="asidebottom"><div class="environment"><div class="envrow"><span class="dot" id="sideDot"></span><span id="sideStatus">Connecting to API</span></div><div class="envtext">Demo environment<br>Signed-in activity syncs to your private Guardian workspace.</div></div><div style="padding:16px 10px 0;color:#647b92;font-size:10px;line-height:1.7">RXT-J+ v4 · Guardian UI 1.0<br>Risk recommendations are not payment authorizations.</div></div></aside><main class="main"><header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="mobilemenu" id="menuBtn" aria-label="Open navigation"><i data-lucide="menu"></i></button><div class="crumb">Guardian <span style="color:#50677d">/</span> <b id="crumbPage">Overview</b></div></div><div class="topright"><div class="api-pill"><span class="dot" id="apiDot"></span><span id="apiStatus">Checking API</span></div><button class="btn ghost" id="refreshBtn"><i data-lucide="refresh-cw"></i> Refresh</button><div class="avatar">G</div></div></header><div class="content">
+<body><div class="app"><aside id="sidebar"><div class="brand"><div class="brandmark"><i data-lucide="shield-check"></i></div><div><div class="brandname">RXT-J+ <span>Guardian</span></div><div class="brandsub">PAYMENT INTELLIGENCE</div></div></div><nav class="navgroup"><div class="navlabel">WORKSPACE</div><button class="navbtn active" data-page="overview"><i data-lucide="layout-dashboard"></i> Overview</button><button class="navbtn" data-page="simulator"><i data-lucide="scan-line"></i> Transaction simulator</button><button class="navbtn" data-page="transactions"><i data-lucide="arrow-left-right"></i> Transactions <span class="navcount" id="navCount">0</span></button><button class="navbtn" data-page="network"><i data-lucide="network"></i> Fraud network</button><button class="navbtn" data-page="decision"><i data-lucide="sliders-horizontal"></i> Decision lab</button><div class="navlabel">PLATFORM</div><button class="navbtn" data-page="reviews"><i data-lucide="clipboard-check"></i> Review queue</button><button class="navbtn" data-page="workspaces"><i data-lucide="users"></i> Team workspaces</button><button class="navbtn" data-page="health"><i data-lucide="activity"></i> Model & system health</button><button class="navbtn" data-page="audit"><i data-lucide="scroll-text"></i> Activity log</button></nav><div class="asidebottom"><div class="environment"><div class="envrow"><span class="dot" id="sideDot"></span><span id="sideStatus">Connecting to API</span></div><div class="envtext">Demo environment<br>Signed-in activity syncs to your private Guardian workspace.</div></div><div style="padding:16px 10px 0;color:#647b92;font-size:10px;line-height:1.7">RXT-J+ v4 · Guardian UI 1.0<br>Risk recommendations are not payment authorizations.</div></div></aside><main class="main"><header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="mobilemenu" id="menuBtn" aria-label="Open navigation"><i data-lucide="menu"></i></button><div class="crumb">Guardian <span style="color:#50677d">/</span> <b id="crumbPage">Overview</b></div></div><div class="topright"><button class="btn ghost theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Toggle White/Blue theme" title="Toggle White/Blue Theme"><i data-lucide="sun" id="themeIcon"></i> <span id="themeLabel">Light</span></button><div class="api-pill"><span class="dot" id="apiDot"></span><span id="apiStatus">Checking API</span></div><button class="btn ghost" id="refreshBtn"><i data-lucide="refresh-cw"></i> Refresh</button><div class="avatar">G</div></div></header><div class="content">
 <section class="page active" id="page-overview"><div class="pagehead"><div><div class="eyebrow">Risk operations · Overview</div><h1>Payment intelligence, <span style="color:var(--mint)">at a glance.</span></h1><p>One workspace to understand transaction risk, review decisions, and explore the signals behind suspicious activity.</p></div><div class="actions"><button class="btn" id="loadSamples"><i data-lucide="database"></i> Run demo scenarios</button><button class="btn primary" data-goto="simulator"><i data-lucide="plus"></i> Score a transaction</button></div></div><div class="grid metrics"><div class="card metric"><div class="metric-top">Transactions scored <span class="metric-icon"><i data-lucide="activity"></i></span></div><div class="metric-value" id="mTotal">—</div><div class="metric-foot">Visible in this browser's demo history</div></div><div class="card metric"><div class="metric-top">Elevated risk <span class="metric-icon" style="color:var(--amber);background:#3b301f"><i data-lucide="shield-alert"></i></span></div><div class="metric-value" id="mRisk">—</div><div class="metric-foot">High or elevated model assessments</div></div><div class="card metric"><div class="metric-top">Verification recommended <span class="metric-icon" style="color:var(--blue);background:#1d2d48"><i data-lucide="fingerprint"></i></span></div><div class="metric-value" id="mStep">—</div><div class="metric-foot">Based on cost-sensitive routing</div></div><div class="card metric"><div class="metric-top">API response <span class="metric-icon"><i data-lucide="zap"></i></span></div><div class="metric-value" id="mApi">—</div><div class="metric-foot" id="mApiSub">Waiting for health check</div></div></div><div class="grid two"><div class="card section"><div class="sectionhead"><div><h2>Risk activity</h2><p>Latest scored transactions · local demo history</p></div><span class="pill neutral">LIVE VIEW</span></div><div class="chartwrap"><canvas id="riskChart" aria-label="Risk activity chart"></canvas></div><div class="legend"><span><i></i> Low risk</span><span><i class="bluei"></i> Elevated</span><span><i class="amberi"></i> High risk</span></div></div><div class="card section"><div class="sectionhead"><div><h2>Signal watch</h2><p>Latest notable decisions and activity</p></div><i data-lucide="radar" style="color:var(--mint);width:18px"></i></div><div class="signal-list" id="signalList"><div class="notice"><div class="noticeicon"><i data-lucide="info"></i></div><div><b>No scored transactions yet</b><p>Run a demo scenario to see risk signals here.</p></div></div></div></div></div><div class="card tablecard"><div class="section" style="padding-bottom:14px"><div class="sectionhead" style="margin-bottom:0"><div><h2>Recent transactions</h2><p>Open any row to inspect the model decision.</p></div><button class="btn" data-goto="transactions">View all <i data-lucide="arrow-up-right"></i></button></div></div><div class="tablewrap"><table><thead><tr><th>Transaction</th><th>Account</th><th>Amount</th><th>Risk score</th><th>Decision</th><th>Scored at</th></tr></thead><tbody id="recentRows"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:34px">Score a transaction to populate the workspace.</td></tr></tbody></table></div></div></section>
-<section class="page" id="page-simulator"><div class="pagehead"><div><div class="eyebrow">Risk operations · Live scoring</div><h1>Transaction <span style="color:var(--mint)">simulator.</span></h1><p>Submit a payment-shaped event to the existing RXT-J+ scoring pipeline, then inspect risk, cost routing, and linked-account signals.</p></div><span class="pill neutral">REAL BACKEND INFERENCE</span></div><div class="grid two"><div class="card section"><div class="sectionhead"><div><h2>Transaction context</h2><p>Use synthetic values only. No real payment credentials.</p></div><i data-lucide="file-input" style="color:var(--mint)"></i></div><div class="field" style="margin-bottom:16px"><label for="scenario">Start from a demo scenario</label><select class="select" id="scenario"><option value="custom">Custom transaction</option><option value="normal">Typical payment · ₹1,250</option><option value="large">High-value payment · ₹80,000</option><option value="foreign">International / card-not-present</option><option value="night">Unusual hour · 03:00</option><option value="shared">Shared-device investigation</option></select></div><form id="scoreForm"><div class="formgrid"><div class="field"><label for="accountId">Account ID</label><input id="accountId" required maxlength="64" value="DEMO_ACC_104" placeholder="DEMO_ACC_104"></div><div class="field"><label for="transactionId">Transaction ID</label><input id="transactionId" required maxlength="64" placeholder="Auto-generated"></div><div class="field"><label for="amount">Amount (INR)</label><input id="amount" type="number" min="0" max="100000000" step="0.01" value="1250" required></div><div class="field"><label for="hour">Transaction hour (local)</label><select id="hour"><option value="9">09:00 · Morning</option><option value="14" selected>14:00 · Afternoon</option><option value="20">20:00 · Evening</option><option value="3">03:00 · Overnight</option></select></div><div class="field"><label for="product">Merchant / product category</label><select id="product"><option value="W">W · General</option><option value="C">C · Cash / cash-like</option><option value="H">H · Home / household</option><option value="R">R · Retail</option><option value="S">S · Services</option></select></div><div class="field"><label for="device">Device context</label><select id="device"><option value="Personal Android">Personal Android</option><option value="iPhone">iPhone</option><option value="Windows">Windows</option><option value="MacOS">MacOS</option><option value="SharedTabletPro">SharedTabletPro · Demo network</option><option value="NewDevice-91">New device · Demo</option></select></div><div class="field"><label for="address">Address / postal feature (optional)</label><input id="address" placeholder="e.g. 412" maxlength="80"></div><div class="field"><label for="age">Customer age</label><input id="age" type="number" min="0" max="120" value="30"></div><div class="field full"><label class="checkrow"><input type="checkbox" id="foreign"> International / card-not-present context</label><small>Context fields improve the demonstration but do not represent a real identity or payment authorization.</small></div><div class="field full"><button class="btn primary" type="submit" id="scoreBtn" style="width:100%;padding:13px"><i data-lucide="scan-search"></i> Score transaction <span>→</span></button></div></div></form><div class="footnote">Scoring is performed by the existing FastAPI backend. The model's output is a risk estimate; the cost router returns a recommended action under configured assumptions.</div></div><div class="card result" id="resultPanel"><div class="resultempty"><div><div class="emptyicon"><i data-lucide="shield-check"></i></div><h2 style="font:700 17px Manrope;color:var(--text);margin:0 0 8px">Your risk assessment appears here</h2><p style="font-size:12px;line-height:1.7;max-width:310px;margin:auto">Submit a synthetic transaction to see the model output, recommended action, and related fraud-network context.</p></div></div></div></div></section>
+<section class="page" id="page-simulator">
+<div class="pagehead">
+  <div>
+    <div class="eyebrow">Risk operations · Live scoring</div>
+    <h1>Transaction <span style="color:var(--mint)">simulator.</span></h1>
+    <p>Submit synthetic payment events to the live RXT-J+ scoring pipeline, then inspect risk, cost routing, and linked-account signals.</p>
+  </div>
+  <span class="pill neutral">REAL BACKEND INFERENCE</span>
+</div>
+
+<div class="simulator-scenarios-bar">
+  <div class="scenario-bar-label"><i data-lucide="sparkles"></i> <strong>Quick Scenarios:</strong></div>
+  <div class="scenario-pills" id="scenarioChips">
+    <button type="button" class="scenario-pill active" data-scenario="normal"><i data-lucide="coffee"></i> Typical · ₹1,250</button>
+    <button type="button" class="scenario-pill" data-scenario="large"><i data-lucide="flame"></i> High-Value · ₹80,000</button>
+    <button type="button" class="scenario-pill" data-scenario="night"><i data-lucide="moon"></i> Overnight · 03:00</button>
+    <button type="button" class="scenario-pill" data-scenario="foreign"><i data-lucide="globe"></i> Cross-Border</button>
+    <button type="button" class="scenario-pill" data-scenario="shared"><i data-lucide="network"></i> Shared Ring</button>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card section">
+    <div class="sectionhead">
+      <div>
+        <h2>Transaction Context</h2>
+        <p>Configurable payment event attributes for live model inference.</p>
+      </div>
+      <i data-lucide="file-input" style="color:var(--mint)"></i>
+    </div>
+
+    <form id="scoreForm">
+      <div class="form-section-title"><i data-lucide="credit-card"></i> Payment & Account</div>
+      <div class="formgrid" style="margin-bottom:18px">
+        <div class="field">
+          <label for="accountId">Account ID</label>
+          <input id="accountId" required maxlength="64" value="DEMO_ACC_104" placeholder="DEMO_ACC_104">
+        </div>
+        <div class="field">
+          <label for="transactionId">Transaction ID</label>
+          <input id="transactionId" required maxlength="64" placeholder="Auto-generated" class="mono">
+        </div>
+        <div class="field">
+          <label for="amount">Amount (INR)</label>
+          <div class="input-with-prefix">
+            <span class="input-prefix">₹</span>
+            <input id="amount" type="number" min="0" max="100000000" step="0.01" value="1250" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="product">Merchant Category</label>
+          <select id="product">
+            <option value="W" selected>W · General Online Retail</option>
+            <option value="C">C · Cash / Remittance (High Risk)</option>
+            <option value="H">H · Home & Household</option>
+            <option value="R">R · In-Store Retail</option>
+            <option value="S">S · Services & Digital</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-section-title"><i data-lucide="cpu"></i> Device & Behavioral Context</div>
+      <div class="formgrid">
+        <div class="field">
+          <label for="hour">Local Time</label>
+          <select id="hour">
+            <option value="9">09:00 · Morning</option>
+            <option value="14" selected>14:00 · Afternoon</option>
+            <option value="20">20:00 · Evening</option>
+            <option value="3">03:00 · Overnight (High Anomaly)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="device">Device Footprint</label>
+          <select id="device">
+            <option value="Personal Android" selected>Personal Android · Known primary</option>
+            <option value="iPhone">iPhone · Secondary</option>
+            <option value="Windows">Windows · Desktop</option>
+            <option value="MacOS">MacOS · Laptop</option>
+            <option value="NewDevice-91">NewDevice-91 · Unrecognized (Novel)</option>
+            <option value="SharedTabletPro">SharedTabletPro · Coordinated ring</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="age">Customer Age</label>
+          <input id="age" type="number" min="0" max="120" value="30">
+        </div>
+        <div class="field">
+          <label for="address">Postal / Zip Code (Optional)</label>
+          <input id="address" placeholder="e.g. 412" maxlength="80">
+        </div>
+        <div class="field full">
+          <div class="flag-switch-card">
+            <label class="flag-switch-label" for="foreign">
+              <input type="checkbox" id="foreign" class="flag-switch-input">
+              <div class="flag-switch-text">
+                <strong>Cross-Border / Card-Not-Present Flag</strong>
+                <small>Simulates an international or remote transaction without EMV chip present.</small>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="field full">
+          <button class="btn primary score-main-btn" type="submit" id="scoreBtn">
+            <i data-lucide="scan-search"></i> Score transaction with RXT-J+ <span>→</span>
+          </button>
+        </div>
+      </div>
+    </form>
+    <div class="footnote">Inference performed live via FastAPI backend · LightGBM calibrated + Behavioral FusionNet.</div>
+  </div>
+
+  <div class="card result" id="resultPanel">
+    <div class="resultempty">
+      <div>
+        <div class="emptyicon"><i data-lucide="shield-check"></i></div>
+        <h2 style="font:700 17px Manrope;color:var(--text);margin:0 0 8px">Real-Time Risk Assessment</h2>
+        <p style="font-size:12px;line-height:1.7;max-width:320px;margin:auto">Select a quick scenario above or customize transaction parameters to run real-time inference.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
 <section class="page" id="page-transactions"><div class="pagehead"><div><div class="eyebrow">Risk operations · Transaction explorer</div><h1>Transaction <span style="color:var(--mint)">explorer.</span></h1><p>Search and inspect the transactions scored in this browser session. Model inference and profile updates are handled by the backend.</p></div><button class="btn" id="exportCsv"><i data-lucide="download"></i> Export CSV</button></div><div class="card tablecard" style="margin-top:0"><div class="section"><div class="tabletools"><input class="search" id="txSearch" placeholder="Search transaction or account…"><select class="select" id="txFilter"><option value="all">All risk levels</option><option value="high">High risk</option><option value="medium">Elevated risk</option><option value="low">Low risk</option></select><button class="btn" id="clearLocal"><i data-lucide="trash-2"></i> Clear browser history</button></div></div><div class="tablewrap"><table><thead><tr><th>Transaction</th><th>Account</th><th>Amount</th><th>Risk score</th><th>Router action</th><th>Model tier</th><th>Time</th></tr></thead><tbody id="allRows"></tbody></table></div><div class="section" style="padding-top:14px"><span class="tinylabel" id="txCountLabel">0 transactions</span></div></div></section>
 <section class="page" id="page-network"><div class="pagehead"><div><div class="eyebrow">Investigation · Relationship intelligence</div><h1>Fraud <span style="color:var(--mint)">network.</span></h1><p>Explore observed account relationships using the existing graph service. Shared attributes are investigation signals, not proof of fraud.</p></div></div><div class="card section"><div class="tabletools" style="margin-bottom:16px"><input class="search" id="graphAccount" value="DEMO_ACC_104" placeholder="Account ID to investigate"><select class="select" id="graphDepth"><option value="1">Depth 1</option><option value="2" selected>Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option></select><button class="btn primary" id="loadGraph"><i data-lucide="network"></i> Investigate account</button></div><div class="network"><div class="graphstage" id="graphStage"><canvas id="graphCanvas"></canvas><div class="graphhint">Illustrative graph layout · select Investigate account to refresh</div></div><div class="graphside"><div class="graphstat"><span>Accounts / entities</span><strong id="gNodes">—</strong></div><div class="graphstat"><span>Observed links</span><strong id="gLinks">—</strong></div><div class="graphstat"><span>Ring size</span><strong id="gRing">—</strong></div><div class="graphstat"><span>Network status</span><strong id="gStatus" style="font-size:14px">Awaiting query</strong></div><div class="callout">A relationship graph reveals shared context. It does not independently establish intent or confirm fraud.</div></div></div><div class="footnote" id="graphFoot">Graph data is retrieved from the RXT-J+ ring detector.</div></div></section>
 <section class="page" id="page-decision"><div class="pagehead"><div><div class="eyebrow">Decision intelligence · Cost lab</div><h1>Decision <span style="color:var(--mint)">lab.</span></h1><p>Explore how expected costs can change the recommended action. Every calculation is requested from the backend cost router.</p></div><span class="pill neutral">BACKEND-CALCULATED</span></div><div class="grid two"><div class="card section"><div class="sectionhead"><div><h2>Scenario parameters</h2><p>Adjust the estimated probability and transaction value.</p></div><i data-lucide="sliders-horizontal" style="color:var(--mint)"></i></div><div class="field" style="margin:22px 0"><label for="probRange">Estimated fraud probability</label><div class="sliderrow"><input id="probRange" type="range" min="0" max="100" value="30"><output id="probOut">30%</output></div></div><div class="field" style="margin:22px 0"><label for="amountRange">Transaction amount (INR)</label><div class="sliderrow"><input id="amountRange" type="range" min="100" max="100000" step="100" value="20000"><output id="amountOut">₹20,000</output></div></div><div class="formgrid"><div class="field"><label for="cStep">Verification friction cost (₹)</label><input id="cStep" type="number" min="0" value="20"></div><div class="field"><label for="cBlock">Legitimate block cost (₹)</label><input id="cBlock" type="number" min="0" value="400"></div><div class="field"><label for="gamma">Verification effectiveness (0–1)</label><input id="gamma" type="number" min="0" max="1" step="0.05" value="0.85"></div><div class="field" style="align-self:end"><button class="btn primary" id="runCost" style="width:100%"><i data-lucide="calculator"></i> Recalculate decision</button></div></div><div class="footnote">This is a policy simulation using the router's configured cost assumptions. It is not a guarantee of realized fraud loss or prevention.</div></div><div class="card section"><div class="sectionhead"><div><h2>Recommended action</h2><p>Calculated by the existing decision router.</p></div><i data-lucide="git-branch" style="color:var(--mint)"></i></div><div id="costResult"><div class="resultempty" style="min-height:240px"><div><div class="emptyicon"><i data-lucide="calculator"></i></div><p>Run a scenario to compare action costs.</p></div></div></div></div></div></section>
@@ -25,8 +624,890 @@
 <div class="footnote">Invitations are token-based in this demo and are not emailed automatically. Shared cases are scoped to organization membership; only authorized roles can modify cases.</div></section>
 <section class="page" id="page-audit"><div class="pagehead"><div><div class="eyebrow">Platform · Activity record</div><h1>Activity <span style="color:var(--mint)">log.</span></h1><p>Recent scoring and user actions recorded by this browser's demo experience.</p></div><button class="btn" id="exportAudit"><i data-lucide="download"></i> Export log</button></div><div class="card tablecard" style="margin-top:0"><div class="tablewrap"><table><thead><tr><th>Time</th><th>Event</th><th>Entity</th><th>Details</th></tr></thead><tbody id="auditRows"></tbody></table></div></div><div class="footnote">Browser activity log is intended for the local demo only. It is not a tamper-proof audit system.</div></section>
 </div></main></div><div class="toast" id="toast" role="status" aria-live="polite"></div><div class="modalback" id="modalBack"><div class="modal"><div class="modalhead"><div><div class="eyebrow">Transaction details</div><h2 id="modalTitle">Transaction</h2></div><button class="close" id="modalClose" aria-label="Close"><i data-lucide="x"></i></button></div><div class="modalbody" id="modalBody"></div></div></div>
+<div class="phonemodal-back" id="phoneModalBack" role="dialog" aria-modal="true" aria-label="Customer Phone Verification Screen">
+<div class="phone-wrapper">
+<div class="phone-top-bar-controls">
+<div class="phone-mode-pill"><i data-lucide="smartphone"></i> Cardholder Mobile View · Live Simulation</div>
+<div style="display:flex;align-items:center;gap:8px">
+<button class="phone-theme-btn" id="phoneThemeBtn" type="button" title="Toggle Phone Theme (White / Blue)"><i data-lucide="sun" id="phoneThemeIcon"></i> <span id="phoneThemeLabel">White theme</span></button>
+<button class="phone-close-btn" id="phoneModalClose" title="Return to Analyst Console"><i data-lucide="x"></i> Return to Console</button>
+</div>
+</div>
+<div class="smartphone-frame">
+<div class="phone-notch-area"><span class="phone-camera-lens"></span><span class="phone-speaker-slit"></span></div>
+<div class="phone-status-bar"><span class="phone-time" id="phoneClock">09:41</span><div class="phone-status-icons"><i data-lucide="signal" class="phone-status-icon"></i><span class="phone-net-badge">5G</span><i data-lucide="battery" class="phone-status-icon"></i></div></div>
+<div class="phone-screen-content" id="phoneScreenContent"></div>
+<div class="phone-home-indicator"></div>
+</div>
+</div>
+</div>
 <script>
-(()=>{'use strict';const $=id=>document.getElementById(id);const API=location.origin;const USER_KEY=sessionStorage.getItem('guardian.userId')||'guest';const STORE='guardian.tx.v1.'+USER_KEY,AUDIT='guardian.audit.v1.'+USER_KEY;let transactions=read(STORE,[]),audit=read(AUDIT,[]),healthData=null,graphData=null;function read(k,f){try{return JSON.parse(localStorage.getItem(k)||'null')??f}catch{return f}}function save(){localStorage.setItem(STORE,JSON.stringify(transactions.slice(0,300)));localStorage.setItem(AUDIT,JSON.stringify(audit.slice(0,500)));if(sessionStorage.getItem('guardian.userId')){fetch(API+'/api/me/records/transactions',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({records:transactions.slice(0,300)})}).catch(()=>{});fetch(API+'/api/me/records/activity',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({records:audit.slice(0,500)})}).catch(()=>{})}}function log(event,entity,details=''){audit.unshift({time:new Date().toISOString(),event,entity,details});save()}function toast(s){$('toast').textContent=s;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3400)}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function fmt(n){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n)||0)}function pct(n){return `${(Math.max(0,Math.min(1,Number(n)||0))*100).toFixed(1)}%`}function time(s){try{return new Date(s).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}catch{return '—'}}function riskTier(t){const n=Number(t?.compromise_probability??t?.risk_score??t?.p1_risk_score??0);return n>=.7?'high':n>=.35?'medium':'low'}function tierLabel(t){return ({high:'High risk',medium:'Elevated',low:'Low risk'})[riskTier(t)]}function action(t){return String(t.recommended_action||t.cost_routing?.recommended_action||t.cost_routing?.action||t.p1_decision||t.decision||'REVIEW').replaceAll('_',' ')}async function api(path,opts={}){const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}});const txt=await r.text();let d;try{d=txt?JSON.parse(txt):{}}catch{d={detail:txt}}if(!r.ok)throw new Error(d.detail||`Request failed (${r.status})`);return d}function icon(){if(window.lucide)lucide.createIcons()}function go(page){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===`page-${page}`));document.querySelectorAll('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const n=document.querySelector(`[data-page="${page}"]`);$('crumbPage').textContent=n?n.textContent.trim().replace(/\s+\d+$/,''):page; $('sidebar').classList.remove('open');if(page==='overview')renderOverview();if(page==='transactions')renderTransactions();if(page==='reviews')renderReviews();if(page==='audit')renderAudit();if(page==='health')loadHealth();if(page==='network'&&!graphData)loadGraph();icon()}document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.goto)));$('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');$('refreshBtn').onclick=async()=>{await loadHealth();renderOverview();toast('Workspace refreshed')};$('transactionId').value='GDN-'+Date.now().toString().slice(-8);function score(t){return Number(t.compromise_probability??t.risk_score??t.p1_risk_score??0)}function row(t){let sc=score(t),tier=riskTier(t),act=action(t);return `<tr data-id="${esc(t.transaction_id)}"><td><span class="mono">${esc(t.transaction_id)}</span></td><td>${esc(t.account_id||'—')}</td><td class="amount">${fmt(t.amount)}</td><td><div class="riskcell"><span>${pct(sc)}</span><span class="riskbar"><span class="${tier==='high'?'hot':tier==='medium'?'warm':''}" style="width:${Math.max(2,sc*100)}%"></span></span></div></td><td><span class="pill ${tier}">${esc(act)}</span></td><td><span class="pill ${tier}">${tierLabel(t)}</span></td><td>${time(t.created_at||t.timestamp||t.scored_at||Date.now())}</td></tr>`}function bindRows(root){$(root).querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>openTransaction(transactions.find(t=>t.transaction_id===tr.dataset.id)))}function renderOverview(){const total=transactions.length,risk=transactions.filter(t=>riskTier(t)!=='low').length,step=transactions.filter(t=>/STEP_UP|VERIFY|CHALLENGE/i.test(action(t))).length;$('mTotal').textContent=total.toLocaleString('en-IN');$('mRisk').textContent=risk.toLocaleString('en-IN');$('mStep').textContent=step.toLocaleString('en-IN');$('navCount').textContent=total;$('recentRows').innerHTML=transactions.slice(0,6).map(t=>`<tr data-id="${esc(t.transaction_id)}"><td><span class="mono">${esc(t.transaction_id)}</span></td><td>${esc(t.account_id||'—')}</td><td class="amount">${fmt(t.amount)}</td><td><div class="riskcell">${pct(score(t))}<span class="riskbar"><span style="width:${score(t)*100}%" class="${riskTier(t)==='high'?'hot':riskTier(t)==='medium'?'warm':''}"></span></span></div></td><td><span class="pill ${riskTier(t)}">${esc(action(t))}</span></td><td>${time(t.created_at||Date.now())}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:34px">No activity yet. Score a transaction to begin.</td></tr>';bindRows('recentRows');const signals=transactions.slice(0,4).filter(t=>riskTier(t)!=='low');$('signalList').innerHTML=signals.map(t=>`<div class="signal"><div class="signalicon"><i data-lucide="${riskTier(t)==='high'?'shield-alert':'fingerprint'}"></i></div><div><div class="signalname">${esc(t.transaction_id)} · ${esc(tierLabel(t))}</div><div class="signaldetail">${fmt(t.amount)} · ${esc(t.account_id||'Account unavailable')}</div></div><div class="signalval" style="color:${riskTier(t)==='high'?'var(--red)':'var(--amber)'}">${pct(score(t))}</div></div>`).join('')||'<div class="notice"><div class="noticeicon"><i data-lucide="check-circle"></i></div><div><b>No elevated-risk activity in local history</b><p>Risk signals will appear here after transactions are scored.</p></div></div>';drawRiskChart();icon()}function drawRiskChart(){const c=$('riskChart');if(!c)return;const rect=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;c.width=Math.max(1,rect.width*dpr);c.height=Math.max(1,rect.height*dpr);const x=c.getContext('2d');x.scale(dpr,dpr);const w=rect.width,h=rect.height,pad={l:10,r:10,t:14,b:25};x.clearRect(0,0,w,h);x.font='10px DM Sans';for(let i=0;i<4;i++){let y=pad.t+(h-pad.t-pad.b)*i/3;x.strokeStyle='#26384b';x.beginPath();x.moveTo(pad.l,y);x.lineTo(w-pad.r,y);x.stroke()}const arr=transactions.slice(0,12).reverse();if(!arr.length){x.fillStyle='#7890a7';x.textAlign='center';x.fillText('Your scored activity will appear here',w/2,h/2);return}let bw=Math.min(26,(w-pad.l-pad.r)/arr.length*.48),slot=(w-pad.l-pad.r)/arr.length;arr.forEach((t,i)=>{const val=score(t),bh=Math.max(4,(h-pad.t-pad.b)*val),xx=pad.l+i*slot+(slot-bw)/2,yy=h-pad.b-bh;x.fillStyle=riskTier(t)==='high'?'#f7c76b':riskTier(t)==='medium'?'#7daeff':'#65e0b2';x.beginPath();if(x.roundRect)x.roundRect(xx,yy,bw,bh,4);else x.rect(xx,yy,bw,bh);x.fill()});x.fillStyle='#7c93a9';x.textAlign='center';arr.forEach((t,i)=>{if(arr.length<8||i%2===0)x.fillText(String(i+1),pad.l+i*slot+slot/2,h-7)})}async function loadHealth(){try{const start=performance.now();const [h,s,m]=await Promise.all([api('/health'),api('/status'),api('/model/info')]);healthData={health:h,status:s,model:m,latency:Math.round(performance.now()-start)};$('apiStatus').textContent='API connected';$('sideStatus').textContent='Backend connected';$('apiDot').style.background=$('sideDot').style.background='var(--mint)';$('mApi').textContent=`${healthData.latency} ms`;$('mApiSub').textContent='Observed health-check round trip';$('healthGrid').innerHTML=[['Backend API','Healthy',`Service ${esc(s.version||'version unavailable')}`,true],['Scoring model',h.models_loaded?'Loaded':'Unavailable',esc(h.phase1_model||'Model status reported by API'),!!h.models_loaded],['Behavioral fusion',h.phase2_deep_models_loaded?'Available':'Fallback / unavailable',`Features: ${esc(h.feature_count??'—')}`,!!h.phase2_deep_models_loaded]].map(a=>`<div class="healthitem"><div class="hrow"><strong>${a[0]}</strong><span class="pill ${a[3]?'low':'medium'}">${a[1]}</span></div><p>${a[2]}</p></div>`).join('');$('modelInfo').textContent=JSON.stringify(m,null,2);return true}catch(e){healthData=null;$('apiStatus').textContent='API unavailable';$('sideStatus').textContent='Backend unavailable';$('apiDot').style.background=$('sideDot').style.background='var(--red)';$('mApi').textContent='Offline';$('mApiSub').textContent='Start the FastAPI service to enable scoring';$('healthGrid').innerHTML=`<div class="healthitem"><div class="hrow"><strong>Backend API</strong><span class="pill high">Unavailable</span></div><p>${esc(e.message)}. Start the backend and refresh.</p></div>`;$('modelInfo').textContent='Model metadata is unavailable until the backend responds.';return false}}$('healthRefresh').onclick=async()=>{await loadHealth();toast(healthData?'Health check complete':'API is unavailable')};async function scoreForm(ev){ev.preventDefault();if(!healthData&&!await loadHealth()){toast('Backend is unavailable. Start the API and try again.');return}const btn=$('scoreBtn');btn.disabled=true;btn.innerHTML='<i data-lucide="loader-circle"></i> Scoring transaction…';icon();const tid=$('transactionId').value.trim()||'GDN-'+Date.now();const payload={account_id:$('accountId').value.trim(),transaction_id:tid,amount:Number($('amount').value),hour:Number($('hour').value),product_cd:$('product').value,is_foreign:$('foreign').checked,customer_age:Number($('age').value||30),device_info:$('device').value,addr1:$('address').value.trim()||null,timestamp:Date.now()/1000};try{const d=await api('/score/form-full?explain=true',{method:'POST',body:JSON.stringify(payload)});const t={...d,...payload,created_at:new Date().toISOString(),customer_response:null,review_status:'Needs review'};transactions=transactions.filter(x=>x.transaction_id!==tid);transactions.unshift(t);log('TRANSACTION_SCORED',tid,`Risk ${pct(score(t))}; router ${action(t)}`);save();renderResult(t);renderOverview();toast('Transaction scored by the RXT-J+ backend');$('transactionId').value='GDN-'+Date.now().toString().slice(-8); }catch(e){toast('Scoring failed: '+e.message)}finally{btn.disabled=false;btn.innerHTML='<i data-lucide="scan-search"></i> Score transaction <span>→</span>';icon()}}$('scoreForm').addEventListener('submit',scoreForm);function renderResult(t){const sc=score(t),tier=riskTier(t),cr=t.cost_routing||{},ring=t.ring_association||{},expl=t.explainability||{};const reasons=Object.entries(expl).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,3);$('resultPanel').innerHTML=`<div class="sectionhead"><div><h2>Risk assessment</h2><p>${esc(t.transaction_id)} · ${esc(t.model_version||'RXT-J+')}</p></div><span class="pill ${tier}">${tierLabel(t)}</span></div><div class="scorecircle" style="--pct:${sc*100}%"><div class="scoreinside"><strong>${pct(sc)}</strong><small>RISK SCORE</small></div></div><div class="resulttitle">${esc(action(t))}</div><div class="resultdesc">${tier==='high'?'Elevated signals detected. Review the transaction and related context before taking action.':tier==='medium'?'Additional verification may help balance fraud exposure and customer friction.':'The model returned a lower-risk assessment. Continue to apply your normal controls.'}</div><div class="resultstats"><div class="resultstat"><span>Phase 1 score</span><strong>${pct(t.p1_risk_score)}</strong></div><div class="resultstat"><span>Behavioral drift</span><strong>${Number(t.behavioral_drift_score??0).toFixed(3)}</strong></div><div class="resultstat"><span>Scoring latency</span><strong>${Number(t.latency_ms||0).toFixed(1)} ms</strong></div><div class="resultstat"><span>Ring size</span><strong>${Number(ring.ring_size??1)}</strong></div></div><div class="sectionhead" style="margin:20px 0 10px"><h2>Model feature signals</h2><span class="tinylabel">ATTENTION WEIGHTS</span></div><div class="reasonlist">${reasons.map(([k,v])=>`<div class="reason"><i data-lucide="activity"></i><div><b>${esc(k.replaceAll('_',' '))}</b><br><span style="color:var(--muted)">Model attention weight: ${Number(v).toFixed(4)}. This is a feature weight, not proof of causality.</span></div></div>`).join('')||'<div class="reason">No feature signal details were returned.</div>'}</div><div class="callout" style="margin-top:15px"><b>Cost router:</b> ${esc(action(t))}. These recommendations reflect configured expected-cost assumptions, not payment authorization.</div><div class="modalactions"><button class="btn primary" id="customerConfirm"><i data-lucide="check-circle"></i> Simulate customer confirmation</button><button class="btn danger" id="customerReject"><i data-lucide="ban"></i> Simulate customer rejection</button><button class="btn" id="openDetail"><i data-lucide="file-search"></i> Full investigation</button></div>`;$('customerConfirm').onclick=()=>customerResponse(t.transaction_id,'Confirmed by customer');$('customerReject').onclick=()=>customerResponse(t.transaction_id,'Rejected by customer');$('openDetail').onclick=()=>openTransaction(t);icon()}function customerResponse(id,response){const t=transactions.find(x=>x.transaction_id===id);if(!t)return;t.customer_response=response;t.review_status='Customer responded';log('CUSTOMER_RESPONSE',id,response);save();renderResult(t);renderOverview();toast(response+' · saved to this browser demo')}function openTransaction(t){if(!t)return;$('modalTitle').textContent=t.transaction_id;$('modalBody').innerHTML=`<div class="resultstats"><div class="resultstat"><span>Account</span><strong>${esc(t.account_id||'—')}</strong></div><div class="resultstat"><span>Amount</span><strong>${fmt(t.amount)}</strong></div><div class="resultstat"><span>Risk score</span><strong>${pct(score(t))}</strong></div><div class="resultstat"><span>Decision</span><strong>${esc(action(t))}</strong></div></div><p><b style="color:var(--text)">Scoring time:</b> ${time(t.created_at)}<br><b style="color:var(--text)">Model:</b> ${esc(t.model_version||'RXT-J+ v4')}<br><b style="color:var(--text)">Customer response:</b> ${esc(t.customer_response||'No response recorded')}<br><b style="color:var(--text)">Review status:</b> ${esc(t.review_status||'Needs review')}</p><div class="callout">${esc(tierLabel(t))} is a model-generated assessment. Investigators should review context and available evidence before confirming fraud.</div><div class="sectionhead" style="margin-top:18px"><h2>Investigation actions</h2></div><div class="field"><label for="reviewNote">Analyst note (local demo record)</label><input id="reviewNote" placeholder="Add a short review note" value="${esc(t.review_note||'')}"></div><div class="modalactions"><button class="btn primary" id="markLegit">Mark legitimate</button><button class="btn danger" id="markFraud">Confirm fraud</button><button class="btn" id="goNetwork">Inspect account network</button></div>`;$('modalBack').classList.add('show');$('modalClose').onclick=closeModal;$('markLegit').onclick=()=>review(t.transaction_id,'Legitimate',false);$('markFraud').onclick=()=>review(t.transaction_id,'Confirmed fraud',true);$('goNetwork').onclick=()=>{closeModal();$('graphAccount').value=t.account_id||'';go('network');loadGraph()};icon()}function closeModal(){$('modalBack').classList.remove('show')}$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});function review(id,status,fraud){const t=transactions.find(x=>x.transaction_id===id);if(!t)return;t.review_status=status;t.review_note=$('reviewNote').value;log('ANALYST_REVIEW',id,status+(t.review_note?': '+t.review_note:''));save();closeModal();renderOverview();renderReviews();toast('Review outcome recorded in this browser demo')}function renderTransactions(){const q=$('txSearch').value.toLowerCase(),f=$('txFilter').value;const list=transactions.filter(t=>(`${t.transaction_id} ${t.account_id}`.toLowerCase().includes(q))&&(f==='all'||riskTier(t)===f));$('allRows').innerHTML=list.map(row).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:35px">No matching transactions.</td></tr>';$('txCountLabel').textContent=`${list.length} of ${transactions.length} transactions`;bindRows('allRows')}$('txSearch').addEventListener('input',renderTransactions);$('txFilter').addEventListener('change',renderTransactions);function renderReviews(){const list=transactions.filter(t=>riskTier(t)!=='low'||/STEP_UP|BLOCK|FREEZE/i.test(action(t))||t.customer_response);$('reviewCount').textContent=`${list.length} items`;$('reviewRows').innerHTML=list.map(t=>`<tr data-id="${esc(t.transaction_id)}"><td><span class="mono">${esc(t.transaction_id)}</span></td><td>${esc(t.account_id)}</td><td class="amount">${fmt(t.amount)}</td><td>${pct(score(t))}</td><td><span class="pill ${riskTier(t)}">${esc(action(t))}</span></td><td>${esc(t.customer_response||'Awaiting response')}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:34px">No items in the review queue.</td></tr>';bindRows('reviewRows')}function renderAudit(){$('auditRows').innerHTML=audit.map(a=>`<tr><td>${time(a.time)}</td><td><span class="pill neutral">${esc(a.event)}</span></td><td class="mono">${esc(a.entity)}</td><td>${esc(a.details)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:35px">No browser activity recorded yet.</td></tr>'}function csv(rows){const cols=Object.keys(rows[0]||{transaction_id:'',account_id:'',amount:'',risk_score:'',recommended_action:'',decision:'',created_at:''});const val=v=>'"'+String(v??'').replaceAll('"','""')+'"';return [cols.join(','),...rows.map(r=>cols.map(k=>val(r[k])).join(','))].join('\r\n')}function download(name,content,type='text/csv'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}$('exportCsv').onclick=()=>{download('guardian-transactions.csv',csv(transactions.map(t=>({...t,risk_score:score(t),recommended_action:action(t)}))));log('DATA_EXPORT','transactions',`${transactions.length} browser records`);toast('CSV export prepared')};$('exportAudit').onclick=()=>download('guardian-activity.csv',csv(audit));$('clearLocal').onclick=()=>{if(confirm('Clear transaction and activity records stored in this browser? This does not delete backend model/profile data.')){transactions=[];audit=[];save();renderOverview();renderTransactions();renderReviews();renderAudit();toast('Browser demo history cleared')}};$('loadSamples').onclick=async()=>{if(!healthData&&!await loadHealth()){toast('Backend is unavailable. Start the API and try again.');return}const scenarios=[{account_id:'DEMO_ACC_NORMAL',amount:1250,hour:14,product_cd:'W',device_info:'Personal Android',is_foreign:false,customer_age:34},{account_id:'DEMO_ACC_HIGH',amount:80000,hour:3,product_cd:'C',device_info:'NewDevice-91',is_foreign:false,customer_age:61},{account_id:'DEMO_ACC_FOREIGN',amount:18000,hour:20,product_cd:'S',device_info:'Windows',is_foreign:true,customer_age:29},{account_id:'DEMO_SHARED_A',amount:25000,hour:3,product_cd:'W',device_info:'SharedTabletPro',addr1:412,is_foreign:false,customer_age:42}];let loaded=0;for(const p of scenarios){const tid='GDN-DEMO-'+(loaded+1)+'-'+Date.now().toString().slice(-4);const payload={...p,transaction_id:tid,timestamp:Date.now()/1000};try{const d=await api('/score/form-full',{method:'POST',body:JSON.stringify(payload)});transactions=transactions.filter(x=>x.transaction_id!==tid);transactions.unshift({...d,...payload,created_at:new Date().toISOString(),customer_response:null,review_status:'Needs review'});log('DEMO_SCENARIO_SCORED',tid,'Synthetic demo scenario submitted to the live backend');loaded++}catch(e){console.warn('Scenario skipped',e.message)}}save();renderOverview();toast(`${loaded} synthetic demo scenario(s) scored by backend`)};function setScenario(v){const cfg={normal:{amount:1250,hour:14,foreign:false,device:'Personal Android',product:'W'},large:{amount:80000,hour:14,foreign:false,device:'Windows',product:'W'},foreign:{amount:18000,hour:20,foreign:true,device:'NewDevice-91',product:'S'},night:{amount:12500,hour:3,foreign:false,device:'NewDevice-91',product:'C'},shared:{amount:25000,hour:3,foreign:false,device:'SharedTabletPro',product:'W'}}[v];if(!cfg)return;$('amount').value=cfg.amount;$('hour').value=String(cfg.hour);$('foreign').checked=cfg.foreign;$('device').value=cfg.device;$('product').value=cfg.product;$('transactionId').value='GDN-'+Date.now().toString().slice(-8);if(v==='shared'){$('accountId').value='DEMO_SHARED_'+Math.floor(Date.now()/1000)%1000;$('address').value='412'}else $('accountId').value='DEMO_ACC_104'}$('scenario').onchange=e=>setScenario(e.target.value);async function runCost(){const p=Number($('probRange').value)/100,amount=Number($('amountRange').value),payload={probability:p,amount,c_step:Number($('cStep').value),c_block:Number($('cBlock').value),gamma:Number($('gamma').value)};try{const d=await api('/cost/route',{method:'POST',body:JSON.stringify(payload)});const costs=Object.entries(d).filter(([k,v])=>/cost/i.test(k)&&Number.isFinite(Number(v)));const act=String(d.action||d.recommended_action||'REVIEW');$('costResult').innerHTML=`<div class="callout"><b>Recommended action: ${esc(act.replaceAll('_',' '))}</b><br>At ${pct(p)} estimated fraud probability and ${fmt(amount)} transaction value, the router selects the action with the lowest expected cost under the configured assumptions.</div><div class="costcards">${costs.slice(0,3).map(([k,v])=>`<div class="costcard ${k.toLowerCase().includes(act.toLowerCase())?'selected':''}"><span>${esc(k.replaceAll('_',' '))}</span><strong>${fmt(v)}</strong><small>Estimated cost</small></div>`).join('')||`<div class="costcard selected"><span>Router response</span><strong>${esc(act)}</strong><small>See raw details below</small></div>`}</div><details style="margin-top:15px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">View raw router response</summary><pre style="white-space:pre-wrap;color:#9bb2c8;font:11px ui-monospace;line-height:1.7">${esc(JSON.stringify(d,null,2))}</pre></details>`;log('COST_SIMULATION','decision-lab',`p=${p}; amount=${amount}; action=${act}`);save();icon()}catch(e){$('costResult').innerHTML=`<div class="callout" style="background:#351e2a;border-color:#75414b;color:#ffbdc5">Decision request failed: ${esc(e.message)}</div>`}}$('probRange').oninput=()=>$('probOut').textContent=$('probRange').value+'%';$('amountRange').oninput=()=>$('amountOut').textContent=fmt($('amountRange').value);$('runCost').onclick=runCost;async function loadGraph(){const id=$('graphAccount').value.trim();if(!id){toast('Enter an account ID first');return}try{const [g,m]=await Promise.all([api(`/ring/graph/${encodeURIComponent(id)}?depth=${$('graphDepth').value}`),api(`/ring/metrics/${encodeURIComponent(id)}`)]);graphData=g;const nodes=g.nodes||[],links=g.links||[];$('gNodes').textContent=nodes.length;$('gLinks').textContent=links.length;$('gRing').textContent=m.ring_size??'—';$('gStatus').textContent=nodes.length?'Loaded':'No nodes';$('graphFoot').textContent=`Account ${id} · ring detector returned ${nodes.length} nodes and ${links.length} links.`;drawGraph(nodes,links,id);log('NETWORK_INVESTIGATION',id,`${nodes.length} nodes; ${links.length} links`);save()}catch(e){graphData=null;$('gStatus').textContent='Unavailable';$('graphFoot').textContent='Graph request failed: '+e.message;drawGraph([],[],'');toast('Network query failed: '+e.message)}}$('loadGraph').onclick=loadGraph;function drawGraph(nodes,links,account){const c=$('graphCanvas'),box=$('graphStage').getBoundingClientRect(),dpr=window.devicePixelRatio||1;c.width=Math.max(1,box.width*dpr);c.height=Math.max(1,box.height*dpr);const x=c.getContext('2d');x.scale(dpr,dpr);const w=box.width,h=box.height;x.clearRect(0,0,w,h);if(!nodes.length){x.fillStyle='#8198ae';x.font='12px DM Sans';x.textAlign='center';x.fillText('No graph nodes returned for this account yet',w/2,h/2);return}const center=nodes.findIndex(n=>String(n.id??n.account_id??n.label)===account),pos=nodes.map((n,i)=>{const a=(i/nodes.length)*Math.PI*2-Math.PI/2,r=i===center?0:Math.min(w,h)*(.18+(i%3)*.06);return{x:w/2+Math.cos(a)*r,y:h/2+Math.sin(a)*r}});const ids=new Map(nodes.map((n,i)=>[String(n.id??n.account_id??n.label),i]));x.lineWidth=1.2;links.forEach(l=>{const s=ids.get(String(l.source?.id??l.source??l.from)),t=ids.get(String(l.target?.id??l.target??l.to));if(s===undefined||t===undefined)return;x.strokeStyle='#3b6274';x.beginPath();x.moveTo(pos[s].x,pos[s].y);x.lineTo(pos[t].x,pos[t].y);x.stroke()});nodes.forEach((n,i)=>{const p=pos[i],isCenter=i===center||String(n.id??n.account_id??'')===account,hot=!!(n.risk||n.is_suspicious||n.fraud);x.beginPath();x.arc(p.x,p.y,isCenter?9:6,0,Math.PI*2);x.fillStyle=isCenter?'#65e0b2':hot?'#ff7d8c':'#7daeff';x.fill();x.strokeStyle='#dcecf5';x.globalAlpha=.3;x.stroke();x.globalAlpha=1;x.fillStyle='#c5d6e4';x.font='10px DM Sans';x.textAlign='center';const label=String(n.label??n.id??n.account_id??n.type??'entity');x.fillText(label.slice(0,18),p.x,p.y+20)})}window.addEventListener('resize',()=>{if($('page-overview').classList.contains('active'))drawRiskChart();if($('page-network').classList.contains('active')&&graphData)drawGraph(graphData.nodes||[],graphData.links||[],$('graphAccount').value)});$('modalClose').onclick=closeModal;transactions.forEach(t=>{if(!t.created_at)t.created_at=new Date().toISOString()});renderOverview();renderTransactions();renderReviews();renderAudit();icon();loadHealth();setTimeout(()=>{if(transactions.length===0)drawRiskChart()},200);})();
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const API=location.origin;
+const USER_KEY=sessionStorage.getItem('guardian.userId')||'guest';
+const STORE='guardian.tx.v1.'+USER_KEY,AUDIT='guardian.audit.v1.'+USER_KEY;
+let transactions=read(STORE,[]),audit=read(AUDIT,[]),healthData=null,graphData=null;
+
+function read(k,f){try{return JSON.parse(localStorage.getItem(k)||'null')??f}catch{return f}}
+function save(){
+  localStorage.setItem(STORE,JSON.stringify(transactions.slice(0,300)));
+  localStorage.setItem(AUDIT,JSON.stringify(audit.slice(0,500)));
+  if(sessionStorage.getItem('guardian.userId')){
+    fetch(API+'/api/me/records/transactions',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({records:transactions.slice(0,300)})}).catch(()=>{});
+    fetch(API+'/api/me/records/activity',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({records:audit.slice(0,500)})}).catch(()=>{});
+  }
+}
+function log(event,entity,details=''){audit.unshift({time:new Date().toISOString(),event,entity,details});save()}
+function toast(s){$('toast').textContent=s;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),3400)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function fmt(n){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n)||0)}
+function pct(n){return `${(Math.max(0,Math.min(1,Number(n)||0))*100).toFixed(1)}%`}
+function time(s){try{return new Date(s).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}catch{return '—'}}
+function riskTier(t){const n=Number(t?.compromise_probability??t?.risk_score??t?.p1_risk_score??0);return n>=.7?'high':n>=.35?'medium':'low'}
+function tierLabel(t){return ({high:'High risk',medium:'Elevated',low:'Low risk'})[riskTier(t)]}
+function action(t){return String(t.recommended_action||t.cost_routing?.recommended_action||t.cost_routing?.action||t.p1_decision||t.decision||'REVIEW').replaceAll('_',' ')}
+async function api(path,opts={}){
+  const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}});
+  const txt=await r.text();
+  let d;
+  try{d=txt?JSON.parse(txt):{}}catch{d={detail:txt}}
+  if(!r.ok)throw new Error(d.detail||`Request failed (${r.status})`);
+  return d;
+}
+function icon(){if(window.lucide)lucide.createIcons()}
+
+function go(page){
+  document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===`page-${page}`));
+  document.querySelectorAll('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.page===page));
+  const n=document.querySelector(`[data-page="${page}"]`);
+  $('crumbPage').textContent=n?n.textContent.trim().replace(/\s+\d+$/,''):page;
+  $('sidebar').classList.remove('open');
+  if(page==='overview')renderOverview();
+  if(page==='transactions')renderTransactions();
+  if(page==='reviews')renderReviews();
+  if(page==='audit')renderAudit();
+  if(page==='health')loadHealth();
+  if(page==='network'&&!graphData)loadGraph();
+  icon();
+}
+document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.goto)));
+$('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');
+$('refreshBtn').onclick=async()=>{await loadHealth();renderOverview();toast('Workspace refreshed')};
+$('transactionId').value='GDN-'+Date.now().toString().slice(-8);
+
+function score(t){return Number(t.compromise_probability??t.risk_score??t.p1_risk_score??0)}
+function row(t){
+  let sc=score(t),tier=riskTier(t),act=action(t);
+  return `<tr data-id="${esc(t.transaction_id)}"><td><span class="mono">${esc(t.transaction_id)}</span></td><td>${esc(t.account_id||'—')}</td><td class="amount">${fmt(t.amount)}</td><td><div class="riskcell"><span>${pct(sc)}</span><span class="riskbar"><span class="${tier==='high'?'hot':tier==='medium'?'warm':''}" style="width:${Math.max(2,sc*100)}%"></span></span></div></td><td><span class="pill ${tier}">${esc(act)}</span></td><td><span class="pill ${tier}">${tierLabel(t)}</span></td><td>${time(t.created_at||t.timestamp||t.scored_at||Date.now())}</td></tr>`;
+}
+function bindRows(root){
+  $(root).querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>openTransaction(transactions.find(t=>t.transaction_id===tr.dataset.id)));
+}
+
+function renderOverview(){
+  const total=transactions.length,risk=transactions.filter(t=>riskTier(t)!=='low').length,step=transactions.filter(t=>/STEP_UP|VERIFY|CHALLENGE/i.test(action(t))).length;
+  $('mTotal').textContent=total.toLocaleString('en-IN');
+  $('mRisk').textContent=risk.toLocaleString('en-IN');
+  $('mStep').textContent=step.toLocaleString('en-IN');
+  $('navCount').textContent=total;
+  $('recentRows').innerHTML=transactions.slice(0,6).map(t=>`<tr data-id="${esc(t.transaction_id)}"><td><span class="mono">${esc(t.transaction_id)}</span></td><td>${esc(t.account_id||'—')}</td><td class="amount">${fmt(t.amount)}</td><td><div class="riskcell">${pct(score(t))}<span class="riskbar"><span style="width:${score(t)*100}%" class="${riskTier(t)==='high'?'hot':riskTier(t)==='medium'?'warm':''}"></span></span></div></td><td><span class="pill ${riskTier(t)}">${esc(action(t))}</span></td><td>${time(t.created_at||Date.now())}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:34px">No activity yet. Score a transaction to begin.</td></tr>';
+  bindRows('recentRows');
+  const signals=transactions.slice(0,4).filter(t=>riskTier(t)!=='low');
+  $('signalList').innerHTML=signals.map(t=>`<div class="signal"><div class="signalicon"><i data-lucide="${riskTier(t)==='high'?'shield-alert':'fingerprint'}"></i></div><div><div class="signalname">${esc(t.transaction_id)} · ${esc(tierLabel(t))}</div><div class="signaldetail">${fmt(t.amount)} · ${esc(t.account_id||'Account unavailable')}</div></div><div class="signalval" style="color:${riskTier(t)==='high'?'var(--red)':'var(--amber)'}">${pct(score(t))}</div></div>`).join('')||'<div class="notice"><div class="noticeicon"><i data-lucide="check-circle"></i></div><div><b>No elevated-risk activity in local history</b><p>Risk signals will appear here after transactions are scored.</p></div></div>';
+  drawRiskChart();
+  icon();
+}
+
+function drawRiskChart(){
+  const c=$('riskChart');if(!c)return;
+  const isLight=document.documentElement.classList.contains('theme-light');
+  const rect=c.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  c.width=Math.max(1,rect.width*dpr);c.height=Math.max(1,rect.height*dpr);
+  const x=c.getContext('2d');x.scale(dpr,dpr);
+  const w=rect.width,h=rect.height,pad={l:10,r:10,t:14,b:25};
+  x.clearRect(0,0,w,h);
+  x.font='10px DM Sans';
+  for(let i=0;i<4;i++){
+    let y=pad.t+(h-pad.t-pad.b)*i/3;
+    x.strokeStyle=isLight?'#e2e8f0':'#26384b';
+    x.beginPath();x.moveTo(pad.l,y);x.lineTo(w-pad.r,y);x.stroke();
+  }
+  const arr=transactions.slice(0,12).reverse();
+  if(!arr.length){
+    x.fillStyle=isLight?'#64748b':'#7890a7';
+    x.textAlign='center';
+    x.fillText('Your scored activity will appear here',w/2,h/2);
+    return;
+  }
+  let bw=Math.min(26,(w-pad.l-pad.r)/arr.length*.48),slot=(w-pad.l-pad.r)/arr.length;
+  arr.forEach((t,i)=>{
+    const val=score(t),bh=Math.max(4,(h-pad.t-pad.b)*val),xx=pad.l+i*slot+(slot-bw)/2,yy=h-pad.b-bh;
+    x.fillStyle=riskTier(t)==='high'?(isLight?'#d97706':'#f7c76b'):riskTier(t)==='medium'?(isLight?'#2563eb':'#7daeff'):(isLight?'#059669':'#65e0b2');
+    x.beginPath();
+    if(x.roundRect)x.roundRect(xx,yy,bw,bh,4);else x.rect(xx,yy,bw,bh);
+    x.fill();
+  });
+  x.fillStyle=isLight?'#64748b':'#7c93a9';
+  x.textAlign='center';
+  arr.forEach((t,i)=>{if(arr.length<8||i%2===0)x.fillText(String(i+1),pad.l+i*slot+slot/2,h-7)});
+}
+
+async function loadHealth(){
+  try{
+    const start=performance.now();
+    const [h,s,m]=await Promise.all([api('/health'),api('/status'),api('/model/info')]);
+    healthData={health:h,status:s,model:m,latency:Math.round(performance.now()-start)};
+    $('apiStatus').textContent='API connected';
+    $('sideStatus').textContent='Backend connected';
+    $('apiDot').style.background=$('sideDot').style.background='var(--mint)';
+    $('mApi').textContent=`${healthData.latency} ms`;
+    $('mApiSub').textContent='Observed health-check round trip';
+    $('healthGrid').innerHTML=[['Backend API','Healthy',`Service ${esc(s.version||'version unavailable')}`,true],['Scoring model',h.models_loaded?'Loaded':'Unavailable',esc(h.phase1_model||'Model status reported by API'),!!h.models_loaded],['Behavioral fusion',h.phase2_deep_models_loaded?'Available':'Fallback / unavailable',`Features: ${esc(h.feature_count??'—')}`,!!h.phase2_deep_models_loaded]].map(a=>`<div class="healthitem"><div class="hrow"><strong>${a[0]}</strong><span class="pill ${a[3]?'low':'medium'}">${a[1]}</span></div><p>${a[2]}</p></div>`).join('');
+    $('modelInfo').textContent=JSON.stringify(m,null,2);
+    return true;
+  }catch(e){
+    healthData=null;
+    $('apiStatus').textContent='API unavailable';
+    $('sideStatus').textContent='Backend unavailable';
+    $('apiDot').style.background=$('sideDot').style.background='var(--red)';
+    $('mApi').textContent='Offline';
+    $('mApiSub').textContent='Start the FastAPI service to enable scoring';
+    $('healthGrid').innerHTML=`<div class="healthitem"><div class="hrow"><strong>Backend API</strong><span class="pill high">Unavailable</span></div><p>${esc(e.message)}. Start the backend and refresh.</p></div>`;
+    $('modelInfo').textContent='Model metadata is unavailable until the backend responds.';
+    return false;
+  }
+}
+$('healthRefresh').onclick=async()=>{await loadHealth();toast(healthData?'Health check complete':'API is unavailable')};
+
+async function scoreForm(ev){
+  ev.preventDefault();
+  if(!healthData&&!await loadHealth()){toast('Backend is unavailable. Start the API and try again.');return}
+  const btn=$('scoreBtn');
+  btn.disabled=true;
+  btn.innerHTML='<i data-lucide="loader-circle"></i> Scoring transaction…';
+  icon();
+  const tid=$('transactionId').value.trim()||'GDN-'+Date.now();
+  const payload={
+    account_id:$('accountId').value.trim(),
+    transaction_id:tid,
+    amount:Number($('amount').value),
+    hour:Number($('hour').value),
+    product_cd:$('product').value,
+    is_foreign:$('foreign').checked,
+    customer_age:Number($('age').value||30),
+    device_info:$('device').value,
+    addr1:$('address').value.trim()||null,
+    timestamp:Date.now()/1000
+  };
+  try{
+    const d=await api('/score/form-full?explain=true',{method:'POST',body:JSON.stringify(payload)});
+    const t={...d,...payload,created_at:new Date().toISOString(),customer_response:null,review_status:'Needs review'};
+    transactions=transactions.filter(x=>x.transaction_id!==tid);
+    transactions.unshift(t);
+    log('TRANSACTION_SCORED',tid,`Risk ${pct(score(t))}; router ${action(t)}`);
+    save();
+    renderResult(t);
+    renderOverview();
+    toast('Transaction scored by the RXT-J+ backend');
+    $('transactionId').value='GDN-'+Date.now().toString().slice(-8);
+  }catch(e){
+    toast('Scoring failed: '+e.message);
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='<i data-lucide="scan-search"></i> Score transaction with RXT-J+ <span>→</span>';
+    icon();
+  }
+}
+$('scoreForm').addEventListener('submit',scoreForm);
+
+function renderResult(t){
+  const sc=score(t),tier=riskTier(t),cr=t.cost_routing||{},ring=t.ring_association||{},expl=t.explainability||{};
+  const act=action(t);
+
+  let rationale='';
+  if(tier==='high'){
+    rationale=`High-risk transaction detected (${pct(sc)}). Behavioral drift and anomaly metrics exceed security thresholds. Stepped-up authorization or hold required.`;
+  }else if(tier==='medium'){
+    rationale=`Elevated risk assessment (${pct(sc)}). Cost-router balances user friction against fraud loss by requesting additional verification.`;
+  }else{
+    rationale=`Low compromise risk (${pct(sc)}). Behavioral drift and device footprint conform to account baseline.`;
+  }
+
+  let routerNote='';
+  if(cr.explanation){
+    routerNote=`<div class="router-note"><b>Cost Policy:</b> ${esc(cr.explanation)}</div>`;
+  }
+
+  let closedLoopCard='';
+  if(t.customer_response){
+    const isFrozen=/freeze|reject|block/i.test(t.customer_response);
+    closedLoopCard=`
+      <div class="result-closed-loop ${isFrozen?'frozen':'verified'}">
+        <div class="closed-loop-header">
+          <div class="closed-loop-title">
+            <i data-lucide="${isFrozen?'lock':'check-circle-2'}"></i>
+            <strong>Cardholder Verification Response:</strong>
+          </div>
+          <span class="pill ${isFrozen?'high':'low'}">${esc(t.review_status||'Responded')}</span>
+        </div>
+        <p class="closed-loop-detail">${esc(t.customer_response)} · Recorded ${time(t.customer_responded_at||t.created_at)}</p>
+      </div>`;
+  }else{
+    closedLoopCard=`
+      <div class="result-mobile-cta">
+        <div class="mobile-cta-info">
+          <div class="mobile-cta-icon"><i data-lucide="smartphone"></i></div>
+          <div>
+            <b>Cardholder Mobile Verification Screen</b>
+            <span>Simulate the plain-language mandate approval on the cardholder's phone</span>
+          </div>
+        </div>
+        <button class="btn primary mobile-cta-launch-btn" id="launchPhoneAlert" type="button">
+          <i data-lucide="smartphone"></i> Open Mobile Screen
+        </button>
+      </div>`;
+  }
+
+  const topSignals=Object.entries(expl).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,4);
+  const signalBarsHtml=topSignals.map(([name,weight])=>{
+    const pctVal=Math.min(100,Math.round(Number(weight)*100));
+    const isHot=name.includes('amount')||name.includes('device')||name.includes('merchant');
+    return `
+      <div class="signal-bar-row">
+        <div class="signal-bar-info">
+          <span class="signal-bar-name">${esc(name.replaceAll('_',' '))}</span>
+          <span class="signal-bar-pct">${pctVal}% attention</span>
+        </div>
+        <div class="signal-bar-track">
+          <div class="signal-bar-fill ${isHot&&pctVal>20?'hot':''}" style="width:${Math.max(4,pctVal)}%"></div>
+        </div>
+      </div>`;
+  }).join('')||'<div class="notice">No feature signal details were returned.</div>';
+
+  $('resultPanel').innerHTML=`
+    <div class="result-header">
+      <div>
+        <h2>Risk Assessment</h2>
+        <p>${esc(t.transaction_id)} · ${esc(t.model_version||'RXT-J+ v4')}</p>
+      </div>
+      <span class="pill ${tier}">${tierLabel(t)}</span>
+    </div>
+
+    <div class="result-hero-box tier-${tier}">
+      <div class="scorecircle" style="--pct:${sc*100}%; margin:0 auto">
+        <div class="scoreinside">
+          <strong>${pct(sc)}</strong>
+          <small>RISK SCORE</small>
+        </div>
+      </div>
+      <div>
+        <div class="decision-pill tier-${tier}">
+          <i data-lucide="${tier==='high'?'shield-alert':tier==='medium'?'shield':'shield-check'}"></i>
+          ${esc(act)}
+        </div>
+        <div class="decision-rationale">${rationale}</div>
+        ${routerNote}
+      </div>
+    </div>
+
+    <div class="resultstats">
+      <div class="resultstat">
+        <span>Phase 1 Baseline</span>
+        <strong>${pct(t.p1_risk_score)}</strong>
+      </div>
+      <div class="resultstat">
+        <span>Behavioral Drift</span>
+        <strong>${Number(t.behavioral_drift_score??0).toFixed(3)}</strong>
+      </div>
+      <div class="resultstat">
+        <span>Scoring Latency</span>
+        <strong>${Number(t.latency_ms||0).toFixed(1)} ms</strong>
+      </div>
+      <div class="resultstat">
+        <span>Ring Network Size</span>
+        <strong>${Number(ring.ring_size??1)} ${ring.ring_size>1?'(Linked)':''}</strong>
+      </div>
+    </div>
+
+    ${closedLoopCard}
+
+    <div class="sectionhead" style="margin:16px 0 8px">
+      <div>
+        <h2 style="font-size:13px">Top Signal Attributions</h2>
+        <p>Key behavioral features driving the model decision</p>
+      </div>
+      <span class="tinylabel">ATTENTION WEIGHTS</span>
+    </div>
+    <div class="signal-bars">
+      ${signalBarsHtml}
+    </div>
+
+    <div class="modalactions" style="margin-top:16px">
+      <button class="btn primary" id="customerPhoneBtn" type="button"><i data-lucide="smartphone"></i> Cardholder Mobile View</button>
+      <button class="btn" id="openDetail" type="button"><i data-lucide="file-search"></i> Full Investigation</button>
+    </div>
+  `;
+
+  if($('launchPhoneAlert'))$('launchPhoneAlert').onclick=()=>openPhoneVerification(t);
+  $('customerPhoneBtn').onclick=()=>openPhoneVerification(t);
+  $('openDetail').onclick=()=>openTransaction(t);
+  icon();
+}
+
+function recordCustomerAction(id,responseText,reviewStatus){
+  const t=transactions.find(x=>x.transaction_id===id);
+  if(!t)return;
+  t.customer_response=responseText;
+  t.review_status=reviewStatus;
+  t.customer_responded_at=new Date().toISOString();
+  log('CUSTOMER_RESPONSE',id,`${responseText} · ${reviewStatus}`);
+  save();
+  api('/api/customer/respond',{method:'POST',body:JSON.stringify({transaction_id:id,response:responseText,review_status:reviewStatus,account_id:t.account_id})}).catch(e=>console.log('Backend sync note:',e.message));
+  renderOverview();
+  renderTransactions();
+  renderReviews();
+  renderAudit();
+  if($('resultPanel')&&transactions[0]?.transaction_id===id){renderResult(t);}
+  toast(`📱 Customer response recorded: "${responseText}"`);
+}
+
+function closePhoneModal(){$('phoneModalBack').classList.remove('show')}
+function isPhoneLight(){
+  const modal=$('phoneModalBack');
+  if(!modal)return false;
+  if(modal.classList.contains('phone-theme-light'))return true;
+  if(modal.classList.contains('phone-theme-dark'))return false;
+  return document.documentElement.classList.contains('theme-light');
+}
+function updatePhoneThemeUI(){
+  const modal=$('phoneModalBack');
+  if(!modal)return;
+  const light=isPhoneLight();
+  modal.classList.toggle('phone-theme-light',light);
+  modal.classList.toggle('phone-theme-dark',!light);
+  const pBtn=$('phoneThemeBtn');
+  if(pBtn){
+    pBtn.innerHTML=`<i data-lucide="${light?'moon':'sun'}" id="phoneThemeIcon"></i> <span id="phoneThemeLabel">${light?'Blue theme':'White theme'}</span>`;
+    pBtn.setAttribute('title',light?'Switch Mobile Simulator to Blue theme':'Switch Mobile Simulator to White theme');
+    icon();
+  }
+}
+function togglePhoneTheme(){
+  const modal=$('phoneModalBack');
+  if(!modal)return;
+  const wasLight=isPhoneLight();
+  const nextLight=!wasLight;
+  modal.classList.toggle('phone-theme-light',nextLight);
+  modal.classList.toggle('phone-theme-dark',!nextLight);
+  try{localStorage.setItem('guardian.phoneTheme',nextLight?'light':'dark')}catch(e){}
+  updatePhoneThemeUI();
+  toast(nextLight?'📱 Phone simulator: White theme':'📱 Phone simulator: Blue theme');
+}
+
+function renderPhoneApproved(t){
+  $('phoneScreenContent').innerHTML=`
+    <div class="phone-mandate-header">
+      <div class="phone-bank-brand">
+        <div class="phone-bank-logo"><i data-lucide="shield-check"></i></div>
+        <div>Guardian Pay</div>
+      </div>
+      <div class="phone-card-chip">•••• 4821</div>
+    </div>
+
+    <div class="mandate-outcome-card approved">
+      <div class="outcome-badge approved">
+        <i data-lucide="check"></i>
+      </div>
+      <h2 class="outcome-title approved">Mandate Authorized & Cleared</h2>
+      <div class="outcome-desc">Cardholder confirmed legitimate. The hold has been safely released.</div>
+      <div class="outcome-amount-pill">${fmt(t.amount)} Paid</div>
+      <div class="callout" style="background:#133d2e;border-color:#2a7059;color:#9ff0d3;font-size:11.5px;line-height:1.6;text-align:left">
+        <b>Closed-Loop Sync Complete!</b><br>
+        Transaction released. The verification synced to the bank fraud console in real time.
+      </div>
+    </div>
+
+    <button class="phone-mandate-btn approve" id="phoneDoneBtn" type="button" style="margin-top:14px">
+      <i data-lucide="arrow-left"></i> Return to Analyst Console
+    </button>
+  `;
+  $('phoneDoneBtn').onclick=closePhoneModal;
+  icon();
+}
+
+function renderPhoneFrozen(t){
+  $('phoneScreenContent').innerHTML=`
+    <div class="phone-mandate-header">
+      <div class="phone-bank-brand">
+        <div class="phone-bank-logo" style="background:var(--red);color:#fff"><i data-lucide="shield-alert"></i></div>
+        <div>Guardian Pay</div>
+      </div>
+      <div class="phone-card-chip" style="color:var(--red);border-color:#6c2d3a">FROZEN •••• 4821</div>
+    </div>
+
+    <div class="mandate-outcome-card frozen">
+      <div class="outcome-badge frozen">
+        <i data-lucide="lock"></i>
+      </div>
+      <h2 class="outcome-title frozen">Payment Blocked & Card Frozen</h2>
+      <div class="outcome-desc">Unauthorized mandate rejected by cardholder. Zero liability protection applied.</div>
+      <div class="outcome-amount-pill">${fmt(t.amount)} Blocked</div>
+      <div class="callout" style="background:#371620;border-color:#783141;color:#ffb9c3;font-size:11.5px;line-height:1.6;text-align:left">
+        <b>Card Safely Locked!</b><br>
+        Your card •••• 4821 has been instantly frozen to prevent further loss. Incident ticket #SEC-${esc(t.transaction_id.slice(-6))} opened in the fraud queue.
+      </div>
+    </div>
+
+    <button class="phone-mandate-btn reject" id="phoneDoneBtn" type="button" style="margin-top:14px">
+      <i data-lucide="arrow-left"></i> Return to Analyst Console
+    </button>
+  `;
+  $('phoneDoneBtn').onclick=closePhoneModal;
+  icon();
+}
+
+function renderPhoneFamily(t){
+  $('phoneScreenContent').innerHTML=`
+    <div class="phone-mandate-header">
+      <div class="phone-bank-brand">
+        <div class="phone-bank-logo"><i data-lucide="users"></i></div>
+        <div>Guardian Family Safety</div>
+      </div>
+      <div class="phone-card-chip">TRUST PROXY</div>
+    </div>
+
+    <div class="phone-mandate-banner" style="background:linear-gradient(155deg,#132438 0%,#0f1c2d 100%);border-color:#2a4563">
+      <div class="phone-mandate-pulse" style="background:#172c44;border-color:var(--blue);color:var(--blue);box-shadow:0 0 20px rgba(125,174,255,.35)">
+        <i data-lucide="users"></i>
+      </div>
+      <h2 class="phone-mandate-title" style="color:#bfdbfe">Family Co-Verification Protocol</h2>
+      <div class="phone-mandate-subtitle">Encrypted verification request routed to designated family proxy</div>
+    </div>
+
+    <div class="phone-family-card">
+      <div class="phone-family-contact">
+        <div class="phone-family-avatar">👩‍🦰</div>
+        <div class="phone-family-info">
+          <strong>Anita (Spouse)</strong>
+          <small>+91 98*** 12345 · Primary Trust Proxy</small>
+        </div>
+      </div>
+      <p class="phone-family-desc">Because this ${fmt(t.amount)} payment differs from your normal pattern, Guardian sent an instant approval request to Anita's phone.</p>
+    </div>
+
+    <div class="phone-mandate-actions" style="margin-top:10px">
+      <div style="font-size:11.5px;font-weight:700;color:#8fa3b9;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Simulate Anita's Response:</div>
+      <button class="phone-mandate-btn approve" id="famApprove" type="button">
+        <i data-lucide="check"></i> Anita Approves: "It Was Legitimate"
+      </button>
+      <button class="phone-mandate-btn reject" id="famReject" type="button">
+        <i data-lucide="ban"></i> Anita Rejects: "Suspicious / Unrecognized!"
+      </button>
+      <button class="phone-mandate-btn family" id="famBack" type="button">
+        ← Back to my options
+      </button>
+    </div>
+  `;
+  $('famApprove').onclick=()=>{
+    recordCustomerAction(t.transaction_id,'Approved by trusted family proxy (Anita)','Family Verified');
+    renderPhoneApproved(t);
+  };
+  $('famReject').onclick=()=>{
+    recordCustomerAction(t.transaction_id,'Rejected by trusted family proxy (Anita)','Card Frozen');
+    renderPhoneFrozen(t);
+  };
+  $('famBack').onclick=()=>openPhoneVerification(t);
+  icon();
+}
+
+function openPhoneVerification(t){
+  if(!t)return;
+  const now=new Date();
+  const hr=Number(t.hour??now.getHours());
+  const min=String(now.getMinutes()).padStart(2,'0');
+  $('phoneClock').textContent=`${String(hr).padStart(2,'0')}:${min}`;
+
+  const normalAvg=1250;
+  const amountVal=Number(t.amount)||0;
+  const multiplier=Math.max(1,Math.round(amountVal/normalAvg));
+  const dev=t.device_info||'Personal Android';
+  const isNewDev=/iPhone|MacOS|NewDevice|SharedTablet/i.test(dev);
+  const isOvernight=(hr<=5||hr>=23);
+  const hourLabel=isOvernight?`${String(hr).padStart(2,'0')}:00 (Overnight Window)`:`${String(hr).padStart(2,'0')}:00 (Daytime Window)`;
+  const catName=t.product_cd==='C'?'Cash / Remittance (C)':t.product_cd==='W'?'Online Retail (W)':t.product_cd==='S'?'Services (S)':t.product_cd==='H'?'Household (H)':`Category ${t.product_cd||'W'}`;
+
+  let reasonMsg=`This transaction of <b>${fmt(amountVal)}</b> is held for safety authorization. `;
+  if(multiplier>2){
+    reasonMsg+=`It is <b>${multiplier}× higher than your typical average (₹1,250)</b>. `;
+  }
+  if(isNewDev){
+    reasonMsg+=`Initiated from an unrecognized device (<b>${esc(dev)}</b>). `;
+  }
+  if(isOvernight){
+    reasonMsg+=`Requested at <b>${esc(hourLabel)}</b>. `;
+  }
+  if(t.is_foreign){
+    reasonMsg+=`Cross-border card-not-present flag detected. `;
+  }
+
+  $('phoneScreenContent').innerHTML=`
+    <div class="phone-mandate-header">
+      <div class="phone-bank-brand">
+        <div class="phone-bank-logo"><i data-lucide="shield-check"></i></div>
+        <div>Guardian Pay</div>
+      </div>
+      <div class="phone-card-chip">•••• 4821</div>
+    </div>
+
+    <div class="phone-mandate-banner">
+      <div class="phone-mandate-pulse ${amountVal>=50000||isOvernight?'danger':''}">
+        <i data-lucide="${amountVal>=50000?'shield-alert':'shield'}"></i>
+      </div>
+      <h2 class="phone-mandate-title">Mandate Verification Required</h2>
+      <div class="phone-mandate-subtitle">Cardholder confirmation mandatory under RBI security protocol</div>
+    </div>
+
+    <div class="phone-mandate-hero">
+      <div class="phone-mandate-label">Mandate Amount Requested</div>
+      <div class="phone-mandate-amount">${fmt(amountVal)}</div>
+      <div class="phone-mandate-meta">
+        <div class="mandate-meta-item">
+          <i data-lucide="store"></i>
+          <span><b>Merchant:</b> ${esc(catName)}</span>
+        </div>
+        <div class="mandate-meta-item">
+          <i data-lucide="clock"></i>
+          <span><b>Timing:</b> ${esc(hourLabel)}</span>
+        </div>
+        <div class="mandate-meta-item">
+          <i data-lucide="smartphone"></i>
+          <span><b>Device:</b> ${esc(dev)} ${isNewDev?'(Novel Device)':''}</span>
+        </div>
+        <div class="mandate-meta-item">
+          <i data-lucide="credit-card"></i>
+          <span><b>Account:</b> ${esc(t.account_id||'DEMO_ACC_104')} (•••• 4821)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-mandate-reason-box">
+      <div class="phone-mandate-reason-head">
+        <i data-lucide="alert-triangle"></i> Why was this mandate paused?
+      </div>
+      <div class="phone-mandate-reason-body">
+        ${reasonMsg}
+      </div>
+    </div>
+
+    <div class="phone-mandate-actions">
+      <button class="phone-mandate-btn approve" id="phoneBtnApprove" type="button">
+        <i data-lucide="check-circle-2"></i> Yes, Authorize & Pay ${fmt(amountVal)}
+      </button>
+      <button class="phone-mandate-btn reject" id="phoneBtnReject" type="button">
+        <i data-lucide="shield-ban"></i> No, Reject Mandate & Freeze Card
+      </button>
+      <button class="phone-mandate-btn family" id="phoneBtnFamily" type="button">
+        <i data-lucide="users"></i> Ask Trusted Family Member (Anita)
+      </button>
+    </div>
+
+    <div class="phone-mandate-footer">
+      <i data-lucide="lock"></i> Zero-liability fraud guarantee powered by RXT-J+ Guardian
+    </div>
+  `;
+
+  const savedPhone=(()=>{try{return localStorage.getItem('guardian.phoneTheme')}catch{return null}})();
+  const globalIsLight=document.documentElement.classList.contains('theme-light');
+  const phoneIsLight=savedPhone!==null?(savedPhone==='light'):globalIsLight;
+  const modal=$('phoneModalBack');
+  modal.classList.toggle('phone-theme-light',phoneIsLight);
+  modal.classList.toggle('phone-theme-dark',!phoneIsLight);
+  modal.classList.add('show');
+
+  if($('phoneThemeBtn'))$('phoneThemeBtn').onclick=togglePhoneTheme;
+  updatePhoneThemeUI();
+
+  $('phoneBtnApprove').onclick=()=>{
+    recordCustomerAction(t.transaction_id,'Confirmed by cardholder (Legitimate)','Customer Verified');
+    renderPhoneApproved(t);
+  };
+  $('phoneBtnReject').onclick=()=>{
+    recordCustomerAction(t.transaction_id,'Rejected by cardholder (Fraud Confirmed)','Card Frozen');
+    renderPhoneFrozen(t);
+  };
+  $('phoneBtnFamily').onclick=()=>{
+    renderPhoneFamily(t);
+  };
+  $('phoneModalClose').onclick=closePhoneModal;
+  icon();
+}
+
+function openTransaction(t){
+  if(!t)return;
+  $('modalTitle').textContent=t.transaction_id;
+  $('modalBody').innerHTML=`<div class="resultstats"><div class="resultstat"><span>Account</span><strong>${esc(t.account_id||'—')}</strong></div><div class="resultstat"><span>Amount</span><strong>${fmt(t.amount)}</strong></div><div class="resultstat"><span>Risk score</span><strong>${pct(score(t))}</strong></div><div class="resultstat"><span>Decision</span><strong>${esc(action(t))}</strong></div></div><p><b style="color:var(--text)">Scoring time:</b> ${time(t.created_at)}<br><b style="color:var(--text)">Model:</b> ${esc(t.model_version||'RXT-J+ v4')}<br><b style="color:var(--text)">Customer response:</b> ${esc(t.customer_response||'No response recorded')}<br><b style="color:var(--text)">Review status:</b> ${esc(t.review_status||'Needs review')}</p><div class="callout">${esc(tierLabel(t))} is a model-generated assessment. Investigators should review context and available evidence before confirming fraud.</div><div class="sectionhead" style="margin-top:18px"><h2>Investigation actions</h2></div><div class="field"><label for="reviewNote">Analyst note (local demo record)</label><input id="reviewNote" placeholder="Add a short review note" value="${esc(t.review_note||'')}"></div><div class="modalactions"><button class="btn primary" id="markLegit">Mark legitimate</button><button class="btn danger" id="markFraud">Confirm fraud</button><button class="btn" id="modalOpenPhone"><i data-lucide="smartphone"></i> Cardholder mobile view</button><button class="btn" id="goNetwork">Inspect account network</button></div>`;
+  $('modalBack').classList.add('show');
+  $('modalClose').onclick=closeModal;
+  $('markLegit').onclick=()=>review(t.transaction_id,'Legitimate',false);
+  $('markFraud').onclick=()=>review(t.transaction_id,'Confirmed fraud',true);
+  $('modalOpenPhone').onclick=()=>{closeModal();openPhoneVerification(t);};
+  $('goNetwork').onclick=()=>{closeModal();$('graphAccount').value=t.account_id||'';go('network');loadGraph()};
+  icon();
+}
+
+function closeModal(){$('modalBack').classList.remove('show')}
+$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))closeModal()});
+$('phoneModalBack').addEventListener('click',e=>{if(e.target===$('phoneModalBack'))closePhoneModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closePhoneModal();}});
+
+function review(id,status,fraud){
+  const t=transactions.find(x=>x.transaction_id===id);
+  if(!t)return;
+  t.review_status=status;
+  t.review_note=$('reviewNote').value;
+  log('ANALYST_REVIEW',id,status+(t.review_note?': '+t.review_note:''));
+  save();
+  closeModal();
+  renderOverview();
+  renderReviews();
+  toast('Review outcome recorded in this browser demo');
+}
+
+function renderTransactions(){
+  const q=$('txSearch').value.toLowerCase(),f=$('txFilter').value;
+  const list=transactions.filter(t=>(`${t.transaction_id} ${t.account_id}`.toLowerCase().includes(q))&&(f==='all'||riskTier(t)===f));
+  $('allRows').innerHTML=list.map(row).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:35px">No matching transactions.</td></tr>';
+  $('txCountLabel').textContent=`${list.length} of ${transactions.length} transactions`;
+  bindRows('allRows');
+}
+$('txSearch').addEventListener('input',renderTransactions);
+$('txFilter').addEventListener('change',renderTransactions);
+
+function renderReviews(){
+  const list=transactions.filter(t=>riskTier(t)!=='low'||/STEP_UP|BLOCK|FREEZE/i.test(action(t))||t.customer_response);
+  $('reviewCount').textContent=`${list.length} items`;
+  $('reviewRows').innerHTML=list.map(t=>`<tr data-id="${esc(t.transaction_id)}"><td><span class="mono">${esc(t.transaction_id)}</span></td><td>${esc(t.account_id)}</td><td class="amount">${fmt(t.amount)}</td><td>${pct(score(t))}</td><td><span class="pill ${riskTier(t)}">${esc(action(t))}</span></td><td><div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span>${esc(t.customer_response||'Awaiting cardholder')}</span><button class="btn ghost" style="padding:2px 7px;font-size:10px" data-phone-alert="${esc(t.transaction_id)}" title="Open Cardholder Screen"><i data-lucide="smartphone"></i> Mobile</button></div></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:34px">No items in the review queue.</td></tr>';
+  $('reviewRows').querySelectorAll('[data-phone-alert]').forEach(btn=>{
+    btn.onclick=(e)=>{
+      e.stopPropagation();
+      const item=transactions.find(x=>x.transaction_id===btn.dataset.phoneAlert);
+      if(item)openPhoneVerification(item);
+    };
+  });
+  bindRows('reviewRows');
+}
+
+function renderAudit(){
+  $('auditRows').innerHTML=audit.map(a=>`<tr><td>${time(a.time)}</td><td><span class="pill neutral">${esc(a.event)}</span></td><td class="mono">${esc(a.entity)}</td><td>${esc(a.details)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:35px">No browser activity recorded yet.</td></tr>';
+}
+
+function csv(rows){
+  const cols=Object.keys(rows[0]||{transaction_id:'',account_id:'',amount:'',risk_score:'',recommended_action:'',decision:'',created_at:''});
+  const val=v=>'"'+String(v??'').replaceAll('"','""')+'"';
+  return [cols.join(','),...rows.map(r=>cols.map(k=>val(r[k])).join(','))].join('\r\n');
+}
+function download(name,content,type='text/csv'){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+$('exportCsv').onclick=()=>{
+  download('guardian-transactions.csv',csv(transactions.map(t=>({...t,risk_score:score(t),recommended_action:action(t)}))));
+  log('DATA_EXPORT','transactions',`${transactions.length} browser records`);
+  toast('CSV export prepared');
+};
+$('exportAudit').onclick=()=>download('guardian-activity.csv',csv(audit));
+$('clearLocal').onclick=()=>{
+  if(confirm('Clear transaction and activity records stored in this browser? This does not delete backend model/profile data.')){
+    transactions=[];audit=[];save();
+    renderOverview();renderTransactions();renderReviews();renderAudit();
+    toast('Browser demo history cleared');
+  }
+};
+
+$('loadSamples').onclick=async()=>{
+  if(!healthData&&!await loadHealth()){toast('Backend is unavailable. Start the API and try again.');return}
+  const scenarios=[
+    {account_id:'DEMO_ACC_NORMAL',amount:1250,hour:14,product_cd:'W',device_info:'Personal Android',is_foreign:false,customer_age:34},
+    {account_id:'DEMO_ACC_HIGH',amount:80000,hour:3,product_cd:'C',device_info:'NewDevice-91',is_foreign:false,customer_age:61},
+    {account_id:'DEMO_ACC_FOREIGN',amount:18000,hour:20,product_cd:'S',device_info:'Windows',is_foreign:true,customer_age:29},
+    {account_id:'DEMO_SHARED_A',amount:25000,hour:3,product_cd:'W',device_info:'SharedTabletPro',addr1:412,is_foreign:false,customer_age:42}
+  ];
+  let loaded=0;
+  for(const p of scenarios){
+    const tid='GDN-DEMO-'+(loaded+1)+'-'+Date.now().toString().slice(-4);
+    const payload={...p,transaction_id:tid,timestamp:Date.now()/1000};
+    try{
+      const d=await api('/score/form-full',{method:'POST',body:JSON.stringify(payload)});
+      transactions=transactions.filter(x=>x.transaction_id!==tid);
+      transactions.unshift({...d,...payload,created_at:new Date().toISOString(),customer_response:null,review_status:'Needs review'});
+      log('DEMO_SCENARIO_SCORED',tid,'Synthetic demo scenario submitted to the live backend');
+      loaded++;
+    }catch(e){console.warn('Scenario skipped',e.message)}
+  }
+  save();renderOverview();
+  toast(`${loaded} synthetic demo scenario(s) scored by backend`);
+};
+
+function setScenario(v){
+  const cfg={
+    normal: {amount:1250, hour:14,foreign:false,device:'Personal Android',product:'W',account:'DEMO_ACC_104'},
+    large:  {amount:80000,hour:3, foreign:false,device:'NewDevice-91',   product:'C',account:'DEMO_ACC_104'},
+    foreign:{amount:18000,hour:20,foreign:true, device:'NewDevice-91',   product:'S',account:'DEMO_ACC_104'},
+    night:  {amount:12500,hour:3, foreign:false,device:'NewDevice-91',   product:'C',account:'DEMO_ACC_104'},
+    shared: {amount:25000,hour:3, foreign:false,device:'SharedTabletPro',product:'W',account:'DEMO_SHARED_'+((Math.floor(Date.now()/1000)%900)+100),address:'412'}
+  }[v];
+  if(!cfg)return;
+  $('amount').value=cfg.amount;
+  $('hour').value=String(cfg.hour);
+  $('foreign').checked=cfg.foreign;
+  $('device').value=cfg.device;
+  $('product').value=cfg.product;
+  $('accountId').value=cfg.account;
+  if(cfg.address)$('address').value=cfg.address;
+  else $('address').value='';
+  $('transactionId').value='GDN-'+Date.now().toString().slice(-8);
+
+  document.querySelectorAll('#scenarioChips .scenario-pill').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.scenario===v);
+  });
+}
+document.querySelectorAll('#scenarioChips [data-scenario]').forEach(btn=>{
+  btn.onclick=()=>setScenario(btn.dataset.scenario);
+});
+
+async function runCost(){
+  const p=Number($('probRange').value)/100,amount=Number($('amountRange').value),payload={probability:p,amount,c_step:Number($('cStep').value),c_block:Number($('cBlock').value),gamma:Number($('gamma').value)};
+  try{
+    const d=await api('/cost/route',{method:'POST',body:JSON.stringify(payload)});
+    const costs=Object.entries(d).filter(([k,v])=>/cost/i.test(k)&&Number.isFinite(Number(v)));
+    const act=String(d.action||d.recommended_action||'REVIEW');
+    $('costResult').innerHTML=`<div class="callout"><b>Recommended action: ${esc(act.replaceAll('_',' '))}</b><br>At ${pct(p)} estimated fraud probability and ${fmt(amount)} transaction value, the router selects the action with the lowest expected cost under the configured assumptions.</div><div class="costcards">${costs.slice(0,3).map(([k,v])=>`<div class="costcard ${k.toLowerCase().includes(act.toLowerCase())?'selected':''}"><span>${esc(k.replaceAll('_',' '))}</span><strong>${fmt(v)}</strong><small>Estimated cost</small></div>`).join('')||`<div class="costcard selected"><span>Router response</span><strong>${esc(act)}</strong><small>See raw details below</small></div>`}</div><details style="margin-top:15px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">View raw router response</summary><pre style="white-space:pre-wrap;color:#9bb2c8;font:11px ui-monospace;line-height:1.7">${esc(JSON.stringify(d,null,2))}</pre></details>`;
+    log('COST_SIMULATION','decision-lab',`p=${p}; amount=${amount}; action=${act}`);
+    save();
+    icon();
+  }catch(e){
+    $('costResult').innerHTML=`<div class="callout" style="background:#351e2a;border-color:#75414b;color:#ffbdc5">Decision request failed: ${esc(e.message)}</div>`;
+  }
+}
+$('probRange').oninput=()=>$('probOut').textContent=$('probRange').value+'%';
+$('amountRange').oninput=()=>$('amountOut').textContent=fmt($('amountRange').value);
+$('runCost').onclick=runCost;
+
+async function loadGraph(){
+  const id=$('graphAccount').value.trim();
+  if(!id){toast('Enter an account ID first');return}
+  try{
+    const [g,m]=await Promise.all([api(`/ring/graph/${encodeURIComponent(id)}?depth=${$('graphDepth').value}`),api(`/ring/metrics/${encodeURIComponent(id)}`)]);
+    graphData=g;
+    const nodes=g.nodes||[],links=g.links||[];
+    $('gNodes').textContent=nodes.length;
+    $('gLinks').textContent=links.length;
+    $('gRing').textContent=m.ring_size??'—';
+    $('gStatus').textContent=nodes.length?'Loaded':'No nodes';
+    $('graphFoot').textContent=`Account ${id} · ring detector returned ${nodes.length} nodes and ${links.length} links.`;
+    drawGraph(nodes,links,id);
+    log('NETWORK_INVESTIGATION',id,`${nodes.length} nodes; ${links.length} links`);
+    save();
+  }catch(e){
+    graphData=null;
+    $('gStatus').textContent='Unavailable';
+    $('graphFoot').textContent='Graph request failed: '+e.message;
+    drawGraph([],[],'');
+    toast('Network query failed: '+e.message);
+  }
+}
+$('loadGraph').onclick=loadGraph;
+
+function drawGraph(nodes,links,account){
+  const c=$('graphCanvas'),box=$('graphStage').getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  c.width=Math.max(1,box.width*dpr);c.height=Math.max(1,box.height*dpr);
+  const isLight=document.documentElement.classList.contains('theme-light');
+  const x=c.getContext('2d');x.scale(dpr,dpr);
+  const w=box.width,h=box.height;
+  x.clearRect(0,0,w,h);
+  if(!nodes.length){
+    x.fillStyle=isLight?'#64748b':'#8198ae';
+    x.font='12px DM Sans';
+    x.textAlign='center';
+    x.fillText('No graph nodes returned for this account yet',w/2,h/2);
+    return;
+  }
+  const center=nodes.findIndex(n=>String(n.id??n.account_id??n.label)===account),pos=nodes.map((n,i)=>{
+    const a=(i/nodes.length)*Math.PI*2-Math.PI/2,r=i===center?0:Math.min(w,h)*(.18+(i%3)*.06);
+    return{x:w/2+Math.cos(a)*r,y:h/2+Math.sin(a)*r};
+  });
+  const ids=new Map(nodes.map((n,i)=>[String(n.id??n.account_id??n.label),i]));
+  x.lineWidth=1.2;
+  links.forEach(l=>{
+    const s=ids.get(String(l.source?.id??l.source??l.from)),t=ids.get(String(l.target?.id??l.target??l.to));
+    if(s===undefined||t===undefined)return;
+    x.strokeStyle=isLight?'#cbd5e1':'#3b6274';
+    x.beginPath();x.moveTo(pos[s].x,pos[s].y);x.lineTo(pos[t].x,pos[t].y);x.stroke();
+  });
+  nodes.forEach((n,i)=>{
+    const p=pos[i],isCenter=i===center||String(n.id??n.account_id??'')===account,hot=!!(n.risk||n.is_suspicious||n.fraud);
+    x.beginPath();
+    x.arc(p.x,p.y,isCenter?9:6,0,Math.PI*2);
+    x.fillStyle=isCenter?(isLight?'#059669':'#65e0b2'):hot?(isLight?'#e11d48':'#ff7d8c'):(isLight?'#2563eb':'#7daeff');
+    x.fill();
+    x.strokeStyle=isLight?'#0f172a':'#dcecf5';
+    x.globalAlpha=.3;x.stroke();x.globalAlpha=1;
+    x.fillStyle=isLight?'#334155':'#c5d6e4';
+    x.font='10px DM Sans';x.textAlign='center';
+    const label=String(n.label??n.id??n.account_id??n.type??'entity');
+    x.fillText(label.slice(0,18),p.x,p.y+20);
+  });
+}
+
+window.addEventListener('resize',()=>{
+  if($('page-overview').classList.contains('active'))drawRiskChart();
+  if($('page-network').classList.contains('active')&&graphData)drawGraph(graphData.nodes||[],graphData.links||[],$('graphAccount').value);
+});
+$('modalClose').onclick=closeModal;
+transactions.forEach(t=>{if(!t.created_at)t.created_at=new Date().toISOString()});
+renderOverview();renderTransactions();renderReviews();renderAudit();icon();loadHealth();
+
+function applyTheme(mode,showNotice=false){
+  const isLight=mode==='light';
+  document.documentElement.classList.toggle('theme-light',isLight);
+  try{localStorage.setItem('guardian.theme',isLight?'light':'dark')}catch(e){}
+  const btn=$('themeToggleBtn');
+  if(btn){
+    btn.innerHTML=`<i data-lucide="${isLight?'moon':'sun'}" id="themeIcon"></i> <span id="themeLabel">${isLight?'Blue theme':'White theme'}</span>`;
+    icon();
+  }
+  const modal=$('phoneModalBack');
+  if(modal){
+    modal.classList.toggle('phone-theme-light',isLight);
+    modal.classList.toggle('phone-theme-dark',!isLight);
+    try{localStorage.setItem('guardian.phoneTheme',isLight?'light':'dark')}catch(e){}
+    if(typeof updatePhoneThemeUI==='function')updatePhoneThemeUI();
+  }
+  if($('page-overview')&&$('page-overview').classList.contains('active'))drawRiskChart();
+  if($('page-network')&&$('page-network').classList.contains('active')&&graphData)drawGraph(graphData.nodes||[],graphData.links||[],$('graphAccount').value);
+  if(showNotice)toast(isLight?'☀️ White theme activated':'🌙 Blue theme restored');
+}
+
+function initTheme(){
+  const saved=(()=>{try{return localStorage.getItem('guardian.theme')||'dark'}catch{return 'dark'}})();
+  applyTheme(saved,false);
+  const btn=$('themeToggleBtn');
+  if(btn){
+    btn.onclick=()=>{
+      const isLight=document.documentElement.classList.contains('theme-light');
+      applyTheme(isLight?'dark':'light',true);
+    };
+  }
+}
+initTheme();
+setTimeout(()=>{if(transactions.length===0)drawRiskChart()},200);
+})();
+</script>
 </script><style>
 .authveil{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at 20% 10%,rgba(54,125,120,.18),transparent 42%),rgba(5,11,20,.97);backdrop-filter:blur(18px)}.authveil.show{display:flex}.authbox{width:min(100%,460px);border:1px solid #2a4055;border-radius:24px;background:#0d1928;box-shadow:0 32px 100px #0008;padding:32px}.authbrand{display:flex;align-items:center;gap:12px;margin-bottom:28px}.authmark{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:#163e38;color:#70e5b9}.authbrand strong{font:800 18px Manrope,sans-serif;color:#edf4fb}.authbrand small{display:block;color:#8fa3b9;font-size:10px;letter-spacing:1.5px;margin-top:4px}.authbox h1{font:800 26px Manrope,sans-serif;margin:0 0 8px;color:#edf4fb}.authsub{color:#91a5b9;font-size:13px;line-height:1.7;margin-bottom:24px}.authfield{display:block;color:#b6c7d7;font-size:12px;margin:14px 0 6px}.authinput{width:100%;box-sizing:border-box;background:#101f30;border:1px solid #2a4055;border-radius:10px;padding:12px 13px;color:#edf4fb;font:14px 'DM Sans',sans-serif;outline:none}.authinput:focus{border-color:#65e0b2;box-shadow:0 0 0 3px #65e0b21b}.authsubmit{width:100%;border:0;border-radius:11px;background:#65e0b2;color:#06231c;font-weight:800;padding:13px;margin-top:20px;cursor:pointer}.authswitch{background:none;border:0;color:#75e3ba;cursor:pointer;font:inherit;padding:0}.autherror{color:#ff9ca9;font-size:12px;min-height:18px;margin-top:10px}.authfine{font-size:11px;color:#758ba1;line-height:1.6;margin-top:18px}.userchip{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid #26384b;border-radius:12px;color:#d9e7f2;font-size:12px}.userchip button{background:transparent;border:0;color:#8fa3b9;cursor:pointer;font-size:11px}.topright{gap:10px!important}@media(max-width:540px){.authbox{padding:24px}.authbox h1{font-size:23px}}
 </style>
