@@ -1,6 +1,7 @@
-import pandas as pd, numpy as np
+import os, pandas as pd, numpy as np
 
-P = "/home/vishu/Projects/rxtj_phase_2/data/tx_snapshot.parquet"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+P = os.path.join(BASE_DIR, "data", "tx_snapshot.parquet")
 df = pd.read_parquet(P)
 print("shape:", df.shape)
 print("\ndtypes:\n", df.dtypes)

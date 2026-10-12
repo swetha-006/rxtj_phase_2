@@ -262,7 +262,8 @@ class CostRouter:
         }
 
 
-# Module-level convenience singleton matching app.py usage pattern
+# Module-level convenience singleton and alias matching app.py usage pattern
+CostSensitiveRouter = CostRouter
 default_router = CostRouter()
 
 

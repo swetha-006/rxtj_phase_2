@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  rxtj-fraud-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rxtj-v4-fraud-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
