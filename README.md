@@ -341,200 +341,39 @@ rxtj_phase_2/
 
 ---
 
-## Known Limitations
+## 8. License & Acknowledgments
 
-**P1 feature sparsity at inference:** The `/account/compromise-score` endpoint constructs the raw feature vector from the partial metadata fields provided (`amount`, `hour`, `product_cd`, `addr1`). This fills only 4 of 224 imputer input features; the remaining 220 are imputed to training-set means. When all 433 original transaction fields are available, connecting the full feature vector directly produces significantly better P1 scores.
-
-**Behavioral profile cold start:** Accounts with fewer than 5 historical transactions produce unreliable contextual deviation scores. All 8 contextual features are available from the first transaction, but accuracy improves as the profile accumulates history.
-
-**Autoencoder reconstruction range:** The autoencoder was trained on SMOTE-Tomek balanced data. Its reconstruction error range on the raw imbalanced data is narrow (0.1995–0.2530), giving `behavioral_drift` limited spread. Retraining the autoencoder on raw data would widen this range.
-
-**Single-node SQLite:** The profile store uses SQLite in WAL mode. This is suitable for a single-server deployment. For multi-node or high-throughput production, migrate `profile_store.py` to PostgreSQL or Redis.
-
-**Kafka is non-blocking stub:** The Kafka producer in `/score` is wrapped in a `try/except` and silently ignores failures. In a production deployment, add dead-letter queue handling and producer error monitoring.
+This project is open-source under the **MIT License**.
+Based on research on the IEEE-CIS Fraud Detection dataset and developed for real-time payment fraud prevention.
 
 ---
 
-## Future Enhancements
+## RXT-J+ Guardian — integrated product workspace
 
-- [ ] **Full feature inference** — accept complete 224-column feature vectors via API and re-score with real P1 spread
-- [ ] **Fraud pattern visualisation** — merchant-level risk heatmaps, temporal fraud cluster charts, account compromise timeline dashboard
-- [ ] **Real-time Kafka consumer** — fully wire `profile_consumer.py` into a production consumer group with offset management and DLQ
-- [ ] **Multi-node profile store** — migrate from SQLite to Redis or PostgreSQL for horizontal scaling
-- [ ] **Online model updating** — incremental model fine-tuning as new confirmed fraud labels arrive without full retraining
-- [ ] **Graph-based account linking** — detect fraud rings by modelling shared device / email / address connections across accounts using GNN
-- [ ] **REST streaming endpoint** — Server-Sent Events for real-time dashboard push without polling `/account/alerts`
-- [ ] **Federated scoring** — privacy-preserving model updates across multiple bank data silos without raw data sharing
+The default application route (`/`) now opens **Guardian**, a responsive payment-intelligence workspace integrated with the existing FastAPI scoring engine. The original dashboard remains available at `/panel` and `/dashboard`.
 
----
-
-## Troubleshooting
-
-### `ModuleNotFoundError: No module named 'pandas'`
-
-You are on Python 3.14 or outside the conda environment.
+### Run locally
 
 ```bash
-conda activate rxtj_env
-python --version   # must show Python 3.11.x
-pip install pandas pyarrow matplotlib
+python -m pip install -r requirements.txt
+python -m uvicorn app:app --reload --port 8000
 ```
 
-### `RuntimeError: Error(s) in loading state_dict — size mismatch`
+Open `http://127.0.0.1:8000/`. The API documentation is available at `http://127.0.0.1:8000/docs`.
 
-The model class definition in `app.py` does not match the saved checkpoint architecture.
+### Guardian capabilities
 
-```bash
-# Inspect saved keys to identify the mismatch
-python -c "
-import torch
-state = torch.load('models/attention_rxtj.pt', map_location='cpu')
-for k, v in state.items(): print(k, tuple(v.shape))
-"
-```
+- **Overview:** browser-demo activity metrics, risk distribution, recent transactions, and notable risk signals.
+- **Transaction simulator:** sends synthetic transaction context to `/score/form-full` and renders the real backend score, decision, feature attention weights, latency, cost-routing recommendation, and ring association.
+- **Transaction explorer:** searchable/filterable scored transactions and CSV export.
+- **Customer response demo:** records simulated customer confirmation/rejection for the local demo experience.
+- **Fraud network:** queries `/ring/graph/{account_id}` and `/ring/metrics/{account_id}` and renders the returned relationship graph.
+- **Decision lab:** sends probability, amount, and configurable cost assumptions to `/cost/route`.
+- **Review queue and activity log:** demo-only client-side actions for exploring customer responses and analyst outcomes.
+- **Model and system health:** reads `/health`, `/status`, and `/model/info` from the running API.
 
-Compare the printed keys against the class definition in `app.py` and align attribute names.
+### Important limitations
 
-### Server crashes on startup with `fusion_config.json not found`
+Guardian is a hackathon/demo product, **not a production-certified banking application**. Transaction scores, account profile changes, and fraud-ring updates are processed by the existing backend. The front-end demo's transaction list, customer responses, analyst review notes, and activity log are stored in browser `localStorage`; they are not server-side case-management records and can be edited or cleared by the browser user. The application does not authorize payments, connect to bank accounts, or freeze real accounts. Do not enter real payment credentials or sensitive personal information.
 
-Notebooks 06–08 have not been run yet. Run them in order before starting the server.
-
-```bash
-cd notebooks
-python 06_behavioral_profiling.py
-python 07_contextual_features.py
-python 08_fusion_model_training.py
-```
-
-### `ValueError: X has 224 features, but Nystroem is expecting 128 features`
-
-You are feeding raw 224-dim features directly to Nystroem. The correct pipeline is:
-
-```
-raw(224) → imputer → scaler → AE encoder(64) + ResNet extract(64) → concat(128) → nystroem
-```
-
-Check the `build_earn_features()` function in `app.py`.
-
-### `kafka.errors.NoBrokersAvailable`
-
-Kafka is not running or `KAFKA_BOOTSTRAP_SERVERS` is incorrect. For local development set `KAFKA_ENABLED=false` in `.env` — the scoring endpoints work without Kafka.
-
-### `P1 scores: std=0.011, 100% predicted fraud`
-
-Only 4 of 224 features are being filled in the raw feature matrix. Use `imputer.feature_names_in_` to load all 224 columns from the original transaction CSV. See `fix_p1_scores.py` in the project root.
-
-### Port 8000 already in use
-
-```bash
-# Find and kill the process on port 8000
-netstat -ano | findstr :8000       # Windows
-lsof -i :8000                      # macOS / Linux
-
-# Or run on a different port
-python -m uvicorn app:app --port 8080
-```
-
----
-
-## Contributing
-
-We welcome contributions. Please follow these steps:
-
-### 1. Fork and branch
-
-```bash
-git fork https://github.com/{username}/rxtj-plus.git
-git checkout -b feature/your-feature-name
-```
-
-### 2. Code standards
-
-- Follow PEP 8. Use `black` for formatting: `black .`
-- All new functions require a docstring with `Args` and `Returns`
-- New model classes must have matching unit tests in `tests/`
-- Do not commit model artifacts (`.pt`, `.pkl`) to git — add to `.gitignore`
-
-### 3. Testing
-
-```bash
-pytest tests/ -v
-```
-
-All tests must pass before opening a pull request.
-
-### 4. Pull request checklist
-
-- [ ] Tests added for new functionality
-- [ ] Docstrings added / updated
-- [ ] `requirements.txt` updated if new dependencies added
-- [ ] README updated if API or configuration changes
-
-### Code of Conduct
-
-This project follows the [Contributor Covenant v2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Be respectful, constructive, and inclusive. Harassment of any kind will not be tolerated.
-
----
-
-## Authors & Credits
-
-| Name | Role |
-|---|---|
-| Sm | ML engineering lead, architecture, API design |
-| Deepak B | Feature engineering, model training, evaluation |
-| Joselin Jennilia A | Data preprocessing, balancing pipeline, testing |
-
-**Faculty guide:** Ms. Soundarya, Assistant Professor, AIML Department, Sri Krishna College of Technology (SKCT), Coimbatore.
-
-**Base paper:** Almazroi, A. A. and Ayub, N. (2023). *RXT-J: ResNeXt and Gated Recurrent Unit Based Model for Credit Card Fraud Detection.* IEEE Access. DOI: [10.1109/ACCESS.2023.3339226](https://doi.org/10.1109/ACCESS.2023.3339226)
-
-**Dataset:** IEEE-CIS Fraud Detection — Kaggle Competition (2019). [Link](https://www.kaggle.com/c/ieee-fraud-detection)
-
----
-
-## License
-
-```
-MIT License
-
-Copyright (c) 2024 SKCT Team 13
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
-<div align="center">
-
-<!-- ROC CHART — replace src with docs/assets/roc.png -->
-<img src="docs/assets/roc.png" alt="ROC Curve" width="600"/>
-
-<sub>Transaction fraud ROC · AUC = 96.24% &nbsp;|&nbsp; Account compromise ROC · AUC = 75.67%</sub>
-
-<br/><br/>
-
-<sub>Built with PyTorch · FastAPI · scikit-learn · IEEE-CIS Dataset</sub>
-
-<br/>
-
-<img src="https://img.shields.io/badge/SKCT-Team%2013-0052CC?style=flat-square"/>
-<img src="https://img.shields.io/badge/B.E.%20CSE-Cyber%20Security-7B2D8B?style=flat-square"/>
-<img src="https://img.shields.io/badge/NEP-2020-FF6B35?style=flat-square"/>
-
-</div>
+The feature-attention values are model outputs and should not be interpreted as causal explanations. The decision lab shows expected costs under configured assumptions, not measured real-world savings. Before any real deployment, implement authenticated server-side case management, access controls, hardened audit logging, operational monitoring, security review, model governance, and validation against representative labelled data.
