@@ -377,3 +377,21 @@ Open `http://127.0.0.1:8000/`. The API documentation is available at `http://127
 Guardian is a hackathon/demo product, **not a production-certified banking application**. Transaction scores, account profile changes, and fraud-ring updates are processed by the existing backend. The front-end demo's transaction list, customer responses, analyst review notes, and activity log are stored in browser `localStorage`; they are not server-side case-management records and can be edited or cleared by the browser user. The application does not authorize payments, connect to bank accounts, or freeze real accounts. Do not enter real payment credentials or sensitive personal information.
 
 The feature-attention values are model outputs and should not be interpreted as causal explanations. The decision lab shows expected costs under configured assumptions, not measured real-world savings. Before any real deployment, implement authenticated server-side case management, access controls, hardened audit logging, operational monitoring, security review, model governance, and validation against representative labelled data.
+
+
+## Guardian multi-user accounts (prototype)
+
+The Guardian web experience now includes account registration, sign-in, sign-out, an HttpOnly session cookie, and per-user transaction/activity record storage backed by SQLite. Passwords are stored as PBKDF2-HMAC-SHA256 hashes with per-user random salts; session tokens are random opaque values and only their SHA-256 hashes are stored. Each user's records are scoped by the authenticated user ID on the server.
+
+### Run locally
+
+```bash
+python -m pip install -r requirements.txt
+python -m uvicorn app:app --reload --port 8000
+```
+
+Open `http://127.0.0.1:8000/`, create an account with a password of at least 10 characters, and sign in. Account and record data are stored in `data/guardian_accounts.db` by default. Set `GUARDIAN_ACCOUNTS_DB` to choose another database path. Set `GUARDIAN_COOKIE_SECURE=1` when deployed behind HTTPS; do not deploy publicly over plain HTTP.
+
+### Important deployment limitations
+
+This is an account-enabled product prototype, not a production-certified financial service. Before public launch, add email verification, password reset, login rate limiting / abuse controls, MFA, CSRF defenses appropriate to the deployment, secure secret and cookie configuration, backups and migrations, monitoring, privacy/retention workflows, security review, and stronger server-side domain models for case management. The current per-user record API persists user-scoped transaction and activity snapshots; the existing ML scoring endpoints remain available for local demonstration and have not been redesigned as a fully authenticated payment-provider API. Do not submit real banking credentials or use the prototype to authorize or block real payments.
