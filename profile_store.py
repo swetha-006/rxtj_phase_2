@@ -1,6 +1,6 @@
 # ============================================================
 # profile_store.py — Phase 2 Per-Account Behavioral Profile Store
-# Place in: F:\rxtj_project\profile_store.py
+# Place in: <project root>/profile_store.py
 # ============================================================
 
 import os, sqlite3, json, time

@@ -14,13 +14,10 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any, Union, Tuple
 from profile_store import ProfileStore
 import numpy as np
-import torch
-import torch.nn as nn
 import joblib
 import json
 import time
@@ -30,57 +27,77 @@ import sqlite3
 import pandas as pd
 import shap
 
+# Defensive PyTorch import
+try:
+    import torch
+    import torch.nn as nn
+    TORCH_AVAILABLE = True
+    DEVICE = torch.device('cpu')
+except ImportError:
+    torch = None
+    nn = None
+    TORCH_AVAILABLE = False
+    DEVICE = None
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from preprocessing import load_preprocessors, transform_raw, pad_form_features, raw_feature_dim
 
-DEVICE      = torch.device('cpu')
 HISTORY_DB  = 'fraud_storage.db'
 BASE        = os.path.dirname(os.path.abspath(__file__))
 
 
 # ── Phase 2 PyTorch model architectures (Preserved) ──────────────────────────
 
-class AutoencoderNet(nn.Module):
-    """Autoencoder for Phase 2 behavioural drift scoring."""
-    def __init__(self, input_dim, latent_dim=64):
-        super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 256), nn.BatchNorm1d(256), nn.ReLU(), nn.Dropout(0.2),
-            nn.Linear(256, 128),       nn.BatchNorm1d(128), nn.ReLU(), nn.Dropout(0.2),
-            nn.Linear(128, latent_dim), nn.ReLU()
-        )
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 128), nn.BatchNorm1d(128), nn.ReLU(),
-            nn.Linear(128, 256),        nn.BatchNorm1d(256), nn.ReLU(),
-            nn.Linear(256, input_dim)
-        )
-    def forward(self, x):
-        z = self.encoder(x)
-        return self.decoder(z), z
+if TORCH_AVAILABLE:
+    class AutoencoderNet(nn.Module):
+        """Autoencoder for Phase 2 behavioural drift scoring."""
+        def __init__(self, input_dim, latent_dim=64):
+            super().__init__()
+            self.encoder = nn.Sequential(
+                nn.Linear(input_dim, 256), nn.BatchNorm1d(256), nn.ReLU(), nn.Dropout(0.2),
+                nn.Linear(256, 128),       nn.BatchNorm1d(128), nn.ReLU(), nn.Dropout(0.2),
+                nn.Linear(128, latent_dim), nn.ReLU()
+            )
+            self.decoder = nn.Sequential(
+                nn.Linear(latent_dim, 128), nn.BatchNorm1d(128), nn.ReLU(),
+                nn.Linear(128, 256),        nn.BatchNorm1d(256), nn.ReLU(),
+                nn.Linear(256, input_dim)
+            )
+        def forward(self, x):
+            z = self.encoder(x)
+            return self.decoder(z), z
 
 
-class FusionNet(nn.Module):
-    """FusionNet v3 — Attention-weighted MLP for account compromise scoring (13 features)."""
-    def __init__(self, input_dim: int = 13):
-        super().__init__()
-        self.feature_attn = nn.Parameter(torch.ones(input_dim))
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1)
-        )
+    class FusionNet(nn.Module):
+        """FusionNet v3 — Attention-weighted MLP for account compromise scoring (13 features)."""
+        def __init__(self, input_dim: int = 13):
+            super().__init__()
+            self.feature_attn = nn.Parameter(torch.ones(input_dim))
+            self.net = nn.Sequential(
+                nn.Linear(input_dim, 128),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(128, 64),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(64, 32),
+                nn.ReLU(),
+                nn.Linear(32, 1)
+            )
 
-    def forward(self, x):
-        attn_weights = torch.softmax(self.feature_attn, dim=0)
-        x_weighted   = x * attn_weights
-        logit        = self.net(x_weighted).squeeze(1)
-        return torch.sigmoid(logit), attn_weights
+        def forward(self, x):
+            attn_weights = torch.softmax(self.feature_attn, dim=0)
+            x_weighted   = x * attn_weights
+            logit        = self.net(x_weighted).squeeze(1)
+            return torch.sigmoid(logit), attn_weights
+else:
+    class AutoencoderNet:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class FusionNet:
+        def __init__(self, *args, **kwargs):
+            pass
 
 
 # ── Model Artifact Loading ───────────────────────────────────────────────────
@@ -123,20 +140,56 @@ def load_models():
 
     # 2. Load Phase 2 behavioral drift components (Autoencoder + Preprocessors)
     imputer, scaler = load_preprocessors(BASE)
-    ae_state = torch.load(os.path.join(BASE, 'models/autoencoder.pt'), map_location=DEVICE)
-    ae_input_dim = ae_state['encoder.0.weight'].shape[1]
-    autoencoder = AutoencoderNet(ae_input_dim).to(DEVICE)
-    autoencoder.load_state_dict(ae_state)
-    autoencoder.eval()
+    autoencoder = None
+    fusion_model_obj = None
+    fusion_scaler_obj = None
+    fusion_config_data = {
+        'input_dim': 13,
+        'fusion_threshold': 0.50,
+        'high_threshold': 0.507353,
+        'elevated_threshold': 0.257353,
+        'feature_names': [
+            "amount_z_score", "merchant_novelty", "geo_displacement",
+            "hour_deviation", "device_novelty", "velocity_ratio",
+            "behavioral_drift", "p1_risk_score", "amount_percentile",
+            "time_gap_norm", "merchant_fraud_rate", "cross_device_accounts",
+            "account_age_score"
+        ]
+    }
 
-    # 3. Load Phase 2 FusionNet v3 + Scaler + Config
-    fusion_config_data = json.load(open(os.path.join(BASE, 'results/fusion_config.json')))
-    fusion_scaler_obj  = joblib.load(os.path.join(BASE, 'models/fusion_scaler.pkl'))
-    f_input_dim        = fusion_config_data['input_dim']
-    fusion_model_obj   = FusionNet(f_input_dim).to(DEVICE)
-    fusion_state       = torch.load(os.path.join(BASE, 'models/fusion_net.pt'), map_location=DEVICE)
-    fusion_model_obj.load_state_dict(fusion_state)
-    fusion_model_obj.eval()
+    # Config + scaler are plain JSON / sklearn objects: load them regardless of torch,
+    # so /model/info and the threshold constants never depend on the deep-learning stack.
+    f_cfg_path = os.path.join(BASE, 'results/fusion_config.json')
+    if os.path.exists(f_cfg_path):
+        with open(f_cfg_path, 'r') as f:
+            fusion_config_data = json.load(f)
+
+    f_scaler_path = os.path.join(BASE, 'models/fusion_scaler.pkl')
+    if os.path.exists(f_scaler_path):
+        fusion_scaler_obj = joblib.load(f_scaler_path)
+
+    if TORCH_AVAILABLE:
+        try:
+            ae_path = os.path.join(BASE, 'models/autoencoder.pt')
+            if os.path.exists(ae_path):
+                ae_state = torch.load(ae_path, map_location=DEVICE)
+                ae_input_dim = ae_state['encoder.0.weight'].shape[1]
+                autoencoder = AutoencoderNet(ae_input_dim).to(DEVICE)
+                autoencoder.load_state_dict(ae_state)
+                autoencoder.eval()
+
+            # 3. Load Phase 2 FusionNet v3 weights (config/scaler loaded above)
+            f_net_path = os.path.join(BASE, 'models/fusion_net.pt')
+            if os.path.exists(f_net_path):
+                f_input_dim = fusion_config_data.get('input_dim', 13)
+                fusion_model_obj = FusionNet(f_input_dim).to(DEVICE)
+                fusion_state = torch.load(f_net_path, map_location=DEVICE)
+                fusion_model_obj.load_state_dict(fusion_state)
+                fusion_model_obj.eval()
+        except Exception as e:
+            print(f"Warning: Failed to load Phase 2 PyTorch models: {e}. Falling back to ML Core.")
+    else:
+        print("Note: PyTorch is not available. Phase 2 behavioral drift features will use fallback defaults.")
 
     return (
         lgbm_model, calibrator, feature_schema, threshold, top_devices,
@@ -155,20 +208,26 @@ print("Loading RXT-J+ v4 models...")
 ) = load_models()
 
 RAW_DIM            = raw_feature_dim(imputer)
-FUSION_THRESHOLD   = fusion_config['fusion_threshold']
-HIGH_THRESHOLD     = fusion_config['high_threshold']
-ELEVATED_THRESHOLD = fusion_config['elevated_threshold']
-FEATURE_NAMES      = fusion_config['feature_names']   # 13 names
-DRIFT_NORM         = json.load(open(os.path.join(BASE, 'data/drift_norm_params.json')))
-MERCHANT_FRAUD_RATES = json.load(open(os.path.join(BASE, 'data/merchant_fraud_rates.json')))
+FUSION_THRESHOLD   = fusion_config.get('fusion_threshold', 0.50)
+HIGH_THRESHOLD     = fusion_config.get('high_threshold', 0.507353)
+ELEVATED_THRESHOLD = fusion_config.get('elevated_threshold', 0.257353)
+FEATURE_NAMES      = fusion_config.get('feature_names', [])   # 13 names
+drift_norm_path    = os.path.join(BASE, 'data/drift_norm_params.json')
+DRIFT_NORM         = json.load(open(drift_norm_path)) if os.path.exists(drift_norm_path) else {"p5": 0.0, "p95": 1.0}
+merchant_path      = os.path.join(BASE, 'data/merchant_fraud_rates.json')
+MERCHANT_FRAUD_RATES = json.load(open(merchant_path)) if os.path.exists(merchant_path) else {}
 
 print(f"ML Core loaded: LightGBM v4 (Calibrated). Threshold={THRESHOLD:.2f}, Features={len(FEATURE_SCHEMA)}")
-print(f"Phase 2 FusionNet v3 loaded (input_dim={fusion_config['input_dim']}). High={HIGH_THRESHOLD}, Elevated={ELEVATED_THRESHOLD}")
+if fusion_model is not None:
+    print(f"Phase 2 FusionNet v3 loaded (input_dim={fusion_config.get('input_dim', 13)}). High={HIGH_THRESHOLD}, Elevated={ELEVATED_THRESHOLD}")
+else:
+    print("Phase 2 deep models running in lightweight heuristic fallback mode.")
 
 
 # ── SQLite History Store ─────────────────────────────────────────────────────
 
-HISTORY_PATH = os.path.join(BASE, HISTORY_DB)
+HISTORY_PATH = os.environ.get('RXTJ_HISTORY_DB') or os.path.join(BASE, HISTORY_DB)
+PROFILE_DB_PATH = os.environ.get('RXTJ_PROFILE_DB') or os.path.join(BASE, 'data', 'behavioral_profiles.db')
 
 def _init_history_db():
     conn = sqlite3.connect(HISTORY_PATH)
@@ -182,9 +241,7 @@ def _init_history_db():
 
 _init_history_db()
 
-profile_store = ProfileStore(
-    db_path=os.path.join(BASE, "data", "behavioral_profiles.db")
-)
+profile_store = ProfileStore(db_path=PROFILE_DB_PATH)
 print(f"ProfileStore ready. Total accounts: {profile_store.coverage_stats()['total_accounts']:,}")
 
 
@@ -839,13 +896,19 @@ def compute_contextual_features(
     f6_vel_ratio = float(np.clip(vel_1h / (vel_24h / 24.0 + 1e-6), 0.0, 10.0))
 
     # F7: behavioral drift via autoencoder reconstruction error
-    with torch.no_grad():
-        batch       = torch.FloatTensor(features_np).to(DEVICE)
-        recon, _    = autoencoder(batch)
-        mse         = float(((recon - batch) ** 2).mean().cpu().numpy())
-    p5  = DRIFT_NORM.get("p5", 0.0)
-    p95 = DRIFT_NORM.get("p95", 1.0)
-    f7_drift = float(np.clip((mse - p5) / (p95 - p5 + 1e-9), 0.0, 1.0))
+    if TORCH_AVAILABLE and autoencoder is not None:
+        try:
+            with torch.no_grad():
+                batch       = torch.FloatTensor(features_np).to(DEVICE)
+                recon, _    = autoencoder(batch)
+                mse         = float(((recon - batch) ** 2).mean().cpu().numpy())
+            p5  = DRIFT_NORM.get("p5", 0.0)
+            p95 = DRIFT_NORM.get("p95", 1.0)
+            f7_drift = float(np.clip((mse - p5) / (p95 - p5 + 1e-9), 0.0, 1.0))
+        except Exception:
+            f7_drift = 0.0
+    else:
+        f7_drift = 0.0
 
     # F8: Phase 1 risk score from calibrated LightGBM
     f8_p1 = float(txn_meta.get("p1_risk_score", 0.15))
@@ -897,6 +960,51 @@ def compute_contextual_features(
     return vec, named
 
 
+def occlusion_attribution(predict_fn, x, baseline):
+    """
+    Decision-driven attribution for the Phase 2 score.
+
+    For each feature i, replace x[i] with its training baseline (everything else held
+    fixed) and measure how far the compromise probability falls.
+        contribution_i = p(x) - p(x with feature i neutralised)
+    Positive => the feature pushed the score UP. This ranks by what actually moved the
+    model's output, unlike ranking by raw feature magnitude (a feature the model ignores
+    can have a huge value yet contribute exactly 0).
+
+    predict_fn: (n, d) array of RAW (unscaled) feature rows -> (n,) probabilities.
+    Returns (p_full, contributions[d]).
+    """
+    x = np.asarray(x, dtype=np.float64).ravel()
+    base = np.asarray(baseline, dtype=np.float64).ravel()
+    d = len(x)
+    batch = np.tile(x, (d + 1, 1))
+    for i in range(d):
+        batch[i + 1, i] = base[i]
+    probs = np.asarray(predict_fn(batch), dtype=np.float64).ravel()
+    return float(probs[0]), float(probs[0]) - probs[1:]
+
+
+def _fusion_predict_raw(ctx_rows: np.ndarray) -> np.ndarray:
+    """Phase 2 compromise probability for raw (unscaled) 13-dim contextual rows.
+    Mirrors the scoring path used by /account/compromise-score (FusionNet when torch is
+    available, otherwise the documented heuristic fallback)."""
+    ctx_rows = np.asarray(ctx_rows, dtype=np.float32)
+    if TORCH_AVAILABLE and fusion_model is not None and fusion_scaler is not None:
+        scaled = fusion_scaler.transform(ctx_rows).astype(np.float32)
+        with torch.no_grad():
+            probs, _ = fusion_model(torch.FloatTensor(scaled).to(DEVICE))
+        return probs.cpu().numpy()
+    p1 = ctx_rows[:, 7]
+    return np.clip(0.6 * p1 + 0.2 * ctx_rows[:, 4] + 0.2 * (ctx_rows[:, 5] > 1.0), 0.0, 1.0)
+
+
+def _fusion_baseline() -> np.ndarray:
+    """Neutral reference point: the training-set mean of each contextual feature."""
+    if fusion_scaler is not None and hasattr(fusion_scaler, "mean_"):
+        return np.asarray(fusion_scaler.mean_, dtype=np.float64)
+    return np.zeros(len(FEATURE_NAMES), dtype=np.float64)
+
+
 def decide_action(compromise_prob: float, p1_risk: float) -> str:
     """Map compromise probability + P1 risk to a recommended action."""
     if compromise_prob >= HIGH_THRESHOLD:
@@ -909,6 +1017,7 @@ def decide_action(compromise_prob: float, p1_risk: float) -> str:
 # ── Static UI Servicing ───────────────────────────────────────────────────────
 
 @app.get("/panel", response_class=FileResponse)
+@app.get("/dashboard", response_class=FileResponse)
 def serve_panel():
     panel_path = os.path.join(BASE, "panel.html")
     return FileResponse(panel_path, media_type="text/html")
@@ -924,11 +1033,12 @@ def root():
         "version": "4.0.0",
         "status":  "live",
         "phase":   "Phase 1 Calibrated LightGBM + Phase 2 Behavioral Fusion",
-        "model_auc": metrics.get("test_roc_auc_cal", metrics.get("test_roc_auc_raw", 0.779)),
-        "model_pr_auc": metrics.get("test_pr_auc_cal", 0.163),
+        "model_auc": metrics.get("test_roc_auc_cal", metrics.get("test_roc_auc_raw")),
+        "model_pr_auc": metrics.get("test_pr_auc_cal", metrics.get("test_pr_auc_raw")),
         "operating_threshold": THRESHOLD,
-        "fusion_auc": fusion_config['fusion_auc'],
-        "latency_ms": 0.05
+        "fusion_auc": fusion_config.get("fusion_auc"),
+        "latency_ms": 0.05,
+        "dashboard_url": "/panel"
     }
 
 @app.get("/health")
@@ -936,10 +1046,11 @@ def health():
     return {
         "status": "healthy",
         "models_loaded": True,
+        "phase2_deep_models_loaded": fusion_model is not None and autoencoder is not None,
         "phase1_model": "LightGBM (Calibrated)",
         "phase1_threshold": THRESHOLD,
         "phase1_feature_count": len(FEATURE_SCHEMA),
-        "fusion_input_dim": fusion_config['input_dim'],
+        "fusion_input_dim": fusion_config.get('input_dim', 13),
         "feature_count": len(FEATURE_NAMES),
     }
 
@@ -957,7 +1068,7 @@ def model_info():
         },
         "phase2": {
             "model":        "FusionNet v3 (13->128->64->32->1)",
-            "input_dim":    fusion_config['input_dim'],
+            "input_dim":    fusion_config.get('input_dim', 13),
             "feature_names": FEATURE_NAMES,
             "thresholds": {
                 "fusion":   FUSION_THRESHOLD,
@@ -965,10 +1076,10 @@ def model_info():
                 "elevated": ELEVATED_THRESHOLD,
             },
             "performance": {
-                "auc":     fusion_config['fusion_auc'],
-                "pr_auc":  fusion_config['fusion_pr_auc'],
-                "mcc":     fusion_config['fusion_mcc'],
-                "recall":  fusion_config['fusion_recall'],
+                "auc":     fusion_config.get('fusion_auc'),
+                "pr_auc":  fusion_config.get('fusion_pr_auc'),
+                "mcc":     fusion_config.get('fusion_mcc'),
+                "recall":  fusion_config.get('fusion_recall'),
             }
         }
     }
@@ -1159,12 +1270,16 @@ def score_form_full(req: FullFormRequest, explain: bool = Query(False)):
         ctx_vec, ctx_named = compute_contextual_features(X_clean, profile, txn_meta)
 
         # Step 5: FusionNet v3 inference
-        ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
-        ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
-        with torch.no_grad():
-            compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
-        compromise_prob = float(compromise_prob_t.cpu().numpy()[0])
-        attn_weights_np = attn_weights_t.cpu().numpy()
+        if TORCH_AVAILABLE and fusion_model is not None and fusion_scaler is not None:
+            ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
+            ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
+            with torch.no_grad():
+                compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
+            compromise_prob = float(compromise_prob_t.cpu().numpy()[0])
+            attn_weights_np = attn_weights_t.cpu().numpy()
+        else:
+            compromise_prob = float(np.clip(0.6 * p1_risk + 0.2 * ctx_vec[0, 4] + 0.2 * (ctx_vec[0, 5] > 1.0), 0.0, 1.0))
+            attn_weights_np = np.ones(len(FEATURE_NAMES), dtype=np.float32) / max(1, len(FEATURE_NAMES))
 
         # Step 6: Decision tiers
         if compromise_prob >= HIGH_THRESHOLD:
@@ -1269,12 +1384,16 @@ def account_compromise_score(req: CompromiseRequest, explain: bool = Query(False
         }
         ctx_vec, ctx_named = compute_contextual_features(X_clean, profile, txn_meta)
 
-        ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
-        ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
-        with torch.no_grad():
-            compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
-        compromise_prob = float(compromise_prob_t.cpu().numpy()[0])
-        attn_weights_np = attn_weights_t.cpu().numpy()
+        if TORCH_AVAILABLE and fusion_model is not None and fusion_scaler is not None:
+            ctx_scaled = fusion_scaler.transform(ctx_vec).astype(np.float32)
+            ctx_tensor = torch.FloatTensor(ctx_scaled).to(DEVICE)
+            with torch.no_grad():
+                compromise_prob_t, attn_weights_t = fusion_model(ctx_tensor)
+            compromise_prob = float(compromise_prob_t.cpu().numpy()[0])
+            attn_weights_np = attn_weights_t.cpu().numpy()
+        else:
+            compromise_prob = float(np.clip(0.6 * p1_risk + 0.2 * ctx_vec[0, 4] + 0.2 * (ctx_vec[0, 5] > 1.0), 0.0, 1.0))
+            attn_weights_np = np.ones(len(FEATURE_NAMES), dtype=np.float32) / max(1, len(FEATURE_NAMES))
 
         if compromise_prob >= HIGH_THRESHOLD:
             decision = "HIGH"
@@ -1401,15 +1520,27 @@ def explain_compromise(req: ExplainRequest):
         }
         return tips.get(name, f"{name} = {val:.4f}")
 
-    if ctx:
-        sorted_feats = sorted(ctx.items(), key=lambda x: abs(float(x[1])), reverse=True)[:3]
-    else:
-        sorted_feats = []
-
-    top_features = [
-        {"feature": k, "value": round(float(v), 4), "interpretation": interpret(k, float(v))}
-        for k, v in sorted_feats
-    ]
+    # Rank by what actually drove the score (occlusion vs training baseline), NOT by
+    # raw feature magnitude. Only features that pushed risk UP are reported as drivers.
+    top_features = []
+    attribution_method = None
+    if ctx and all(n in ctx for n in FEATURE_NAMES):
+        x_vec = np.array([float(ctx[n]) for n in FEATURE_NAMES], dtype=np.float64)
+        p_full, contribs = occlusion_attribution(_fusion_predict_raw, x_vec, _fusion_baseline())
+        attribution_method = (
+            "occlusion: score drop when the feature is reset to its training mean "
+            "(model-driven, signed, in probability units)"
+        )
+        order = [i for i in np.argsort(-contribs) if contribs[i] > 1e-4][:3]
+        top_features = [
+            {
+                "feature": FEATURE_NAMES[i],
+                "value": round(float(x_vec[i]), 4),
+                "contribution": round(float(contribs[i]), 4),
+                "interpretation": interpret(FEATURE_NAMES[i], float(x_vec[i])),
+            }
+            for i in order
+        ]
 
     if profile:
         baseline = {
@@ -1425,23 +1556,10 @@ def explain_compromise(req: ExplainRequest):
     summary = (
         f"The compromise score was primarily driven by: {top_features[0]['interpretation']} "
         + (f"Additionally, {top_features[1]['interpretation']}" if len(top_features) > 1 else "")
-    ) if top_features else "Insufficient context data for detailed explanation."
-
-    # Compute TreeSHAP explanation if context available
-    p1_explanation = None
-    if profile:
-        try:
-            form_dict = {
-                "amount": float(profile.get("amt_mean", 100.0)),
-                "hour": 12,
-                "product_cd": "W",
-                "device_info": "MISSING",
-                "addr1": None
-            }
-            X_df = transform_to_lgbm_features(form_dict, profile=profile)
-            p1_explanation = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id)
-        except Exception:
-            pass
+    ) if top_features else (
+        "No single feature materially raised this score." if attribution_method
+        else "Insufficient context data for detailed explanation."
+    )
 
     res = {
         "account_id":       req.account_id,
@@ -1451,10 +1569,12 @@ def explain_compromise(req: ExplainRequest):
         "top_features":     top_features,
         "account_baseline": baseline,
         "what_triggered":   summary,
+        "attribution_method": attribution_method,
+        "p1_explanation_note": (
+            "Per-transaction TreeSHAP / reason codes / counterfactual for the Phase 1 "
+            "score are served by POST /score/explain with the transaction's real features."
+        ),
     }
-    if p1_explanation:
-        res["p1_shap_explanation"] = p1_explanation
-
     return res
 
 @app.post("/score/explain")
