@@ -38,7 +38,6 @@ data/ifm_scores.npy
 *.db-shm
 *.db-wal
 *.sqlite
-.venv
 
 # Environment variables
 .env
