@@ -196,3 +196,52 @@ def audit_events(user,org_id):
     for r in rows:
         d=dict(r); d['metadata']=json.loads(d['metadata']); out.append(d)
     return out
+
+
+def analytics(user, org_id):
+    """Workspace-scoped investigation metrics and a 14-day activity series."""
+    require_role(user, org_id)
+    with _connect() as c:
+        total = c.execute('SELECT COUNT(*) FROM investigation_cases WHERE organization_id=?', (org_id,)).fetchone()[0]
+        statuses = {r['status']: r['n'] for r in c.execute('SELECT status,COUNT(*) n FROM investigation_cases WHERE organization_id=? GROUP BY status', (org_id,))}
+        priorities = {r['priority']: r['n'] for r in c.execute('SELECT priority,COUNT(*) n FROM investigation_cases WHERE organization_id=? GROUP BY priority', (org_id,))}
+        assigned = c.execute('SELECT COUNT(*) FROM investigation_cases WHERE organization_id=? AND assigned_to IS NOT NULL', (org_id,)).fetchone()[0]
+        recent = c.execute("SELECT date(created_at,'unixepoch','localtime') day,COUNT(*) count FROM investigation_cases WHERE organization_id=? AND created_at>=? GROUP BY day ORDER BY day", (org_id, time.time()-13*86400)).fetchall()
+        resolved = statuses.get('resolved', 0) + statuses.get('confirmed_fraud', 0) + statuses.get('legitimate', 0)
+    return {'total_cases': total, 'statuses': statuses, 'priorities': priorities,
+            'assigned_cases': assigned, 'unassigned_cases': total-assigned,
+            'resolution_rate': round(resolved/total, 4) if total else 0,
+            'created_last_14_days': [{'date': r['day'], 'count': r['count']} for r in recent]}
+
+
+def list_alerts(user, org_id, limit=100):
+    """Return actionable, unresolved high/critical cases as workspace alerts."""
+    require_role(user, org_id)
+    with _connect() as c:
+        rows = c.execute("""SELECT c.id,c.transaction_id,c.title,c.status,c.priority,c.assigned_to,
+          c.created_at,c.updated_at,u.display_name assigned_name
+          FROM investigation_cases c LEFT JOIN users u ON u.id=c.assigned_to
+          WHERE c.organization_id=? AND c.priority IN ('high','critical')
+          AND c.status NOT IN ('resolved','confirmed_fraud','legitimate')
+          ORDER BY CASE c.priority WHEN 'critical' THEN 0 ELSE 1 END,c.updated_at DESC LIMIT ?""", (org_id, max(1,min(int(limit),200)))).fetchall()
+    return [dict(r) for r in rows]
+
+
+def export_cases(user, org_id, status=None, priority=None, query=None):
+    require_role(user, org_id)
+    sql = '''SELECT c.id,c.transaction_id,c.title,c.status,c.priority,c.assigned_to,
+             u.display_name assigned_name,c.created_at,c.updated_at,creator.display_name created_by_name
+             FROM investigation_cases c LEFT JOIN users u ON u.id=c.assigned_to
+             JOIN users creator ON creator.id=c.created_by WHERE c.organization_id=?'''
+    args = [org_id]
+    if status:
+        if status not in {'open','investigating','escalated','resolved','confirmed_fraud','legitimate'}: raise ValueError('Invalid case status.')
+        sql += ' AND c.status=?'; args.append(status)
+    if priority:
+        if priority not in {'low','medium','high','critical'}: raise ValueError('Invalid priority.')
+        sql += ' AND c.priority=?'; args.append(priority)
+    if query:
+        q = '%'+query.strip()[:120]+'%'; sql += ' AND (c.title LIKE ? OR c.transaction_id LIKE ?)'; args.extend([q,q])
+    sql += ' ORDER BY c.updated_at DESC LIMIT 5000'
+    with _connect() as c:
+        return [dict(r) for r in c.execute(sql,args).fetchall()]
