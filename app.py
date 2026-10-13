@@ -263,6 +263,17 @@ ring_detector_engine = FraudRingDetector(
     new_account_max_txn=3
 )
 
+def seed_demo_fraud_ring():
+    """Initializes the demo fraud syndicate on SharedTabletPro with address 412."""
+    now = time.time()
+    ring_detector_engine.reset()
+    ring_detector_engine.add_transaction("DEMO_ACC_101", device_info="SharedTabletPro", addr1="412", timestamp=now - 300)
+    ring_detector_engine.add_transaction("DEMO_ACC_102", device_info="SharedTabletPro", addr1="412", timestamp=now - 200)
+    ring_detector_engine.add_transaction("DEMO_ACC_103", device_info="SharedTabletPro", addr1="412", timestamp=now - 100)
+    ring_detector_engine.add_transaction("DEMO_ACC_104", device_info="SharedTabletPro", addr1="412", timestamp=now - 20)
+
+seed_demo_fraud_ring()
+
 
 # ── SQLite History Store ─────────────────────────────────────────────────────
 
@@ -1990,3 +2001,10 @@ def get_fraud_ring_metrics(account_id: str):
     """
     metrics = ring_detector_engine.get_account_ring(str(account_id))
     return metrics.to_dict()
+
+
+@app.post("/ring/reset")
+def reset_fraud_ring():
+    """Reset fraud ring graph back to pristine demo state."""
+    seed_demo_fraud_ring()
+    return {"status": "ok", "message": "Fraud ring graph reset to clean demo state."}

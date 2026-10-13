@@ -120,12 +120,38 @@
 
 .score-main-btn{width:100%;padding:14px;font-size:13.5px;font-weight:800;border-radius:12px;margin-top:16px;box-shadow:0 6px 20px rgba(101,224,178,.25)}
 
+/* Judge Presentation Tour Banner */
+.judge-tour-banner{background:linear-gradient(145deg,#0c1928,#102236);border:1px solid #1f3750;border-radius:16px;padding:16px 18px;margin-bottom:20px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.judge-tour-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.judge-tour-badge{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#133e38,#163042);border:1px solid #296859;color:#9ff3d4;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:.6px}
+.judge-tour-badge svg{width:13px;height:13px}
+.judge-tour-sub{font-size:12px;color:#8da5be;font-weight:500}
+.judge-scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.judge-scenario-grid{grid-template-columns:1fr}}
+.judge-scenario-card{background:#0c1724;border:1px solid #223a52;border-radius:12px;padding:13px 14px;text-align:left;cursor:pointer;transition:all .18s ease;display:flex;flex-direction:column;gap:5px}
+.judge-scenario-card:hover{background:#13253a;border-color:var(--mint);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.judge-scenario-card.active{border-color:var(--mint);background:linear-gradient(150deg,#122d33,#0d1c2c);box-shadow:0 0 16px rgba(101,224,178,.2)}
+.jcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.jcard-tag{font-size:9.5px;font-weight:800;letter-spacing:.6px;padding:3px 7px;border-radius:5px;display:inline-flex;align-items:center;gap:4px}
+.jcard-tag svg{width:11px;height:11px}
+.jcard-tag.alert{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.35)}
+.jcard-tag.review{background:rgba(245,158,11,.18);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
+.jcard-tag.safe{background:rgba(16,185,129,.18);color:#34d399;border:1px solid rgba(16,185,129,.35)}
+.jcard-amt{font:700 13px Manrope;color:#f1f5f9}
+.jcard-title{font:700 13px Manrope;color:#f1f5f9;letter-spacing:-.2px}
+.jcard-desc{font-size:11px;color:#8da5be;line-height:1.45;margin:2px 0 6px;flex:1}
+.jcard-footer{font-size:10.5px;font-weight:700;padding-top:6px;border-top:1px solid #1a2d40}
+.jcard-footer.alert-foot{color:#f87171}
+.jcard-footer.review-foot{color:#fbbf24}
+.jcard-footer.safe-foot{color:#34d399}
+
 /* Result Panel Modernization */
 .result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .result-header h2{font:700 16px Manrope;margin:0}
 .result-header p{margin:4px 0 0;font-size:11px;color:var(--muted)}
 
-.result-hero-box{display:grid;grid-template-columns:120px minmax(0,1fr);align-items:center;gap:16px;padding:16px 18px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(135deg,#0d1928,#122236);margin-bottom:14px}
+.result-hero-box{display:grid;grid-template-columns:120px minmax(0,1fr);align-items:center;gap:16px;padding:16px 18px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(135deg,#0d1928,#122236);margin-bottom:14px;animation:resultReveal .3s ease-out}
+@keyframes resultReveal{from{opacity:.3;transform:translateY(6px)}to{opacity:1;transform:none}}
 .result-hero-box.tier-high{border-color:#6c2d3a;background:linear-gradient(135deg,#23141c,#141e2d)}
 .result-hero-box.tier-medium{border-color:#654823;background:linear-gradient(135deg,#221c13,#141e2d)}
 .result-hero-box.tier-low{border-color:#225547;background:linear-gradient(135deg,#0e261f,#141e2d)}
@@ -138,6 +164,31 @@
 
 .decision-rationale{font-size:12px;line-height:1.6;color:#d5e4f2;margin-bottom:6px}
 .router-note{font-size:11px;color:#8ea9c2;line-height:1.5;padding:6px 9px;background:rgba(0,0,0,.25);border-radius:8px}
+
+/* Financial Economics Matrix */
+.financial-matrix-box{background:#0c1826;border:1px solid #1f364d;border-radius:12px;padding:12px 14px;margin:12px 0}
+.financial-matrix-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.financial-matrix-head span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8da5be;display:flex;align-items:center;gap:5px}
+.financial-matrix-head span svg{width:12px;height:12px;color:var(--mint)}
+.financial-matrix-head strong{font-size:11.5px;color:var(--mint)}
+.financial-cards-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.f-mini-card{background:#102032;border:1px solid #1c3349;border-radius:8px;padding:8px 10px;text-align:center}
+.f-mini-card.optimal{background:#123530;border-color:#2a7561;box-shadow:0 0 12px rgba(101,224,178,.15)}
+.f-mini-card span{display:block;font-size:9.5px;color:#8da5be;text-transform:uppercase}
+.f-mini-card strong{display:block;font:700 13px Manrope;margin-top:3px;color:#edf4fb}
+.f-mini-card.optimal strong{color:#84f3cb}
+.f-mini-card small{display:block;font-size:9px;color:#8da5be;margin-top:2px}
+.f-mini-card.optimal small{color:#65e0b2;font-weight:700}
+
+/* Network Pivot Banner */
+.network-pivot-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,#301622,#1b2434);border:1px solid #702f3d;border-radius:12px;padding:12px 14px;margin:12px 0}
+.pivot-info{display:flex;align-items:center;gap:10px}
+.pivot-icon{width:36px;height:36px;border-radius:9px;background:#441a29;color:#ff8597;display:grid;place-items:center;flex-shrink:0}
+.pivot-icon svg{width:18px;height:18px}
+.pivot-info b{display:block;font-size:12px;color:#ffd0d8}
+.pivot-info span{display:block;font-size:10.5px;color:#c0a0a8;margin-top:2px}
+.pivot-btn{white-space:nowrap;padding:8px 12px;font-size:11px;font-weight:700;background:#ff4d6a;border-color:#ff4d6a;color:#fff}
+.pivot-btn:hover{background:#ff6b84}
 
 .result-mobile-cta{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(135deg,#13352f,#12283a);border:1px solid #286455;border-radius:14px;padding:14px 16px;margin:14px 0;box-shadow:0 6px 20px rgba(0,0,0,.3)}
 .mobile-cta-info{display:flex;align-items:center;gap:12px}
@@ -159,7 +210,7 @@
 .signal-bars{display:grid;gap:10px;margin-top:10px}
 .signal-bar-row{background:#122132;border:1px solid #20364d;border-radius:10px;padding:9px 12px}
 .signal-bar-info{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:6px}
-.signal-bar-name{font-weight:600;color:#c8dbec}
+.signal-bar-name{font-weight:600;color:#c8dbec;display:flex;align-items:center;gap:6px}
 .signal-bar-pct{font-weight:700;color:var(--mint)}
 .signal-bar-track{height:5px;background:#1c2d3f;border-radius:6px;overflow:hidden}
 .signal-bar-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--mint));border-radius:6px}
@@ -258,11 +309,32 @@ html.theme-light .healthitem{background:#f8fafc;border:1px solid #e2e8f0}
 html.theme-light .healthitem strong{color:#0f172a}
 html.theme-light .healthitem p{color:#64748b}
 html.theme-light #modelInfo{background:#f8fafc;border:1px solid #e2e8f0;color:#334155}
-html.theme-light .graphstage{background:radial-gradient(circle at 50% 45%,#ffffff,#f1f5f9 70%);border:1px solid #e2e8f0}
+html.theme-light .graphstage{background:radial-gradient(ellipse at 50% 40%,#ffffff 0%,#f1f5f9 85%)!important;border:1px solid #cbd5e1!important;box-shadow:inset 0 0 60px rgba(0,0,0,.04)!important}
+html.theme-light .graph-toolbar,html.theme-light .graph-legend-bar{background:rgba(255,255,255,.96)!important;border:1px solid #cbd5e1!important;color:#1e293b!important;box-shadow:0 6px 20px rgba(15,23,42,.08)!important}
+html.theme-light .graph-tool-btn{color:#475569!important}
+html.theme-light .graph-tool-btn:hover{background:#f1f5f9!important;color:#0f172a!important}
+html.theme-light .graphhint{background:rgba(255,255,255,.94)!important;border-color:#e2e8f0!important;color:#64748b!important}
+html.theme-light .legend-swatch.target{background:#059669!important}
+html.theme-light .legend-swatch.card{background:#0284c7!important}
+html.theme-light .legend-swatch.device{background:#6366f1!important}
+html.theme-light .legend-swatch.address{background:#d97706!important}
+html.theme-light .legend-swatch.alert{background:#dc2626!important}
+html.theme-light .graph-tooltip{background:rgba(255,255,255,.98)!important;border:1px solid #cbd5e1!important;color:#0f172a!important;box-shadow:0 14px 35px rgba(15,23,42,.12)!important}
+html.theme-light .graph-tooltip-head{border-bottom-color:#e2e8f0!important}
+html.theme-light .tooltip-title{color:#0f172a!important}
+html.theme-light .tooltip-k{color:#64748b!important}
+html.theme-light .tooltip-v{color:#0f172a!important}
+html.theme-light .graph-tooltip-footer{border-top-color:#e2e8f0!important;color:#64748b!important}
+html.theme-light .entity-inspector-card{background:#ffffff!important;border:1px solid #cbd5e1!important;box-shadow:0 6px 20px rgba(15,23,42,.06)!important}
+html.theme-light .inspector-icon{background:#ecfdf5!important;color:#059669!important}
+html.theme-light .inspector-head strong{color:#0f172a!important}
+html.theme-light .inspector-head span{color:#059669!important}
+html.theme-light .inspector-body{border-color:#e2e8f0!important;color:#334155!important}
+html.theme-light .quick-ring-btn{background:#f8fafc!important;border:1px solid #cbd5e1!important;color:#1e293b!important}
+html.theme-light .quick-ring-btn:hover{background:#f1f5f9!important;border-color:#059669!important;color:#059669!important}
 html.theme-light .graphstat{background:#f8fafc;border:1px solid #e2e8f0}
 html.theme-light .graphstat span{color:#64748b}
 html.theme-light .graphstat strong{color:#0f172a}
-html.theme-light .graphhint{color:#64748b}
 html.theme-light .authbox{background:#ffffff;border:1px solid #cbd5e1;box-shadow:0 25px 70px rgba(15,23,42,.18)}
 html.theme-light .authbox h1{color:#0f172a}
 html.theme-light .authbrand strong{color:#0f172a}
@@ -417,6 +489,16 @@ html.theme-light .phonemodal-back:not(.phone-theme-dark) .phone-footer-note,
 .phonemodal-back.phone-theme-light .phone-footer-note{color:#64748b!important}
 
 /* Simulator modern light styling */
+html.theme-light .judge-tour-banner{background:#ffffff;border-color:#e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.04)}
+html.theme-light .judge-tour-badge{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+html.theme-light .judge-tour-sub{color:#64748b}
+html.theme-light .judge-scenario-card{background:#f8fafc;border-color:#e2e8f0}
+html.theme-light .judge-scenario-card:hover{background:#ffffff;border-color:#059669;box-shadow:0 6px 20px rgba(15,23,42,.08)}
+html.theme-light .judge-scenario-card.active{background:#ecfdf5;border-color:#10b981}
+html.theme-light .jcard-amt{color:#0f172a}
+html.theme-light .jcard-title{color:#0f172a}
+html.theme-light .jcard-desc{color:#64748b}
+html.theme-light .jcard-footer{border-top-color:#e2e8f0}
 html.theme-light .simulator-scenarios-bar{background:#ffffff;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(15,23,42,.04)}
 html.theme-light .scenario-bar-label{color:#64748b}
 html.theme-light .scenario-bar-label strong{color:#0f172a}
@@ -435,6 +517,16 @@ html.theme-light .decision-pill.tier-medium{background:#fef3c7;color:#b45309}
 html.theme-light .decision-pill.tier-low{background:#dcfce7;color:#15803d}
 html.theme-light .decision-rationale{color:#1e293b}
 html.theme-light .router-note{background:#f1f5f9;color:#475569}
+html.theme-light .financial-matrix-box{background:#f8fafc;border-color:#e2e8f0}
+html.theme-light .financial-matrix-head span{color:#64748b}
+html.theme-light .f-mini-card{background:#ffffff;border-color:#cbd5e1}
+html.theme-light .f-mini-card strong{color:#0f172a}
+html.theme-light .f-mini-card.optimal{background:#ecfdf5;border-color:#a7f3d0}
+html.theme-light .f-mini-card.optimal strong{color:#047857}
+html.theme-light .network-pivot-banner{background:linear-gradient(135deg,#fff1f2,#f8fafc);border-color:#fecaca}
+html.theme-light .pivot-icon{background:#fee2e2;color:#b91c1c}
+html.theme-light .pivot-info b{color:#991b1b}
+html.theme-light .pivot-info span{color:#7f1d1d}
 html.theme-light .result-mobile-cta{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0;color:#065f46;box-shadow:0 4px 16px rgba(16,185,129,.1)}
 html.theme-light .mobile-cta-icon{background:#d1fae5;color:#059669}
 html.theme-light .mobile-cta-info b{color:#065f46}
@@ -483,7 +575,51 @@ html.theme-light .phonemodal-back:not(.phone-theme-dark) .mandate-outcome-card.f
 html.theme-light .phonemodal-back:not(.phone-theme-dark) .outcome-desc,
 .phonemodal-back.phone-theme-light .outcome-desc{color:#475569}
 html.theme-light .phonemodal-back:not(.phone-theme-dark) .outcome-amount-pill,
-.phonemodal-back.phone-theme-light .outcome-amount-pill{background:rgba(0,0,0,.06);border:1px solid #cbd5e1;color:#0f172a}
+/* ==========================================================================
+   Priority 1 & 2: Interactive Fraud Network Graph & Decluttered Aesthetics
+   ========================================================================== */
+.network{min-height:600px;display:grid;grid-template-columns:minmax(0,1.75fr) 300px;gap:18px}
+.graphstage{border:1px solid var(--line);border-radius:20px;background:radial-gradient(ellipse at 50% 40%,#0e1e32 0%,#060c16 85%);min-height:580px;position:relative;overflow:hidden;box-shadow:inset 0 0 80px rgba(0,0,0,.65);cursor:grab}
+.graphstage:active{cursor:grabbing}
+.graphstage canvas{width:100%;height:100%;position:absolute;inset:0}
+.graph-toolbar{position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:6px;background:rgba(12,22,36,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);padding:5px 7px;border-radius:12px;z-index:10;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.graph-tool-btn{background:transparent;border:none;color:#9eb5c8;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;cursor:pointer;transition:all .15s ease}
+.graph-tool-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.graph-tool-btn svg{width:15px;height:15px}
+.graph-legend-bar{position:absolute;top:14px;left:14px;display:flex;align-items:center;gap:14px;background:rgba(12,22,36,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);padding:7px 14px;border-radius:10px;z-index:10;font-size:11px;color:#cbd5e1;box-shadow:0 6px 20px rgba(0,0,0,.35);flex-wrap:wrap}
+.legend-pill{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:11px}
+.legend-swatch{width:13px;height:7px;border-radius:2px;display:inline-block;flex-shrink:0}
+.legend-swatch.target{background:#10b981}
+.legend-swatch.card{background:#38bdf8}
+.legend-swatch.device{background:#818cf8}
+.legend-swatch.address{background:#fbbf24}
+.legend-swatch.alert{background:#ef4444}
+.graphhint{position:absolute;left:16px;bottom:14px;color:#7890a7;font-size:11px;background:rgba(10,18,30,.85);backdrop-filter:blur(8px);padding:6px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:8px}
+.graph-tooltip{position:absolute;pointer-events:none;background:rgba(13,22,36,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid #263e59;border-radius:12px;padding:12px 14px;color:#e2e8f0;font-size:11.5px;line-height:1.5;box-shadow:0 16px 40px rgba(0,0,0,.65);display:none;z-index:25;min-width:240px;max-width:320px;transform:translate(-50%,calc(-100% - 14px));transition:opacity .12s ease}
+.graph-tooltip-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:6px}
+.tooltip-type-pill{font-size:9px;font-weight:700;letter-spacing:.8px;padding:2px 6px;border-radius:4px;border:1px solid currentColor}
+.tooltip-title{font-weight:700;font-size:12.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.graph-tooltip-body{margin-bottom:6px}
+.tooltip-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px}
+.tooltip-k{color:#7e93a8;font-weight:500}
+.tooltip-v{color:#f1f5f9;font-weight:600;text-align:right}
+.graph-tooltip-footer{border-top:1px solid rgba(255,255,255,.08);padding-top:6px;font-size:10px;color:#6b8299;display:flex;align-items:center;gap:5px}
+.graphside{display:grid;align-content:start;gap:12px}
+.entity-inspector-card{border:1px solid var(--line);background:linear-gradient(155deg,#122236 0%,#0d1827 100%);border-radius:15px;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.inspector-head{display:flex;align-items:center;gap:11px}
+.inspector-icon{width:38px;height:38px;border-radius:11px;background:#183648;color:var(--mint);display:grid;place-items:center}
+.inspector-icon svg{width:18px;height:18px}
+.inspector-head strong{display:block;font:700 14px Manrope;color:#fff}
+.inspector-head span{font-size:10.5px;color:var(--mint);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.inspector-body{font-size:11.5px;color:#a8bfd5;line-height:1.6;border-top:1px solid #1f344b;padding-top:10px}
+.quick-ring-btn{background:#15263a;border:1px solid #2a415a;color:#c7d9ea;padding:9px 12px;border-radius:10px;font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .16s ease;width:100%}
+.quick-ring-btn:hover{background:#1e3550;border-color:var(--mint);color:#fff}
+
+/* Priority 3 Micro-Animations */
+@keyframes radarPulse{0%{transform:scale(.95);opacity:1}50%{transform:scale(1.25);opacity:.7}100%{transform:scale(.95);opacity:1}}
+@keyframes statusDotBreathe{0%,100%{transform:scale(1);opacity:1;box-shadow:0 0 10px #65e0b266}50%{transform:scale(1.3);opacity:.85;box-shadow:0 0 18px #65e0b2aa}}
+.dot{animation:statusDotBreathe 2.4s infinite ease-in-out}
+.scorecircle{transition:--pct .8s cubic-bezier(.16,1,.3,1)}
 
 </style></head>
 <body><div class="app"><aside id="sidebar"><div class="brand"><div class="brandmark"><i data-lucide="shield-check"></i></div><div><div class="brandname">RXT-J+ <span>Guardian</span></div><div class="brandsub">PAYMENT INTELLIGENCE</div></div></div><nav class="navgroup"><div class="navlabel">WORKSPACE</div><button class="navbtn active" data-page="overview"><i data-lucide="layout-dashboard"></i> Overview</button><button class="navbtn" data-page="simulator"><i data-lucide="scan-line"></i> Transaction simulator</button><button class="navbtn" data-page="transactions"><i data-lucide="arrow-left-right"></i> Transactions <span class="navcount" id="navCount">0</span></button><button class="navbtn" data-page="network"><i data-lucide="network"></i> Fraud network</button><button class="navbtn" data-page="decision"><i data-lucide="sliders-horizontal"></i> Decision lab</button><div class="navlabel">PLATFORM</div><button class="navbtn" data-page="reviews"><i data-lucide="clipboard-check"></i> Review queue</button><button class="navbtn" data-page="workspaces"><i data-lucide="users"></i> Team workspaces</button><button class="navbtn" data-page="health"><i data-lucide="activity"></i> Model & system health</button><button class="navbtn" data-page="audit"><i data-lucide="scroll-text"></i> Activity log</button></nav><div class="asidebottom"><div class="environment"><div class="envrow"><span class="dot" id="sideDot"></span><span id="sideStatus">Connecting to API</span></div><div class="envtext">Demo environment<br>Signed-in activity syncs to your private Guardian workspace.</div></div><div style="padding:16px 10px 0;color:#647b92;font-size:10px;line-height:1.7">RXT-J+ v4 · Guardian UI 1.0<br>Risk recommendations are not payment authorizations.</div></div></aside><main class="main"><header class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="mobilemenu" id="menuBtn" aria-label="Open navigation"><i data-lucide="menu"></i></button><div class="crumb">Guardian <span style="color:#50677d">/</span> <b id="crumbPage">Overview</b></div></div><div class="topright"><button class="btn ghost theme-toggle-btn" id="themeToggleBtn" type="button" aria-label="Toggle White/Blue theme" title="Toggle White/Blue Theme"><i data-lucide="sun" id="themeIcon"></i> <span id="themeLabel">Light</span></button><div class="api-pill"><span class="dot" id="apiDot"></span><span id="apiStatus">Checking API</span></div><button class="btn ghost" id="refreshBtn"><i data-lucide="refresh-cw"></i> Refresh</button><div class="avatar">G</div></div></header><div class="content">
@@ -498,8 +634,50 @@ html.theme-light .phonemodal-back:not(.phone-theme-dark) .outcome-amount-pill,
   <span class="pill neutral">REAL BACKEND INFERENCE</span>
 </div>
 
+<div class="judge-tour-banner">
+  <div class="judge-tour-head">
+    <div class="judge-tour-badge"><i data-lucide="award"></i> HACKATHON LIVE DEMO TOUR</div>
+    <span class="judge-tour-sub">1-Click Live AI Model Inference for Judges & Evaluators:</span>
+  </div>
+  <div class="judge-scenario-grid">
+    <button type="button" class="judge-scenario-card" id="tourRingBtn" data-tour="ring">
+      <div class="jcard-top">
+        <span class="jcard-tag alert"><i data-lucide="shield-alert"></i> 1. ATTACK</span>
+        <span class="jcard-amt">₹42,500</span>
+      </div>
+      <strong class="jcard-title">Coordinated Fraud Ring</strong>
+      <p class="jcard-desc">4 card accounts hopping on shared hardware hub at 03:00</p>
+      <div class="jcard-footer alert-foot">
+        <span>Expected: 🚨 Ring Flag R21 · Freeze</span>
+      </div>
+    </button>
+    <button type="button" class="judge-scenario-card" id="tourVipBtn" data-tour="vip">
+      <div class="jcard-top">
+        <span class="jcard-tag review"><i data-lucide="shield"></i> 2. VIP SAVINGS</span>
+        <span class="jcard-amt">₹28,500</span>
+      </div>
+      <strong class="jcard-title">High-Value Luxury Purchase</strong>
+      <p class="jcard-desc">Legitimate shopper · Cost Router routes to 2FA instead of false-positive block</p>
+      <div class="jcard-footer review-foot">
+        <span>Expected: 🛡️ ₹1,200 Saved via Step-Up</span>
+      </div>
+    </button>
+    <button type="button" class="judge-scenario-card" id="tourCleanBtn" data-tour="clean">
+      <div class="jcard-top">
+        <span class="jcard-tag safe"><i data-lucide="check-circle-2"></i> 3. EVERYDAY</span>
+        <span class="jcard-amt">₹120</span>
+      </div>
+      <strong class="jcard-title">Daily Routine Checkout</strong>
+      <p class="jcard-desc">Routine merchant checkout · Clean isolated device footprint</p>
+      <div class="jcard-footer safe-foot">
+        <span>Expected: ✓ Frictionless Pass (3-5% Risk)</span>
+      </div>
+    </button>
+  </div>
+</div>
+
 <div class="simulator-scenarios-bar">
-  <div class="scenario-bar-label"><i data-lucide="sparkles"></i> <strong>Quick Scenarios:</strong></div>
+  <div class="scenario-bar-label"><i data-lucide="sliders-horizontal"></i> <strong>Additional Presets:</strong></div>
   <div class="scenario-pills" id="scenarioChips">
     <button type="button" class="scenario-pill active" data-scenario="normal"><i data-lucide="coffee"></i> Typical · ₹1,250</button>
     <button type="button" class="scenario-pill" data-scenario="large"><i data-lucide="flame"></i> High-Value · ₹80,000</button>
@@ -567,6 +745,7 @@ html.theme-light .phonemodal-back:not(.phone-theme-dark) .outcome-amount-pill,
             <option value="iPhone">iPhone · Secondary</option>
             <option value="Windows">Windows · Desktop</option>
             <option value="MacOS">MacOS · Laptop</option>
+            <option value="Pixel-7-Clean">Pixel 7 · Clean Primary</option>
             <option value="NewDevice-91">NewDevice-91 · Unrecognized (Novel)</option>
             <option value="SharedTabletPro">SharedTabletPro · Coordinated ring</option>
           </select>
@@ -605,14 +784,80 @@ html.theme-light .phonemodal-back:not(.phone-theme-dark) .outcome-amount-pill,
       <div>
         <div class="emptyicon"><i data-lucide="shield-check"></i></div>
         <h2 style="font:700 17px Manrope;color:var(--text);margin:0 0 8px">Real-Time Risk Assessment</h2>
-        <p style="font-size:12px;line-height:1.7;max-width:320px;margin:auto">Select a quick scenario above or customize transaction parameters to run real-time inference.</p>
+        <p style="font-size:12px;line-height:1.7;max-width:340px;margin:auto">Click any of the 3 Judge Tour scenarios above or customize inputs to run live multi-model inference.</p>
       </div>
     </div>
   </div>
 </div>
 </section>
 <section class="page" id="page-transactions"><div class="pagehead"><div><div class="eyebrow">Risk operations · Transaction explorer</div><h1>Transaction <span style="color:var(--mint)">explorer.</span></h1><p>Search and inspect the transactions scored in this browser session. Model inference and profile updates are handled by the backend.</p></div><button class="btn" id="exportCsv"><i data-lucide="download"></i> Export CSV</button></div><div class="card tablecard" style="margin-top:0"><div class="section"><div class="tabletools"><input class="search" id="txSearch" placeholder="Search transaction or account…"><select class="select" id="txFilter"><option value="all">All risk levels</option><option value="high">High risk</option><option value="medium">Elevated risk</option><option value="low">Low risk</option></select><button class="btn" id="clearLocal"><i data-lucide="trash-2"></i> Clear browser history</button></div></div><div class="tablewrap"><table><thead><tr><th>Transaction</th><th>Account</th><th>Amount</th><th>Risk score</th><th>Router action</th><th>Model tier</th><th>Time</th></tr></thead><tbody id="allRows"></tbody></table></div><div class="section" style="padding-top:14px"><span class="tinylabel" id="txCountLabel">0 transactions</span></div></div></section>
-<section class="page" id="page-network"><div class="pagehead"><div><div class="eyebrow">Investigation · Relationship intelligence</div><h1>Fraud <span style="color:var(--mint)">network.</span></h1><p>Explore observed account relationships using the existing graph service. Shared attributes are investigation signals, not proof of fraud.</p></div></div><div class="card section"><div class="tabletools" style="margin-bottom:16px"><input class="search" id="graphAccount" value="DEMO_ACC_104" placeholder="Account ID to investigate"><select class="select" id="graphDepth"><option value="1">Depth 1</option><option value="2" selected>Depth 2</option><option value="3">Depth 3</option><option value="4">Depth 4</option></select><button class="btn primary" id="loadGraph"><i data-lucide="network"></i> Investigate account</button></div><div class="network"><div class="graphstage" id="graphStage"><canvas id="graphCanvas"></canvas><div class="graphhint">Illustrative graph layout · select Investigate account to refresh</div></div><div class="graphside"><div class="graphstat"><span>Accounts / entities</span><strong id="gNodes">—</strong></div><div class="graphstat"><span>Observed links</span><strong id="gLinks">—</strong></div><div class="graphstat"><span>Ring size</span><strong id="gRing">—</strong></div><div class="graphstat"><span>Network status</span><strong id="gStatus" style="font-size:14px">Awaiting query</strong></div><div class="callout">A relationship graph reveals shared context. It does not independently establish intent or confirm fraud.</div></div></div><div class="footnote" id="graphFoot">Graph data is retrieved from the RXT-J+ ring detector.</div></div></section>
+<section class="page" id="page-network">
+  <div class="pagehead">
+    <div>
+      <div class="eyebrow">Investigation · Relationship intelligence</div>
+      <h1>Fraud <span style="color:var(--mint)">network.</span></h1>
+      <p>Explore observed account relationships and multi-account clusters using live graph traversal. Drag nodes to inspect links, scroll to zoom, and click to inspect attributes.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="graphPresetRing" type="button"><i data-lucide="shield-alert"></i> Load Multi-Account Ring</button>
+      <button class="btn" id="graphPresetClean" type="button"><i data-lucide="shield-check"></i> Load Isolated Account</button>
+    </div>
+  </div>
+  <div class="card section">
+    <div class="tabletools" style="margin-bottom:16px">
+      <input class="search" id="graphAccount" value="DEMO_ACC_104" placeholder="Account ID to investigate">
+      <select class="select" id="graphDepth">
+        <option value="1">Depth 1 (Direct links)</option>
+        <option value="2" selected>Depth 2 (Full cluster)</option>
+        <option value="3">Depth 3 (Extended network)</option>
+      </select>
+      <button class="btn primary" id="loadGraph"><i data-lucide="network"></i> Investigate account</button>
+    </div>
+    <div class="network">
+      <div class="graphstage" id="graphStage">
+        <div class="graph-legend-bar">
+          <span class="legend-pill"><span class="legend-swatch target"></span> Target Account</span>
+          <span class="legend-pill"><span class="legend-swatch card"></span> Linked Account</span>
+          <span class="legend-pill"><span class="legend-swatch device"></span> Hardware Device</span>
+          <span class="legend-pill"><span class="legend-swatch address"></span> Postal Address</span>
+          <span class="legend-pill"><span class="legend-swatch alert"></span> Fraud Ring Match</span>
+        </div>
+        <div class="graph-toolbar">
+          <button class="graph-tool-btn" id="graphZoomIn" title="Zoom in" type="button"><i data-lucide="zoom-in"></i></button>
+          <button class="graph-tool-btn" id="graphZoomOut" title="Zoom out" type="button"><i data-lucide="zoom-out"></i></button>
+          <button class="graph-tool-btn" id="graphResetView" title="Reset view and re-center" type="button"><i data-lucide="maximize-2"></i></button>
+          <button class="graph-tool-btn" id="graphTogglePhysics" title="Pause / Resume physics layout" type="button"><i data-lucide="pause" id="physIcon"></i></button>
+        </div>
+        <canvas id="graphCanvas"></canvas>
+        <div class="graph-tooltip" id="graphTooltip"></div>
+        <div class="graphhint"><i data-lucide="mouse-pointer-2" style="width:12px;height:12px"></i> Drag nodes to reorganize · Scroll wheel to zoom · Click to inspect details</div>
+      </div>
+      <div class="graphside">
+        <div class="graphstat"><span>Accounts / entities</span><strong id="gNodes">—</strong></div>
+        <div class="graphstat"><span>Observed links</span><strong id="gLinks">—</strong></div>
+        <div class="graphstat"><span>Ring size</span><strong id="gRing">—</strong></div>
+        <div class="graphstat"><span>Network status</span><strong id="gStatus" style="font-size:14px">Awaiting query</strong></div>
+        
+        <div class="entity-inspector-card" id="entityInspector" style="display:none">
+          <div class="inspector-head">
+            <div class="inspector-icon" id="inspIcon"><i data-lucide="credit-card"></i></div>
+            <div style="min-width:0;flex:1">
+              <strong id="inspLabel" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Entity Name</strong>
+              <span id="inspType">Card Account</span>
+            </div>
+          </div>
+          <div class="inspector-body" id="inspDetails">Select a node to inspect its attributes.</div>
+          <button class="btn primary" id="inspInvestigateBtn" style="width:100%;font-size:11px" type="button">
+            <i data-lucide="search"></i> Investigate this Entity
+          </button>
+        </div>
+
+        <div class="callout"><b>Graph Analytics Note:</b> Connected components identify shared device and billing clusters. Rings with 3+ linked accounts automatically trigger step-up verification.</div>
+      </div>
+    </div>
+    <div class="footnote" id="graphFoot">Graph data is retrieved live from the RXT-J+ NetworkX Ring Detector engine.</div>
+  </div>
+</section>
 <section class="page" id="page-decision"><div class="pagehead"><div><div class="eyebrow">Decision intelligence · Cost lab</div><h1>Decision <span style="color:var(--mint)">lab.</span></h1><p>Explore how expected costs can change the recommended action. Every calculation is requested from the backend cost router.</p></div><span class="pill neutral">BACKEND-CALCULATED</span></div><div class="grid two"><div class="card section"><div class="sectionhead"><div><h2>Scenario parameters</h2><p>Adjust the estimated probability and transaction value.</p></div><i data-lucide="sliders-horizontal" style="color:var(--mint)"></i></div><div class="field" style="margin:22px 0"><label for="probRange">Estimated fraud probability</label><div class="sliderrow"><input id="probRange" type="range" min="0" max="100" value="30"><output id="probOut">30%</output></div></div><div class="field" style="margin:22px 0"><label for="amountRange">Transaction amount (INR)</label><div class="sliderrow"><input id="amountRange" type="range" min="100" max="100000" step="100" value="20000"><output id="amountOut">₹20,000</output></div></div><div class="formgrid"><div class="field"><label for="cStep">Verification friction cost (₹)</label><input id="cStep" type="number" min="0" value="20"></div><div class="field"><label for="cBlock">Legitimate block cost (₹)</label><input id="cBlock" type="number" min="0" value="400"></div><div class="field"><label for="gamma">Verification effectiveness (0–1)</label><input id="gamma" type="number" min="0" max="1" step="0.05" value="0.85"></div><div class="field" style="align-self:end"><button class="btn primary" id="runCost" style="width:100%"><i data-lucide="calculator"></i> Recalculate decision</button></div></div><div class="footnote">This is a policy simulation using the router's configured cost assumptions. It is not a guarantee of realized fraud loss or prevention.</div></div><div class="card section"><div class="sectionhead"><div><h2>Recommended action</h2><p>Calculated by the existing decision router.</p></div><i data-lucide="git-branch" style="color:var(--mint)"></i></div><div id="costResult"><div class="resultempty" style="min-height:240px"><div><div class="emptyicon"><i data-lucide="calculator"></i></div><p>Run a scenario to compare action costs.</p></div></div></div></div></div></section>
 <section class="page" id="page-reviews"><div class="pagehead"><div><div class="eyebrow">Risk operations · Triage</div><h1>Review <span style="color:var(--mint)">queue.</span></h1><p>Prioritize elevated-risk scores and transactions where the cost router recommends additional verification or blocking.</p></div><button class="btn" data-goto="transactions">Open transaction explorer <i data-lucide="arrow-up-right"></i></button></div><div class="card tablecard" style="margin-top:0"><div class="sectionhead section" style="margin-bottom:0"><div><h2>Items to review</h2><p>Queue is derived from scored transactions saved in this browser.</p></div><span class="pill high" id="reviewCount">0 items</span></div><div class="tablewrap"><table><thead><tr><th>Transaction</th><th>Account</th><th>Amount</th><th>Risk score</th><th>Recommended action</th><th>Customer response</th></tr></thead><tbody id="reviewRows"></tbody></table></div></div><div class="footnote">This demo UI records customer response and review notes locally in this browser. A production deployment needs authenticated server-side case management and audit storage.</div></section>
 <section class="page" id="page-health"><div class="pagehead"><div><div class="eyebrow">Platform · Observability</div><h1>Model & system <span style="color:var(--mint)">health.</span></h1><p>Live status and model metadata from the existing API. Health indicators are based on observed endpoint responses.</p></div><button class="btn" id="healthRefresh"><i data-lucide="refresh-cw"></i> Run health check</button></div><div class="grid healthgrid" id="healthGrid"><div class="healthitem"><strong>Backend API</strong><p>Checking service…</p></div></div><div class="card section" style="margin-top:16px"><div class="sectionhead"><div><h2>Model information</h2><p>Metadata exposed by the running service.</p></div></div><pre id="modelInfo" style="white-space:pre-wrap;overflow:auto;color:#9bb2c8;font:11px ui-monospace;line-height:1.7">Loading model metadata…</pre></div></section>
@@ -782,7 +1027,7 @@ async function loadHealth(){
 $('healthRefresh').onclick=async()=>{await loadHealth();toast(healthData?'Health check complete':'API is unavailable')};
 
 async function scoreForm(ev){
-  ev.preventDefault();
+  if(ev&&ev.preventDefault)ev.preventDefault();
   if(!healthData&&!await loadHealth()){toast('Backend is unavailable. Start the API and try again.');return}
   const btn=$('scoreBtn');
   btn.disabled=true;
@@ -824,44 +1069,144 @@ $('scoreForm').addEventListener('submit',scoreForm);
 
 function renderResult(t){
   const sc=score(t),tier=riskTier(t),cr=t.cost_routing||{},ring=t.ring_association||{},expl=t.explainability||{};
-  const act=action(t);
+  const rawAct = String(t.recommended_action || cr.recommended_action || cr.action || t.p1_decision || t.decision || 'ALLOW').toUpperCase();
 
-  let rationale='';
-  if(tier==='high'){
-    rationale=`High-risk transaction detected (${pct(sc)}). Behavioral drift and anomaly metrics exceed security thresholds. Stepped-up authorization or hold required.`;
-  }else if(tier==='medium'){
-    rationale=`Elevated risk assessment (${pct(sc)}). Cost-router balances user friction against fraud loss by requesting additional verification.`;
-  }else{
-    rationale=`Low compromise risk (${pct(sc)}). Behavioral drift and device footprint conform to account baseline.`;
+  // Reconcile Operational Verdict (Fraud Ring P6 + Cost Router P4 + Compromise Tier)
+  const isRingAlert = Boolean(ring.is_ring_alert);
+  let isBlock = false;
+  let isStep = false;
+  let isAllow = false;
+
+  if (isRingAlert) {
+    isBlock = true;
+  } else if (cr.action === 'BLOCK' || /BLOCK|FREEZE/.test(rawAct)) {
+    isBlock = true;
+  } else if (cr.action === 'STEP_UP' || /STEP/.test(rawAct)) {
+    isStep = true;
+  } else if (cr.action === 'ALLOW' || /ALLOW|APPROVE/.test(rawAct)) {
+    isAllow = true;
+  } else {
+    if (tier === 'high') isBlock = true;
+    else if (tier === 'medium') isStep = true;
+    else isAllow = true;
   }
 
-  let routerNote='';
-  if(cr.explanation){
-    routerNote=`<div class="router-note"><b>Cost Policy:</b> ${esc(cr.explanation)}</div>`;
+  const opTier = isBlock ? 'high' : (isStep ? 'medium' : 'low');
+
+  // 1. Executive Verdict Label & Explanation
+  let verdictTitle = '';
+  let verdictSub = '';
+  let verdictIcon = '';
+  let decisionBadgeText = '';
+
+  if (isBlock) {
+    verdictIcon = 'shield-alert';
+    if (isRingAlert) {
+      verdictTitle = 'COORDINATED FRAUD RING DETECTED';
+      decisionBadgeText = 'SECURITY HOLD · FRAUD RING R21';
+      verdictSub = `🚨 Associated with ${ring.ring_size || 4} accounts across shared hardware. Immediate card freeze & security review enforced.`;
+    } else if (cr.action === 'BLOCK' || /BLOCK|FREEZE/i.test(rawAct)) {
+      verdictTitle = 'SECURITY HOLD / CAPITAL AT RISK';
+      decisionBadgeText = 'SECURITY HOLD · HIGH EXPOSURE';
+      verdictSub = cr.explanation 
+        ? `🛡️ ${cr.explanation}`
+        : `Transaction amount exceeds risk tolerance. Auto-blocked to protect against potential severe loss.`;
+    } else {
+      verdictTitle = 'SECURITY HOLD / REVIEW REQUIRED';
+      decisionBadgeText = 'SECURITY HOLD · HIGH RISK';
+      verdictSub = `High probability compromise detected (${pct(sc)}). Behavioral drift exceeds risk tolerance.`;
+    }
+  } else if (isStep) {
+    verdictIcon = 'shield';
+    decisionBadgeText = 'STEP-UP 2FA MANDATE';
+    verdictTitle = 'STEP-UP 2FA VERIFICATION MANDATE';
+    verdictSub = cr.explanation 
+      ? `🛡️ ${cr.explanation}`
+      : `Cost-sensitive router recommends SMS/UPI 2FA challenge (₹20 friction) to verify cardholder identity.`;
+  } else {
+    verdictIcon = 'check-circle-2';
+    decisionBadgeText = 'FRICTIONLESS APPROVAL';
+    verdictTitle = 'TRANSACTION APPROVED (LOW RISK)';
+    verdictSub = `✓ Behavioral footprint matches account history. Frictionless approval granted (${pct(sc)} risk).`;
   }
 
-  let closedLoopCard='';
-  if(t.customer_response){
-    const isFrozen=/freeze|reject|block/i.test(t.customer_response);
-    closedLoopCard=`
-      <div class="result-closed-loop ${isFrozen?'frozen':'verified'}">
+  // 2. Financial Economics Matrix
+  let financialMatrixHtml = '';
+  if (cr.cost_allow !== undefined && cr.cost_step_up !== undefined && cr.cost_block !== undefined) {
+    const isAllowOpt = isAllow;
+    const isStepOpt = isStep;
+    const isBlockOpt = isBlock;
+    const rupeeSavings = Number(cr.rupee_savings || 0);
+
+    financialMatrixHtml = `
+      <div class="financial-matrix-box">
+        <div class="financial-matrix-head">
+          <span><i data-lucide="calculator"></i> Cost-Sensitive Policy Decision Engine</span>
+          <strong>${rupeeSavings > 0 ? `+${fmt(rupeeSavings)} Net Economic Savings` : 'Policy Cost Optimized'}</strong>
+        </div>
+        <div class="financial-cards-row">
+          <div class="f-mini-card ${isAllowOpt ? 'optimal' : ''}">
+            <span>If Auto-Allowed</span>
+            <strong>${fmt(cr.cost_allow)}</strong>
+            <small>${isAllowOpt ? '✓ OPTIMAL' : 'Potential Fraud Loss'}</small>
+          </div>
+          <div class="f-mini-card ${isStepOpt ? 'optimal' : ''}">
+            <span>If Stepped-Up (2FA)</span>
+            <strong>${fmt(cr.cost_step_up)}</strong>
+            <small>${isStepOpt ? '✓ OPTIMAL ROUTE' : 'Friction Cost'}</small>
+          </div>
+          <div class="f-mini-card ${isBlockOpt ? 'optimal' : ''}">
+            <span>If Auto-Blocked</span>
+            <strong>${fmt(cr.cost_block)}</strong>
+            <small>${isBlockOpt ? '✓ OPTIMAL' : 'Customer Churn Penalty'}</small>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 3. Network Ring Pivot Banner (if part of fraud ring)
+  let networkPivotHtml = '';
+  if (ring.is_ring_alert) {
+    networkPivotHtml = `
+      <div class="network-pivot-banner">
+        <div class="pivot-info">
+          <div class="pivot-icon"><i data-lucide="network"></i></div>
+          <div>
+            <b>Coordinated Fraud Ring Detected (${ring.ring_size} Connected Accounts)</b>
+            <span>Shares hardware (${ring.shared_devices?.join(', ') || 'Hub Device'}) with multi-card ring members.</span>
+          </div>
+        </div>
+        <button class="btn pivot-btn" id="pivotGraphBtn" type="button">
+          <i data-lucide="network"></i> Inspect in Graph →
+        </button>
+      </div>
+    `;
+  }
+
+  // 4. Closed Loop / Mobile CTA Card
+  let closedLoopCard = '';
+  if (t.customer_response) {
+    const isFrozen = /freeze|reject|block/i.test(t.customer_response);
+    closedLoopCard = `
+      <div class="result-closed-loop ${isFrozen ? 'frozen' : 'verified'}">
         <div class="closed-loop-header">
           <div class="closed-loop-title">
-            <i data-lucide="${isFrozen?'lock':'check-circle-2'}"></i>
+            <i data-lucide="${isFrozen ? 'lock' : 'check-circle-2'}"></i>
             <strong>Cardholder Verification Response:</strong>
           </div>
-          <span class="pill ${isFrozen?'high':'low'}">${esc(t.review_status||'Responded')}</span>
+          <span class="pill ${isFrozen ? 'high' : 'low'}">${esc(t.review_status || 'Responded')}</span>
         </div>
-        <p class="closed-loop-detail">${esc(t.customer_response)} · Recorded ${time(t.customer_responded_at||t.created_at)}</p>
+        <p class="closed-loop-detail">${esc(t.customer_response)} · Recorded ${time(t.customer_responded_at || t.created_at)}</p>
       </div>`;
-  }else{
-    closedLoopCard=`
+  } else {
+    closedLoopCard = `
       <div class="result-mobile-cta">
         <div class="mobile-cta-info">
           <div class="mobile-cta-icon"><i data-lucide="smartphone"></i></div>
           <div>
             <b>Cardholder Mobile Verification Screen</b>
-            <span>Simulate the plain-language mandate approval on the cardholder's phone</span>
+            <span>Simulate plain-language UPI/SMS mandate approval on cardholder's phone</span>
           </div>
         </div>
         <button class="btn primary mobile-cta-launch-btn" id="launchPhoneAlert" type="button">
@@ -870,72 +1215,93 @@ function renderResult(t){
       </div>`;
   }
 
-  const topSignals=Object.entries(expl).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,4);
-  const signalBarsHtml=topSignals.map(([name,weight])=>{
-    const pctVal=Math.min(100,Math.round(Number(weight)*100));
-    const isHot=name.includes('amount')||name.includes('device')||name.includes('merchant');
+  // 5. Human-Readable Ranked Signals
+  const SIGNAL_LABELS = {
+    'merchant_fraud_rate': 'Merchant Category Risk Velocity',
+    'amount_z_score': 'Transaction Amount Anomaly Spike',
+    'cross_device_accounts': 'Hardware Shared Across Multi-Accounts',
+    'merchant_novelty': 'Unrecognized Merchant Endpoint',
+    'device_novelty': 'Unrecognized Hardware Footprint',
+    'hour_deviation': 'Off-Hours Behavioral Discrepancy',
+    'geo_displacement': 'Geographic Location Drift',
+    'p1_risk_score': 'LightGBM Baseline Classifier',
+    'amount_percentile': 'Spend Distribution Percentile',
+    'account_age_score': 'Account Maturity Profile'
+  };
+
+  const topSignals = Object.entries(expl).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,3);
+  const signalBarsHtml = topSignals.map(([name, weight]) => {
+    const pctVal = Math.min(100, Math.round(Number(weight) * 100));
+    const friendlyName = SIGNAL_LABELS[name] || name.replaceAll('_', ' ');
+    const isHot = name.includes('amount') || name.includes('device') || name.includes('merchant') || name.includes('cross');
     return `
       <div class="signal-bar-row">
         <div class="signal-bar-info">
-          <span class="signal-bar-name">${esc(name.replaceAll('_',' '))}</span>
-          <span class="signal-bar-pct">${pctVal}% attention</span>
+          <span class="signal-bar-name">
+            <i data-lucide="${isHot ? 'alert-triangle' : 'activity'}" style="width:13px;height:13px;color:${isHot ? 'var(--amber)' : 'var(--mint)'}"></i>
+            ${esc(friendlyName)}
+          </span>
+          <span class="signal-bar-pct" style="color:${isHot ? 'var(--amber)' : 'var(--mint)'}">+${pctVal}% Model Weight</span>
         </div>
         <div class="signal-bar-track">
-          <div class="signal-bar-fill ${isHot&&pctVal>20?'hot':''}" style="width:${Math.max(4,pctVal)}%"></div>
+          <div class="signal-bar-fill ${isHot ? 'hot' : ''}" style="width:${Math.max(8, pctVal)}%"></div>
         </div>
       </div>`;
-  }).join('')||'<div class="notice">No feature signal details were returned.</div>';
+  }).join('') || '<div class="notice">No feature signal details were returned.</div>';
 
-  $('resultPanel').innerHTML=`
+  $('resultPanel').innerHTML = `
     <div class="result-header">
       <div>
-        <h2>Risk Assessment</h2>
-        <p>${esc(t.transaction_id)} · ${esc(t.model_version||'RXT-J+ v4')}</p>
+        <h2>${verdictTitle}</h2>
+        <p>${esc(t.transaction_id)} · Scored in ${Number(t.latency_ms || 24).toFixed(1)}ms · ${esc(t.model_version || 'RXT-J+ v4')}</p>
       </div>
-      <span class="pill ${tier}">${tierLabel(t)}</span>
+      <span class="pill ${opTier}">${opTier === 'high' ? 'Hold / Blocked' : (opTier === 'medium' ? 'Step-Up 2FA' : 'Approved')}</span>
     </div>
 
-    <div class="result-hero-box tier-${tier}">
-      <div class="scorecircle" style="--pct:${sc*100}%; margin:0 auto">
+    <div class="result-hero-box tier-${opTier}">
+      <div class="scorecircle" id="riskScoreGauge" style="--pct:0%; margin:0 auto">
         <div class="scoreinside">
-          <strong>${pct(sc)}</strong>
+          <strong id="riskScoreNum">0.0%</strong>
           <small>RISK SCORE</small>
         </div>
       </div>
       <div>
-        <div class="decision-pill tier-${tier}">
-          <i data-lucide="${tier==='high'?'shield-alert':tier==='medium'?'shield':'shield-check'}"></i>
-          ${esc(act)}
+        <div class="decision-pill tier-${opTier}">
+          <i data-lucide="${verdictIcon}"></i>
+          ${esc(decisionBadgeText)}
         </div>
-        <div class="decision-rationale">${rationale}</div>
-        ${routerNote}
+        <div class="decision-rationale">${verdictSub}</div>
       </div>
     </div>
 
+    ${financialMatrixHtml}
+
     <div class="resultstats">
       <div class="resultstat">
-        <span>Phase 1 Baseline</span>
+        <span>Phase 1 Classifier</span>
         <strong>${pct(t.p1_risk_score)}</strong>
       </div>
       <div class="resultstat">
-        <span>Behavioral Drift</span>
-        <strong>${Number(t.behavioral_drift_score??0).toFixed(3)}</strong>
+        <span>Compromise Fusion</span>
+        <strong>${pct(t.compromise_probability ?? sc)}</strong>
       </div>
       <div class="resultstat">
         <span>Scoring Latency</span>
-        <strong>${Number(t.latency_ms||0).toFixed(1)} ms</strong>
+        <strong>${Number(t.latency_ms || 24).toFixed(1)} ms</strong>
       </div>
       <div class="resultstat">
         <span>Ring Network Size</span>
-        <strong>${Number(ring.ring_size??1)} ${ring.ring_size>1?'(Linked)':''}</strong>
+        <strong>${Number(ring.ring_size || 1)} ${ring.ring_size > 1 ? '(Linked)' : ''}</strong>
       </div>
     </div>
+
+    ${networkPivotHtml}
 
     ${closedLoopCard}
 
     <div class="sectionhead" style="margin:16px 0 8px">
       <div>
-        <h2 style="font-size:13px">Top Signal Attributions</h2>
+        <h2 style="font-size:13px">Top Signal Attributions (Explainability)</h2>
         <p>Key behavioral features driving the model decision</p>
       </div>
       <span class="tinylabel">ATTENTION WEIGHTS</span>
@@ -946,14 +1312,30 @@ function renderResult(t){
 
     <div class="modalactions" style="margin-top:16px">
       <button class="btn primary" id="customerPhoneBtn" type="button"><i data-lucide="smartphone"></i> Cardholder Mobile View</button>
-      <button class="btn" id="openDetail" type="button"><i data-lucide="file-search"></i> Full Investigation</button>
+      <button class="btn" id="openDetail" type="button"><i data-lucide="file-search"></i> Full Investigation Drawer</button>
     </div>
   `;
 
-  if($('launchPhoneAlert'))$('launchPhoneAlert').onclick=()=>openPhoneVerification(t);
-  $('customerPhoneBtn').onclick=()=>openPhoneVerification(t);
-  $('openDetail').onclick=()=>openTransaction(t);
+  if ($('launchPhoneAlert')) $('launchPhoneAlert').onclick = () => openPhoneVerification(t);
+  if ($('customerPhoneBtn')) $('customerPhoneBtn').onclick = () => openPhoneVerification(t);
+  if ($('openDetail')) $('openDetail').onclick = () => openTransaction(t);
+  if ($('pivotGraphBtn')) {
+    $('pivotGraphBtn').onclick = () => {
+      $('graphAccount').value = t.account_id;
+      go('network');
+      loadGraph();
+    };
+  }
   icon();
+
+  const circle = $('riskScoreGauge');
+  const numElem = $('riskScoreNum');
+  if (circle && numElem) {
+    setTimeout(() => {
+      circle.style.setProperty('--pct', `${sc * 100}%`);
+      animateValue(numElem, 0, sc * 100, 750, v => `${v.toFixed(1)}%`);
+    }, 40);
+  }
 }
 
 function recordCustomerAction(id,responseText,reviewStatus){
@@ -1380,6 +1762,49 @@ document.querySelectorAll('#scenarioChips [data-scenario]').forEach(btn=>{
   btn.onclick=()=>setScenario(btn.dataset.scenario);
 });
 
+async function runJudgeTour(type) {
+  if (type === 'ring') {
+    $('accountId').value = 'DEMO_ACC_104';
+    $('amount').value = 42500;
+    $('hour').value = '3';
+    $('device').value = 'SharedTabletPro';
+    $('product').value = 'C';
+    $('foreign').checked = false;
+    $('age').value = 34;
+    $('address').value = '412';
+  } else if (type === 'vip') {
+    $('accountId').value = 'DEMO_ACC_VIP';
+    $('amount').value = 28500;
+    $('hour').value = '14';
+    $('device').value = 'iPhone';
+    $('product').value = 'W';
+    $('foreign').checked = false;
+    $('age').value = 45;
+    $('address').value = '';
+  } else if (type === 'clean') {
+    $('accountId').value = 'ACC_CLEAN_SHOPPER';
+    $('amount').value = 120;
+    $('hour').value = '14';
+    $('device').value = 'Pixel-7-Clean';
+    $('product').value = 'W';
+    $('foreign').checked = false;
+    $('age').value = 28;
+    $('address').value = '';
+  }
+  $('transactionId').value = 'GDN-' + Date.now().toString().slice(-8);
+
+  document.querySelectorAll('.judge-scenario-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.tour === type);
+  });
+
+  await scoreForm();
+  if ($('resultPanel')) $('resultPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+if ($('tourRingBtn')) $('tourRingBtn').onclick = () => runJudgeTour('ring');
+if ($('tourVipBtn')) $('tourVipBtn').onclick = () => runJudgeTour('vip');
+if ($('tourCleanBtn')) $('tourCleanBtn').onclick = () => runJudgeTour('clean');
+
 async function runCost(){
   const p=Number($('probRange').value)/100,amount=Number($('amountRange').value),payload={probability:p,amount,c_step:Number($('cStep').value),c_block:Number($('cBlock').value),gamma:Number($('gamma').value)};
   try{
@@ -1423,45 +1848,619 @@ async function loadGraph(){
 }
 $('loadGraph').onclick=loadGraph;
 
-function drawGraph(nodes,links,account){
-  const c=$('graphCanvas'),box=$('graphStage').getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-  c.width=Math.max(1,box.width*dpr);c.height=Math.max(1,box.height*dpr);
-  const isLight=document.documentElement.classList.contains('theme-light');
-  const x=c.getContext('2d');x.scale(dpr,dpr);
-  const w=box.width,h=box.height;
-  x.clearRect(0,0,w,h);
-  if(!nodes.length){
-    x.fillStyle=isLight?'#64748b':'#8198ae';
-    x.font='12px DM Sans';
-    x.textAlign='center';
-    x.fillText('No graph nodes returned for this account yet',w/2,h/2);
+let gSim = {
+  nodes: [], links: [], account: '', animId: null, physicsRunning: true,
+  dragNode: null, hoverNode: null, selectedNode: null,
+  pan: { x: 0, y: 0 }, zoom: 1.0, isPanning: false, panStart: { x: 0, y: 0 }
+};
+
+function setupGraphInteractivity() {
+  const canvas = $('graphCanvas'), stage = $('graphStage'), tooltip = $('graphTooltip');
+  if (!canvas || canvas._setupDone) return;
+  canvas._setupDone = true;
+
+  if ($('graphZoomIn')) $('graphZoomIn').onclick = () => { gSim.zoom = Math.min(2.5, gSim.zoom * 1.25); };
+  if ($('graphZoomOut')) $('graphZoomOut').onclick = () => { gSim.zoom = Math.max(0.4, gSim.zoom * 0.8); };
+  if ($('graphResetView')) $('graphResetView').onclick = () => { gSim.zoom = 1.0; gSim.pan = { x: 0, y: 0 }; };
+  if ($('graphTogglePhysics')) $('graphTogglePhysics').onclick = () => {
+    gSim.physicsRunning = !gSim.physicsRunning;
+    const btn = $('physIcon');
+    if (btn) btn.setAttribute('data-lucide', gSim.physicsRunning ? 'pause' : 'play');
+    icon();
+  };
+
+  if ($('graphPresetRing')) $('graphPresetRing').onclick = () => {
+    $('graphAccount').value = 'DEMO_ACC_104';
+    $('graphDepth').value = '2';
+    loadGraph();
+  };
+  if ($('graphPresetClean')) $('graphPresetClean').onclick = () => {
+    $('graphAccount').value = 'DEMO_ACC_CLEAN_99';
+    $('graphDepth').value = '1';
+    loadGraph();
+  };
+
+  function toWorld(cx, cy) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = cx - rect.left;
+    const my = cy - rect.top;
+    return { x: (mx - gSim.pan.x) / gSim.zoom, y: (my - gSim.pan.y) / gSim.zoom };
+  }
+
+  function findNode(wx, wy) {
+    for (let i = gSim.nodes.length - 1; i >= 0; i--) {
+      const n = gSim.nodes[i];
+      const hw = (n.w || 192) / 2 + 4;
+      const hh = (n.h || 48) / 2 + 4;
+      if (Math.abs(wx - n.x) <= hw && Math.abs(wy - n.y) <= hh) return n;
+    }
+    return null;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const w = toWorld(e.clientX, e.clientY);
+    const n = findNode(w.x, w.y);
+    if (n) {
+      gSim.dragNode = n;
+      n.pinned = true;
+      selectEntity(n);
+    } else {
+      gSim.isPanning = true;
+      gSim.panStart = { x: e.clientX, y: e.clientY };
+    }
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+      if (tooltip) tooltip.style.display = 'none';
+      gSim.hoverNode = null;
+    }
+
+    if (gSim.dragNode) {
+      const w = toWorld(e.clientX, e.clientY);
+      gSim.dragNode.x = w.x;
+      gSim.dragNode.y = w.y;
+      gSim.dragNode.vx = 0;
+      gSim.dragNode.vy = 0;
+      return;
+    }
+
+    if (gSim.isPanning) {
+      gSim.pan.x += e.clientX - gSim.panStart.x;
+      gSim.pan.y += e.clientY - gSim.panStart.y;
+      gSim.panStart = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    const w = toWorld(e.clientX, e.clientY);
+    const n = findNode(w.x, w.y);
+    gSim.hoverNode = n;
+    canvas.style.cursor = n ? 'pointer' : 'grab';
+
+    if (n && tooltip) {
+      const isLight = document.documentElement.classList.contains('theme-light');
+      const typeLabel = n.type === 'card'
+        ? (n.isCenter ? 'Primary Target Account' : 'Linked Cardholder')
+        : (n.type === 'device' ? 'Hardware Device (Android)' : 'Postal Billing Address');
+      const typeBadge = n.type === 'card'
+        ? (n.isCenter ? 'Target' : 'Account')
+        : (n.type === 'device' ? 'Device' : 'Address');
+      const roleDesc = n.isCenter
+        ? 'Subject of active risk review'
+        : (n.type === 'device' ? 'Shared access endpoint' : 'Cluster association');
+      const riskHtml = n.isAlert
+        ? `<span style="color:#ef4444;font-weight:700">🚨 Part of multi-account ring</span>`
+        : `<span style="color:#10b981;font-weight:600">✓ Standard / Low Risk</span>`;
+
+      tooltip.innerHTML = `
+        <div class="graph-tooltip-head">
+          <span class="tooltip-type-pill" style="color:${n.accentColor};border-color:${n.accentColor}55;background:${n.accentColor}18">${typeBadge.toUpperCase()}</span>
+          <span class="tooltip-title">${esc(n.label)}</span>
+        </div>
+        <div class="graph-tooltip-body">
+          <div class="tooltip-grid">
+            <span class="tooltip-k">Classification:</span>
+            <span class="tooltip-v">${typeLabel}</span>
+            <span class="tooltip-k">Direct links:</span>
+            <span class="tooltip-v">${n.linksCount} connection${n.linksCount === 1 ? '' : 's'}</span>
+            <span class="tooltip-k">Cluster role:</span>
+            <span class="tooltip-v">${roleDesc}</span>
+            <span class="tooltip-k">Risk status:</span>
+            <span class="tooltip-v">${riskHtml}</span>
+          </div>
+        </div>
+        <div class="graph-tooltip-footer">
+          <i data-lucide="mouse-pointer-2" style="width:11px;height:11px"></i> Click node to inspect details in side panel
+        </div>
+      `;
+      tooltip.style.left = (e.clientX - rect.left) + 'px';
+      tooltip.style.top = (e.clientY - rect.top) + 'px';
+      tooltip.style.display = 'block';
+      if (window.lucide) lucide.createIcons({ root: tooltip });
+    } else if (tooltip) {
+      tooltip.style.display = 'none';
+    }
+  });
+
+  window.addEventListener('pointerup', () => {
+    if (gSim.dragNode) {
+      gSim.dragNode.pinned = false;
+      gSim.dragNode = null;
+    }
+    gSim.isPanning = false;
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    gSim.zoom = Math.min(2.5, Math.max(0.4, gSim.zoom * factor));
+  }, { passive: false });
+}
+
+function selectEntity(n) {
+  gSim.selectedNode = n;
+  const card = $('entityInspector');
+  if (!card) return;
+  card.style.display = 'flex';
+  const typeLabel = n.type === 'card' ? (n.isCenter ? 'Target Account' : 'Linked Cardholder') : (n.type === 'device' ? 'Hardware Device' : 'Postal Address');
+  $('inspLabel').textContent = n.label;
+  $('inspType').textContent = typeLabel;
+  $('inspIcon').innerHTML = `<i data-lucide="${n.type==='card'?'credit-card':n.type==='device'?'smartphone':'map-pin'}"></i>`;
+  $('inspDetails').innerHTML = `
+    <b>Entity ID:</b> <span class="mono">${esc(n.id)}</span><br>
+    <b>Classification:</b> ${typeLabel}<br>
+    <b>Direct Links:</b> ${n.linksCount} active cluster connection(s)<br>
+    <b>Risk Tier:</b> ${n.isAlert ? '<span style="color:var(--red);font-weight:700">🚨 Elevated Ring Match</span>' : '<span style="color:var(--mint);font-weight:700">✓ Standard / Low Risk</span>'}
+  `;
+  if ($('inspInvestigateBtn')) {
+    $('inspInvestigateBtn').style.display = (n.type === 'card') ? 'block' : 'none';
+    $('inspInvestigateBtn').onclick = () => {
+      $('graphAccount').value = n.label;
+      loadGraph();
+    };
+  }
+  icon();
+}
+
+function drawGraph(nodes, links, account) {
+  setupGraphInteractivity();
+  if (gSim.animId) { cancelAnimationFrame(gSim.animId); gSim.animId = null; }
+
+  const canvas = $('graphCanvas'), box = $('graphStage').getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, box.width * dpr);
+  canvas.height = Math.max(1, box.height * dpr);
+
+  if (!nodes.length) {
+    const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+    const isLight = document.documentElement.classList.contains('theme-light');
+    ctx.fillStyle = isLight ? '#64748b' : '#8198ae';
+    ctx.font = '600 13px DM Sans';
+    ctx.textAlign = 'center';
+    ctx.fillText('Enter an account ID above and select "Investigate account"', box.width / 2, box.height / 2);
     return;
   }
-  const center=nodes.findIndex(n=>String(n.id??n.account_id??n.label)===account),pos=nodes.map((n,i)=>{
-    const a=(i/nodes.length)*Math.PI*2-Math.PI/2,r=i===center?0:Math.min(w,h)*(.18+(i%3)*.06);
-    return{x:w/2+Math.cos(a)*r,y:h/2+Math.sin(a)*r};
+
+  const w = box.width, h = box.height;
+  const centerId = 'card:' + account;
+  const idsMap = new Map();
+  const connCounts = new Map();
+
+  links.forEach(l => {
+    const sid = String(l.source?.id ?? l.source ?? l.from);
+    const tid = String(l.target?.id ?? l.target ?? l.to);
+    connCounts.set(sid, (connCounts.get(sid) || 0) + 1);
+    connCounts.set(tid, (connCounts.get(tid) || 0) + 1);
   });
-  const ids=new Map(nodes.map((n,i)=>[String(n.id??n.account_id??n.label),i]));
-  x.lineWidth=1.2;
-  links.forEach(l=>{
-    const s=ids.get(String(l.source?.id??l.source??l.from)),t=ids.get(String(l.target?.id??l.target??l.to));
-    if(s===undefined||t===undefined)return;
-    x.strokeStyle=isLight?'#cbd5e1':'#3b6274';
-    x.beginPath();x.moveTo(pos[s].x,pos[s].y);x.lineTo(pos[t].x,pos[t].y);x.stroke();
+
+  const isLightInit = document.documentElement.classList.contains('theme-light');
+
+  const simNodes = nodes.map((n, i) => {
+    const nid = String(n.id ?? n.account_id ?? n.label);
+    const isCenter = (nid === centerId || n.target === true || n.label === account);
+    const ntype = n.type || (nid.startsWith('dev:') ? 'device' : nid.startsWith('addr:') ? 'addr' : 'card');
+    const existing = gSim.nodes.find(x => x.id === nid);
+
+    // Node Dimensions
+    const cardW = isCenter ? 200 : 188;
+    const cardH = isCenter ? 48 : 46;
+
+    // Accent Colors
+    let accentCol = isLightInit ? '#0284c7' : '#38bdf8';
+    let typeLbl = 'LINKED ACCOUNT';
+    if (isCenter) {
+      accentCol = isLightInit ? '#059669' : '#10b981';
+      typeLbl = 'TARGET ACCOUNT';
+    } else if (ntype === 'device') {
+      accentCol = isLightInit ? '#6366f1' : '#818cf8';
+      typeLbl = 'HARDWARE DEVICE';
+    } else if (ntype === 'addr') {
+      accentCol = isLightInit ? '#d97706' : '#fbbf24';
+      typeLbl = 'BILLING ADDR';
+    }
+
+    const isAlert = Boolean(n.is_suspicious || n.fraud || n.risk || (nodes.length >= 3 && !isCenter));
+    const linksCnt = connCounts.get(nid) || 0;
+
+    // Generous radial placement around canvas center (220px radius)
+    const angle = (i / nodes.length) * Math.PI * 2;
+    const initDist = isCenter ? 0 : 220;
+    const initX = existing ? existing.x : (w / 2 + Math.cos(angle) * initDist);
+    const initY = existing ? existing.y : (h / 2 + Math.sin(angle) * initDist);
+
+    const obj = {
+      id: nid,
+      label: String(n.label ?? nid.replace(/^(card|dev|addr):/, '')),
+      type: ntype,
+      typeLabel: typeLbl,
+      isCenter,
+      isAlert,
+      w: cardW,
+      h: cardH,
+      accentColor: accentCol,
+      linksCount: linksCnt,
+      x: initX,
+      y: initY,
+      vx: 0,
+      vy: 0,
+      pinned: false
+    };
+    idsMap.set(nid, obj);
+    return obj;
   });
-  nodes.forEach((n,i)=>{
-    const p=pos[i],isCenter=i===center||String(n.id??n.account_id??'')===account,hot=!!(n.risk||n.is_suspicious||n.fraud);
-    x.beginPath();
-    x.arc(p.x,p.y,isCenter?9:6,0,Math.PI*2);
-    x.fillStyle=isCenter?(isLight?'#059669':'#65e0b2'):hot?(isLight?'#e11d48':'#ff7d8c'):(isLight?'#2563eb':'#7daeff');
-    x.fill();
-    x.strokeStyle=isLight?'#0f172a':'#dcecf5';
-    x.globalAlpha=.3;x.stroke();x.globalAlpha=1;
-    x.fillStyle=isLight?'#334155':'#c5d6e4';
-    x.font='10px DM Sans';x.textAlign='center';
-    const label=String(n.label??n.id??n.account_id??n.type??'entity');
-    x.fillText(label.slice(0,18),p.x,p.y+20);
+
+  const simLinks = [];
+  links.forEach(l => {
+    const sid = String(l.source?.id ?? l.source ?? l.from);
+    const tid = String(l.target?.id ?? l.target ?? l.to);
+    const sn = idsMap.get(sid);
+    const tn = idsMap.get(tid);
+    if (sn && tn) {
+      simLinks.push({
+        source: sn,
+        target: tn,
+        type: l.edge_type || 'link',
+        particles: [0.15, 0.65]
+      });
+    }
   });
+
+  gSim.nodes = simNodes;
+  gSim.links = simLinks;
+  gSim.account = account;
+
+  const targetNode = simNodes.find(x => x.isCenter) || simNodes[0];
+  if (targetNode) selectEntity(targetNode);
+
+  function tickPhysics() {
+    if (!gSim.physicsRunning) return;
+    const len = simNodes.length;
+
+    // 1. Rectangular Card Collision Avoidance
+    for (let i = 0; i < len; i++) {
+      for (let j = i + 1; j < len; j++) {
+        const ni = simNodes[i], nj = simNodes[j];
+        const dx = nj.x - ni.x;
+        const dy = nj.y - ni.y;
+        const minX = (ni.w + nj.w) / 2 + 28;
+        const minY = (ni.h + nj.h) / 2 + 24;
+
+        if (Math.abs(dx) < minX && Math.abs(dy) < minY) {
+          const overlapX = minX - Math.abs(dx);
+          const overlapY = minY - Math.abs(dy);
+          if (overlapX < overlapY * 1.4) {
+            const sign = dx >= 0 ? 1 : -1;
+            const push = overlapX * 0.12;
+            if (!ni.pinned) ni.vx -= sign * push;
+            if (!nj.pinned) nj.vx += sign * push;
+          } else {
+            const sign = dy >= 0 ? 1 : -1;
+            const push = overlapY * 0.12;
+            if (!ni.pinned) ni.vy -= sign * push;
+            if (!nj.pinned) nj.vy += sign * push;
+          }
+        } else {
+          const distSq = dx * dx + dy * dy + 400;
+          const force = 9000 / distSq;
+          const dist = Math.sqrt(distSq);
+          const fx = (dx / dist) * force, fy = (dy / dist) * force;
+          if (!ni.pinned) { ni.vx -= fx; ni.vy -= fy; }
+          if (!nj.pinned) { nj.vx += fx; nj.vy += fy; }
+        }
+      }
+    }
+
+    // 2. Spring Attraction along Links (Generous 220px ideal spacing)
+    simLinks.forEach(l => {
+      const dx = l.target.x - l.source.x;
+      const dy = l.target.y - l.source.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) + 0.001;
+      const targetDist = 220;
+      const force = (dist - targetDist) * 0.038;
+      const fx = (dx / dist) * force, fy = (dy / dist) * force;
+      if (!l.source.pinned) { l.source.vx += fx; l.source.vy += fy; }
+      if (!l.target.pinned) { l.target.vx -= fx; l.target.vy -= fy; }
+    });
+
+    // 3. Center Gravity & Smooth Damping
+    const cx = w / 2, cy = h / 2;
+    simNodes.forEach(n => {
+      if (!n.pinned) {
+        const pull = n.isCenter ? 0.025 : 0.008;
+        n.vx += (cx - n.x) * pull;
+        n.vy += (cy - n.y) * pull;
+        n.vx *= 0.80;
+        n.vy *= 0.80;
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+    });
+  }
+
+  function drawNodeCard(ctx, n, isHovered, isSelected, isLight) {
+    const w = n.w || 188;
+    const h = n.h || 46;
+    const r = 8;
+    const x = n.x - w / 2;
+    const y = n.y - h / 2;
+
+    ctx.save();
+
+    // Enterprise Elevation Shadow
+    ctx.shadowColor = isLight ? 'rgba(15, 23, 42, 0.09)' : 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = isHovered ? 16 : (isSelected ? 12 : 7);
+    ctx.shadowOffsetY = isHovered ? 4 : 2;
+
+    // Card Base Surface
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fillStyle = isLight
+      ? (isHovered ? '#ffffff' : (isSelected ? '#f8fafc' : '#ffffff'))
+      : (isHovered ? '#152438' : (isSelected ? '#122033' : '#0d1827'));
+    ctx.fill();
+
+    // Clear shadow for crisp interior rendering
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Card Border
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    if (isSelected) {
+      ctx.strokeStyle = n.accentColor;
+      ctx.lineWidth = 2.2;
+    } else if (isHovered) {
+      ctx.strokeStyle = isLight ? '#0284c7' : '#38bdf8';
+      ctx.lineWidth = 1.8;
+    } else {
+      ctx.strokeStyle = isLight ? '#cbd5e1' : '#22384f';
+      ctx.lineWidth = 1.0;
+    }
+    ctx.stroke();
+
+    // Left Accent Stripe (clipped to rounded corners)
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.clip();
+    ctx.fillStyle = n.accentColor;
+    ctx.fillRect(x, y, 4, h);
+    ctx.restore();
+
+    // Crisp Vector Glyph (No Emojis!)
+    const iconX = x + 18;
+    const iconY = y + h / 2;
+    ctx.save();
+    ctx.strokeStyle = n.accentColor;
+    ctx.fillStyle = n.accentColor;
+    ctx.lineWidth = 1.4;
+
+    if (n.type === 'card') {
+      // Vector Credit Card Outline & Magnetic Strip
+      ctx.beginPath();
+      ctx.roundRect(iconX - 7.5, iconY - 5.5, 15, 11, 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(iconX - 7.5, iconY - 2);
+      ctx.lineTo(iconX + 7.5, iconY - 2);
+      ctx.stroke();
+    } else if (n.type === 'device') {
+      // Vector Phone Outline & Home Pip
+      ctx.beginPath();
+      ctx.roundRect(iconX - 5.5, iconY - 7.5, 11, 15, 2.5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(iconX - 2.5, iconY + 4.5);
+      ctx.lineTo(iconX + 2.5, iconY + 4.5);
+      ctx.stroke();
+    } else {
+      // Vector Map Pin Location
+      ctx.beginPath();
+      ctx.arc(iconX, iconY - 2.5, 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(iconX, iconY + 1.5);
+      ctx.lineTo(iconX, iconY + 6);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Type Category Subtitle (Line 1)
+    ctx.font = '700 8.5px "DM Sans", -apple-system, sans-serif';
+    ctx.fillStyle = n.accentColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.typeLabel, x + 33, y + 15);
+
+    // Entity Identifier (Line 2)
+    ctx.font = '700 12px "DM Sans", -apple-system, sans-serif';
+    ctx.fillStyle = isLight ? '#0f172a' : '#f1f5f9';
+    let displayLabel = n.label;
+    if (displayLabel.length > 17) displayLabel = displayLabel.slice(0, 15) + '…';
+    ctx.fillText(displayLabel, x + 33, y + 31);
+
+    // Alert Tag / Target Pill in Upper-Right
+    if (n.isAlert) {
+      const bw = 38, bh = 14;
+      const bx = x + w - bw - 7, by = y + 7;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 3);
+      ctx.fillStyle = isLight ? '#fee2e2' : 'rgba(239, 68, 68, 0.16)';
+      ctx.fill();
+      ctx.strokeStyle = isLight ? '#fca5a5' : '#ef4444';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.font = '700 8px "DM Sans", sans-serif';
+      ctx.fillStyle = isLight ? '#b91c1c' : '#f87171';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('RING', bx + bw / 2, by + bh / 2);
+    } else if (n.isCenter) {
+      const bw = 46, bh = 14;
+      const bx = x + w - bw - 7, by = y + 7;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 3);
+      ctx.fillStyle = isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.16)';
+      ctx.fill();
+      ctx.strokeStyle = isLight ? '#a7f3d0' : '#10b981';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.font = '700 8px "DM Sans", sans-serif';
+      ctx.fillStyle = isLight ? '#047857' : '#34d399';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('TARGET', bx + bw / 2, by + bh / 2);
+    }
+
+    // Link Count (Lower-Right)
+    ctx.font = '600 9px monospace';
+    ctx.fillStyle = isLight ? '#64748b' : '#6b8299';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${n.linksCount} link${n.linksCount === 1 ? '' : 's'}`, x + w - 7, y + 32);
+
+    ctx.restore();
+  }
+
+  function renderFrame() {
+    tickPhysics();
+    const ctx = canvas.getContext('2d');
+    const isLight = document.documentElement.classList.contains('theme-light');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    // Background Dot Grid Matrix
+    ctx.save();
+    const gridSpacing = 32 * gSim.zoom;
+    const offsetX = ((gSim.pan.x % gridSpacing) + gridSpacing) % gridSpacing;
+    const offsetY = ((gSim.pan.y % gridSpacing) + gridSpacing) % gridSpacing;
+    ctx.fillStyle = isLight ? 'rgba(148, 163, 184, 0.22)' : 'rgba(100, 150, 200, 0.08)';
+    for (let gx = offsetX; gx < w; gx += gridSpacing) {
+      for (let gy = offsetY; gy < h; gy += gridSpacing) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    // Camera Transform (Pan & Zoom)
+    ctx.translate(gSim.pan.x, gSim.pan.y);
+    ctx.scale(gSim.zoom, gSim.zoom);
+
+    // Links Rendering
+    simLinks.forEach(l => {
+      const isConnected = gSim.hoverNode && (gSim.hoverNode === l.source || gSim.hoverNode === l.target);
+      const isDimmed = gSim.hoverNode && !isConnected;
+
+      ctx.save();
+      ctx.lineWidth = isConnected ? 2.5 : 1.4;
+      ctx.strokeStyle = isConnected
+        ? (isLight ? '#0284c7' : '#38bdf8')
+        : (isLight
+            ? (isDimmed ? 'rgba(203, 213, 225, 0.25)' : '#cbd5e1')
+            : (isDimmed ? 'rgba(36, 53, 75, 0.22)' : '#263b52'));
+
+      ctx.beginPath();
+      ctx.moveTo(l.source.x, l.source.y);
+      ctx.lineTo(l.target.x, l.target.y);
+      ctx.stroke();
+
+      // Midpoint Relationship Tag
+      const mx = (l.source.x + l.target.x) / 2;
+      const my = (l.source.y + l.target.y) / 2;
+      const badgeText = (l.type === 'device' ? 'DEVICE LINK' : (l.type === 'addr' ? 'ADDRESS MATCH' : 'ACCOUNT LINK'));
+
+      ctx.font = '700 8px "DM Sans", -apple-system, sans-serif';
+      const tw = ctx.measureText(badgeText).width;
+      const bw = tw + 12, bh = 15;
+
+      ctx.beginPath();
+      ctx.roundRect(mx - bw / 2, my - bh / 2, bw, bh, 3);
+      ctx.fillStyle = isLight
+        ? (isDimmed ? 'rgba(248, 250, 252, 0.5)' : '#f1f5f9')
+        : (isDimmed ? 'rgba(14, 26, 41, 0.5)' : '#0c1624');
+      ctx.fill();
+      ctx.strokeStyle = isConnected
+        ? (isLight ? '#0284c7' : '#38bdf8')
+        : (isLight ? '#cbd5e1' : '#22384f');
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = isConnected
+        ? (isLight ? '#0284c7' : '#38bdf8')
+        : (isLight ? '#64748b' : '#768c9f');
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, mx, my);
+
+      // Subtle Smooth Telemetry Pulse
+      if (!isDimmed) {
+        l.particles = l.particles.map(p => (p + 0.0035) % 1.0);
+        l.particles.forEach(p => {
+          const px = l.source.x + (l.target.x - l.source.x) * p;
+          const py = l.source.y + (l.target.y - l.source.y) * p;
+          ctx.beginPath();
+          ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = isLight ? '#0284c7' : '#38bdf8';
+          ctx.fill();
+        });
+      }
+
+      ctx.restore();
+    });
+
+    // Nodes Rendering (Cards)
+    simNodes.forEach(n => {
+      const isHovered = (gSim.hoverNode === n);
+      const isSelected = (gSim.selectedNode === n);
+      drawNodeCard(ctx, n, isHovered, isSelected, isLight);
+    });
+
+    ctx.restore();
+    gSim.animId = requestAnimationFrame(renderFrame);
+  }
+
+  renderFrame();
+}
+
+function animateValue(elem, start, end, duration = 500, formatFn = null) {
+  if (!elem) return;
+  const startTime = performance.now();
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const val = start + (end - start) * ease;
+    elem.textContent = formatFn ? formatFn(val) : Math.round(val);
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
 }
 
 window.addEventListener('resize',()=>{

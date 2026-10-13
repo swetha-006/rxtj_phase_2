@@ -87,6 +87,15 @@ class FraudRingDetector:
         self._component_tx_timestamps: Dict[str, List[float]] = {}
         self._latest_timestamp: float = 0.0
 
+    def reset(self) -> None:
+        """Reset in-memory graph and temporal component stores."""
+        with self._lock:
+            self.graph.clear()
+            self._account_tx_counts.clear()
+            self._account_first_seen.clear()
+            self._component_tx_timestamps.clear()
+            self._latest_timestamp = 0.0
+
     @staticmethod
     def _sanitize_id(val: Any) -> Optional[str]:
         """Convert arbitrary input to clean string or None if empty/sentinel."""
