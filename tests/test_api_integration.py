@@ -114,3 +114,211 @@ def test_guardian_workspace_and_legacy_dashboard_routes(client):
     legacy = client.get("/panel")
     assert legacy.status_code == 200
     assert "FraudShield" in legacy.text or "RXT-J+" in legacy.text
+
+
+def test_cors_origin_hardening(client):
+    """Verify CORS blocks untrusted external origins and accepts configured local origin."""
+    res_bad = client.options("/health", headers={
+        "Origin": "https://malicious-attacker.com",
+        "Access-Control-Request-Method": "GET"
+    })
+    assert res_bad.headers.get("access-control-allow-origin") != "https://malicious-attacker.com"
+    assert res_bad.headers.get("access-control-allow-origin") != "*"
+
+    res_good = client.options("/health", headers={
+        "Origin": "http://localhost:8000",
+        "Access-Control-Request-Method": "GET"
+    })
+    assert res_good.headers.get("access-control-allow-origin") == "http://localhost:8000"
+
+
+def test_ring_reset_authentication_protection(client, monkeypatch):
+    """Verify /ring/reset rejects unauthenticated requests and requires credentials."""
+    # 1. Unauthenticated request must be rejected with 401
+    r_unauth = client.post("/ring/reset")
+    assert r_unauth.status_code == 401
+    assert "sign in" in r_unauth.json()["detail"].lower()
+
+    # 2. Authenticated user can reset
+    reg = client.post("/auth/register", json={
+        "email": "analyst_reset@bank.com",
+        "display_name": "Reset Analyst",
+        "password": "Password12345!"
+    })
+    if reg.status_code == 201:
+        cookie = reg.cookies.get("guardian_session")
+        client.cookies.set("guardian_session", cookie)
+    else:
+        # If user already exists from previous run, login
+        login_res = client.post("/auth/login", json={
+            "email": "analyst_reset@bank.com",
+            "password": "Password12345!"
+        })
+        cookie = login_res.cookies.get("guardian_session")
+        client.cookies.set("guardian_session", cookie)
+
+    r_auth = client.post("/ring/reset")
+    assert r_auth.status_code == 200
+    assert r_auth.json()["status"] == "ok"
+
+    # 3. If DEMO_MODE is disabled, returns 403
+    monkeypatch.setattr(app, "DEMO_MODE", False)
+    r_disabled = client.post("/ring/reset")
+    assert r_disabled.status_code == 403
+    client.cookies.clear()
+
+
+def test_unauthenticated_profile_and_history_endpoints_blocked(client, monkeypatch):
+    """Verify Issue 3: /history, /account/profile, /account/history, /account/alerts require auth."""
+    client.cookies.clear()
+
+    # 1. Anonymous requests must be blocked with 401
+    assert client.get("/history").status_code == 401
+    assert client.get("/account/profile/ACC_TEST_42").status_code == 401
+    assert client.get("/account/history/ACC_TEST_42").status_code == 401
+    assert client.get("/account/alerts").status_code == 401
+    assert client.post("/account/explain", json={
+        "account_id": "ACC_TEST_42",
+        "transaction_id": "TX_TEST_001"
+    }).status_code == 401
+
+    # 2. Authenticated requests with valid session or X-Admin-Key succeed
+    monkeypatch.setenv("GUARDIAN_ADMIN_KEY", "secret-ci-admin-key")
+    admin_headers = {"X-Admin-Key": "secret-ci-admin-key"}
+
+    r_hist = client.get("/history?limit=5", headers=admin_headers)
+    assert r_hist.status_code == 200
+    assert isinstance(r_hist.json(), list)
+
+    r_alerts = client.get("/account/alerts", headers=admin_headers)
+    assert r_alerts.status_code == 200
+    assert "alert_count" in r_alerts.json()
+
+    r_acct_hist = client.get("/account/history/ACC_INTEG_A", headers=admin_headers)
+    assert r_acct_hist.status_code == 200
+    assert r_acct_hist.json()["account_id"] == "ACC_INTEG_A"
+
+
+def test_batch_scoring_bounds_and_dos_protection(client, monkeypatch):
+    """Verify Issue 4: BatchRequest enforces size bounds (1-500) and requires authentication."""
+    client.cookies.clear()
+
+    # 1. Unauthenticated batch scoring is rejected
+    r_unauth = client.post("/score/batch", json={
+        "transactions": [{"transaction_id": "TX_1", "features": [0.0] * 14}]
+    })
+    assert r_unauth.status_code == 401
+
+    # Configure admin auth header
+    monkeypatch.setenv("GUARDIAN_ADMIN_KEY", "secret-ci-admin-key")
+    admin_headers = {"X-Admin-Key": "secret-ci-admin-key"}
+
+    # 2. Empty batch list rejected by Pydantic validation (min_length=1)
+    r_empty = client.post("/score/batch", json={"transactions": []}, headers=admin_headers)
+    assert r_empty.status_code == 422
+
+    # 3. Oversized batch (>500 items) rejected by Pydantic validation (max_length=500)
+    oversized_payload = {
+        "transactions": [
+            {"transaction_id": f"TX_{i}", "features": [0.0] * 14}
+            for i in range(501)
+        ]
+    }
+    r_oversized = client.post("/score/batch", json=oversized_payload, headers=admin_headers)
+    assert r_oversized.status_code == 422
+
+    # 4. Valid batch within limits (1-500) successfully scores
+    valid_payload = {
+        "transactions": [
+            {"transaction_id": "TX_BATCH_1", "features": [0.0] * 14},
+            {"transaction_id": "TX_BATCH_2", "features": [1.5] * 14}
+        ]
+    }
+    r_valid = client.post("/score/batch", json=valid_payload, headers=admin_headers)
+    assert r_valid.status_code == 200
+    data = r_valid.json()
+    assert "results" in data
+    assert len(data["results"]) == 2
+    assert "fraud_count" in data
+    assert "total_latency_ms" in data
+
+
+def test_auth_rate_limiting_protects_brute_force(client, monkeypatch):
+    """Verify Issue 5: Throttles rapid login and registration attempts with HTTP 429 Retry-After."""
+    app.auth_limiter.reset()
+    monkeypatch.setattr(app, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(app, "RATE_LIMIT_LOGIN_MAX", 3)
+    monkeypatch.setattr(app, "RATE_LIMIT_REGISTER_MAX", 3)
+
+    # 1. First 3 bad logins return 401
+    for _ in range(3):
+        r = client.post("/auth/login", json={"email": "victim@bank.com", "password": "wrong"})
+        assert r.status_code == 401
+
+    # 4th login attempt from same client must be rate-limited with 429
+    r_limited = client.post("/auth/login", json={"email": "victim@bank.com", "password": "wrong"})
+    assert r_limited.status_code == 429
+    assert "too many login attempts" in r_limited.json()["detail"].lower()
+    assert "retry-after" in r_limited.headers
+
+    # 2. Registrations from same IP are also throttled after 3 attempts
+    for i in range(3):
+        client.post("/auth/register", json={
+            "email": f"spam_user_{i}@bank.com",
+            "display_name": f"Spam User {i}",
+            "password": "Password12345!"
+        })
+
+    # 4th registration attempt must be rate-limited with 429
+    r_reg_limited = client.post("/auth/register", json={
+        "email": "spam_user_overflow@bank.com",
+        "display_name": "Spam User Overflow",
+        "password": "Password12345!"
+    })
+    assert r_reg_limited.status_code == 429
+    assert "too many registration requests" in r_reg_limited.json()["detail"].lower()
+    assert "retry-after" in r_reg_limited.headers
+
+    # Clean up
+    app.auth_limiter.reset()
+
+
+def test_sanitized_internal_error_responses(client, monkeypatch):
+    """Verify Issue 6: Internal runtime exceptions are logged and never leak stack/file paths to clients."""
+    # Simulate an internal crash with sensitive internal file paths and details
+    def mock_broken_scorer(*args, **kwargs):
+        raise RuntimeError("Internal SQLite corruption at /srv/secrets/master.key: memory dump 0xDEADBEEF")
+
+    monkeypatch.setattr(app, "score_transaction_features", mock_broken_scorer)
+
+    # Test /score/form
+    res = client.post("/score/form", json={
+        "transaction_id": "TX_CRASH_TEST",
+        "amount": 500.0
+    })
+    assert res.status_code == 500
+    detail = res.json()["detail"]
+    assert detail == "Internal transaction scoring error."
+    # Ensure sensitive runtime info is NOT leaked to caller
+    assert "/srv/secrets" not in detail
+    assert "master.key" not in detail
+    assert "0xDEADBEEF" not in detail
+
+
+def test_cookie_secure_by_default(monkeypatch):
+    """Verify Issue 7: Session cookie is Secure by default, and configurable via env."""
+    # 1. Without environment variable, helper defaults to True (secure)
+    monkeypatch.delenv("GUARDIAN_COOKIE_SECURE", raising=False)
+    assert app._is_cookie_secure() is True
+
+    # 2. When explicitly disabled for local unencrypted dev, returns False
+    monkeypatch.setenv("GUARDIAN_COOKIE_SECURE", "0")
+    assert app._is_cookie_secure() is False
+
+    # 3. When explicitly enabled, returns True
+    monkeypatch.setenv("GUARDIAN_COOKIE_SECURE", "1")
+    assert app._is_cookie_secure() is True
+
+
+
+

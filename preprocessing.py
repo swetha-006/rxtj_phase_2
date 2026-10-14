@@ -5,16 +5,46 @@
 # ============================================================
 
 import os
+import hashlib
 import joblib
 import numpy as np
 
+PREPROCESSOR_HASHES = {
+    "imputer.pkl": "ac9b0886ce63a173778b33db0e78410b71d682ee1997f6f9ffbe36d536ed8003",
+    "scaler.pkl": "d985ef87722ea7f091eb15f2c5d4a2637346765105858cc38e595961e7f4d291",
+}
+
+
+def verify_file_integrity(filepath: str, expected_hash: str) -> None:
+    """Verify SHA-256 checksum of an artifact before deserializing (Issue 12 fix)."""
+    if os.environ.get("GUARDIAN_VERIFY_MODEL_HASH", "1").lower() in ("0", "false", "no"):
+        return
+    if not os.path.exists(filepath):
+        return
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    actual = h.hexdigest()
+    if actual != expected_hash:
+        raise RuntimeError(
+            f"Preprocess artifact integrity check failed for '{os.path.basename(filepath)}'! "
+            f"Expected SHA-256: {expected_hash}, got: {actual}. Possible artifact tampering detected."
+        )
+
 
 def load_preprocessors(base_dir):
-    """Load the training-time SimpleImputer + StandardScaler from disk."""
-    imputer = joblib.load(os.path.join(base_dir, 'models', 'imputer.pkl'))
+    """Load the training-time SimpleImputer + StandardScaler from disk with integrity check."""
+    imp_path = os.path.join(base_dir, 'models', 'imputer.pkl')
+    scl_path = os.path.join(base_dir, 'models', 'scaler.pkl')
+
+    verify_file_integrity(imp_path, PREPROCESSOR_HASHES["imputer.pkl"])
+    verify_file_integrity(scl_path, PREPROCESSOR_HASHES["scaler.pkl"])
+
+    imputer = joblib.load(imp_path)
     if not hasattr(imputer, '_fill_dtype'):
         imputer._fill_dtype = np.float32
-    scaler  = joblib.load(os.path.join(base_dir, 'models', 'scaler.pkl'))
+    scaler  = joblib.load(scl_path)
     return imputer, scaler
 
 

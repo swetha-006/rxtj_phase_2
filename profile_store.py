@@ -58,7 +58,17 @@ class ProfileStore:
 
     def __init__(self, db_path: str = "data/behavioral_profiles.db"):
         self.db_path = db_path
-        os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist_ok=True)
+        parent_dir = os.path.dirname(db_path) if os.path.dirname(db_path) else "."
+        os.makedirs(parent_dir, exist_ok=True)
+        # Seed from default data/ location if custom db_path does not yet exist
+        seed_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "behavioral_profiles.db")
+        if not os.path.exists(self.db_path) and os.path.exists(seed_path):
+            try:
+                import shutil
+                if os.path.abspath(self.db_path) != os.path.abspath(seed_path):
+                    shutil.copy2(seed_path, self.db_path)
+            except Exception:
+                pass
         with self._conn() as c:
             c.executescript(_DDL)
 

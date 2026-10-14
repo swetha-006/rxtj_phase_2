@@ -11,11 +11,19 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - GUARDIAN_ACCOUNTS_DB=/app/state/guardian_accounts.db
+      - RXTJ_PROFILE_DB=/app/state/behavioral_profiles.db
+      - RXTJ_HISTORY_DB=/app/state/history.db
+      - GUARDIAN_COOKIE_SECURE=1
     volumes:
       - ./data:/app/data:ro
       - ./models:/app/models:ro
+      - guardian_state:/app/state
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+volumes:
+  guardian_state:

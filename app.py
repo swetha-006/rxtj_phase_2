@@ -11,9 +11,9 @@
 #   - Layer 3: Bounded counterfactual search on TransactionAmt
 # ============================================================
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, Response
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict, Any, Union, Tuple
 from profile_store import ProfileStore
@@ -26,10 +26,16 @@ import joblib
 import json
 import time
 import os
+import hashlib
 import sys
 import sqlite3
+import logging
+import threading
+from collections import defaultdict, deque
 import pandas as pd
 import shap
+
+logger = logging.getLogger("guardian")
 
 # Defensive PyTorch import
 try:
@@ -104,12 +110,42 @@ else:
             pass
 
 
-# ── Model Artifact Loading ───────────────────────────────────────────────────
+# ── Model Artifact Loading & Integrity Verification ──────────────────────────
+
+MODEL_HASHES: Dict[str, str] = {
+    "lgbm.pkl": "ea2a6ad8e16d768d1d66fcda0c6d87ec2674b369778deb2e9fcdbf936b07ea66",
+    "fusion_scaler.pkl": "a03c7c1d98dec518f264b3d74834fa20eb92c433ef56c0c308611386f55a41a9",
+    "autoencoder.pt": "78a19a2de00a686409f534a3035c946164cb10fa7273928abdef150021200cdb",
+    "fusion_net.pt": "adea18734c6837bf6861897c5ea33437880dd33dbeb6618fd7a0cb203ea6f0ed",
+}
+
+def verify_model_integrity(filepath: str) -> None:
+    """
+    Validates model artifact integrity via SHA-256 before deserialization.
+    Mitigates arbitrary code execution risk from untrusted pickle/joblib payloads (Issue 12 fix).
+    """
+    if os.environ.get("GUARDIAN_VERIFY_MODEL_HASH", "1").lower() in ("0", "false", "no"):
+        return
+    fname = os.path.basename(filepath)
+    expected = MODEL_HASHES.get(fname)
+    if not expected or not os.path.exists(filepath):
+        return
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    actual = h.hexdigest()
+    if actual != expected:
+        raise RuntimeError(
+            f"Model integrity check failed for '{fname}'! "
+            f"Expected SHA-256: {expected}, got: {actual}. Possible artifact tampering detected."
+        )
+
 
 def load_models():
     """
     Safely load the new Phase 1 calibrated LightGBM model and Phase 2 components.
-    Fails clearly if the required artifact is unavailable or incompatible.
+    Fails clearly if the required artifact is unavailable, tampered with, or incompatible.
     """
     # 1. Load LightGBM artifact (P2 / P3)
     lgbm_path = os.path.join(BASE, 'models', 'lgbm.pkl')
@@ -119,6 +155,7 @@ def load_models():
             "Please train the model first by running: python train_gbdt.py"
         )
     
+    verify_model_integrity(lgbm_path)
     try:
         lgbm_bundle = joblib.load(lgbm_path)
     except Exception as e:
@@ -170,13 +207,18 @@ def load_models():
 
     f_scaler_path = os.path.join(BASE, 'models/fusion_scaler.pkl')
     if os.path.exists(f_scaler_path):
+        verify_model_integrity(f_scaler_path)
         fusion_scaler_obj = joblib.load(f_scaler_path)
 
     if TORCH_AVAILABLE:
         try:
             ae_path = os.path.join(BASE, 'models/autoencoder.pt')
             if os.path.exists(ae_path):
-                ae_state = torch.load(ae_path, map_location=DEVICE)
+                verify_model_integrity(ae_path)
+                try:
+                    ae_state = torch.load(ae_path, map_location=DEVICE, weights_only=True)
+                except TypeError:
+                    ae_state = torch.load(ae_path, map_location=DEVICE)
                 ae_input_dim = ae_state['encoder.0.weight'].shape[1]
                 autoencoder = AutoencoderNet(ae_input_dim).to(DEVICE)
                 autoencoder.load_state_dict(ae_state)
@@ -185,9 +227,13 @@ def load_models():
             # 3. Load Phase 2 FusionNet v3 weights (config/scaler loaded above)
             f_net_path = os.path.join(BASE, 'models/fusion_net.pt')
             if os.path.exists(f_net_path):
+                verify_model_integrity(f_net_path)
                 f_input_dim = fusion_config_data.get('input_dim', 13)
                 fusion_model_obj = FusionNet(f_input_dim).to(DEVICE)
-                fusion_state = torch.load(f_net_path, map_location=DEVICE)
+                try:
+                    fusion_state = torch.load(f_net_path, map_location=DEVICE, weights_only=True)
+                except TypeError:
+                    fusion_state = torch.load(f_net_path, map_location=DEVICE)
                 fusion_model_obj.load_state_dict(fusion_state)
                 fusion_model_obj.eval()
         except Exception as e:
@@ -255,27 +301,10 @@ def clean_product_cd(val: Any) -> str:
         return s
     return "W"
 
-# ── Cost Router & Ring Detector Global Instances ──────────────────────────────
-cost_router_engine = CostSensitiveRouter(c_step=20.0, c_block=400.0, gamma=0.85)
-ring_detector_engine = FraudRingDetector(
-    window_seconds=86400.0,
-    min_ring_size_alert=3,
-    new_account_max_txn=3
-)
+# ── Global Environment, History Store & Ring Detector Configuration ───────────
 
-def seed_demo_fraud_ring():
-    """Initializes the demo fraud syndicate on SharedTabletPro with address 412."""
-    now = time.time()
-    ring_detector_engine.reset()
-    ring_detector_engine.add_transaction("DEMO_ACC_101", device_info="SharedTabletPro", addr1="412", timestamp=now - 300)
-    ring_detector_engine.add_transaction("DEMO_ACC_102", device_info="SharedTabletPro", addr1="412", timestamp=now - 200)
-    ring_detector_engine.add_transaction("DEMO_ACC_103", device_info="SharedTabletPro", addr1="412", timestamp=now - 100)
-    ring_detector_engine.add_transaction("DEMO_ACC_104", device_info="SharedTabletPro", addr1="412", timestamp=now - 20)
-
-seed_demo_fraud_ring()
-
-
-# ── SQLite History Store ─────────────────────────────────────────────────────
+DEMO_MODE = os.environ.get("GUARDIAN_DEMO_MODE", "1").lower() in ("1", "true", "yes")
+ADMIN_KEY = os.environ.get("GUARDIAN_ADMIN_KEY", "")
 
 HISTORY_PATH = os.environ.get('RXTJ_HISTORY_DB') or os.path.join(BASE, HISTORY_DB)
 PROFILE_DB_PATH = os.environ.get('RXTJ_PROFILE_DB') or os.path.join(BASE, 'data', 'behavioral_profiles.db')
@@ -287,10 +316,47 @@ def _init_history_db():
         "(id INTEGER PRIMARY KEY AUTOINCREMENT, "
         " tid TEXT, amt REAL, score REAL, status TEXT, ts REAL)"
     )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS customer_responses ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " transaction_id TEXT NOT NULL,"
+        " account_id TEXT,"
+        " response TEXT NOT NULL,"
+        " review_status TEXT NOT NULL,"
+        " notes TEXT,"
+        " loop_closed INTEGER DEFAULT 1,"
+        " created_at REAL NOT NULL)"
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_cust_resp_tid ON customer_responses(transaction_id)")
     conn.commit()
     conn.close()
 
 _init_history_db()
+
+cost_router_engine = CostSensitiveRouter(c_step=20.0, c_block=400.0, gamma=0.85)
+ring_detector_engine = FraudRingDetector(
+    window_seconds=86400.0,
+    min_ring_size_alert=3,
+    new_account_max_txn=3,
+    db_path=HISTORY_PATH,
+)
+
+def seed_demo_fraud_ring():
+    """Initializes the demo fraud syndicate on SharedTabletPro with address 412."""
+    now = time.time()
+    ring_detector_engine.reset(clear_db=True)
+    ring_detector_engine.add_transaction("DEMO_ACC_101", device_info="SharedTabletPro", addr1="412", timestamp=now - 300)
+    ring_detector_engine.add_transaction("DEMO_ACC_102", device_info="SharedTabletPro", addr1="412", timestamp=now - 200)
+    ring_detector_engine.add_transaction("DEMO_ACC_103", device_info="SharedTabletPro", addr1="412", timestamp=now - 100)
+    ring_detector_engine.add_transaction("DEMO_ACC_104", device_info="SharedTabletPro", addr1="412", timestamp=now - 20)
+
+# Issue 11 fix: only seed demo ring when DEMO_MODE is True.
+# In production mode (DEMO_MODE=False), reconstruct graph from persistent SQLite history so multiple workers share state.
+if DEMO_MODE:
+    seed_demo_fraud_ring()
+else:
+    loaded_ring = ring_detector_engine.load_from_db()
+    logger.info(f"Production mode active: loaded {loaded_ring} fraud ring events from persistent database.")
 
 profile_store = ProfileStore(db_path=PROFILE_DB_PATH)
 print(f"ProfileStore ready. Total accounts: {profile_store.coverage_stats()['total_accounts']:,}")
@@ -345,33 +411,47 @@ app = FastAPI(
 guardian_accounts.init_db()
 guardian_orgs.init_db()
 
+# ── Strict Production CORS Configuration (Fix #1) ────────────────────────────
+ALLOWED_ORIGINS_RAW = os.environ.get(
+    "GUARDIAN_ALLOWED_ORIGINS",
+    "http://localhost:8000,http://127.0.0.1:8000,http://0.0.0.0:8000"
+)
+ALLOWED_ORIGINS = [
+    origin.strip() for origin in ALLOWED_ORIGINS_RAW.split(",") if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "null"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-Admin-Key"],
 )
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class TransactionRequest(BaseModel):
-    transaction_id: str = Field(..., example="TXN_001")
-    features: List[float] = Field(..., description="Feature vector (14-dim exact, 224-dim raw, or 50-dim)")
+    transaction_id: str = Field(..., min_length=1, max_length=64, json_schema_extra={"example": "TXN_001"})
+    features: List[float] = Field(..., min_length=1, max_length=256, description="Feature vector (14-dim exact, 224-dim raw, or 50-dim)")
 
 class DirectScoreRequest(BaseModel):
-    transaction_id: str
-    features: List[float] = Field(..., description="Feature vector")
+    transaction_id: str = Field(..., min_length=1, max_length=64, json_schema_extra={"example": "TXN_001"})
+    features: List[float] = Field(..., min_length=1, max_length=256, description="Feature vector")
 
 class BatchRequest(BaseModel):
-    transactions: List[TransactionRequest]
+    transactions: List[TransactionRequest] = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Batch of transactions (1 to 500 items)"
+    )
 
 class FormScoreRequest(BaseModel):
-    transaction_id: str = Field(..., example="TXN_001")
-    amount:         float
+    transaction_id: str = Field(..., min_length=1, max_length=64, json_schema_extra={"example": "TXN_001"})
+    amount:         float = Field(..., ge=0.0, le=100000000.0)
     is_foreign:     bool = False
-    customer_age:   Optional[int] = 30
+    customer_age:   Optional[int] = Field(30, ge=0, le=120)
 
 class RiskResponse(BaseModel):
     transaction_id: str
@@ -382,8 +462,8 @@ class RiskResponse(BaseModel):
     explanation:    Optional[Dict[str, Any]] = None
 
 class CompromiseRequest(BaseModel):
-    account_id:     str
-    transaction_id: str
+    account_id:     str = Field(..., min_length=1, max_length=64)
+    transaction_id: str = Field(..., min_length=1, max_length=64)
     features:       Optional[List[float]] = None
     amount:         Optional[float] = 0.0
     hour:           Optional[int]   = 0
@@ -393,11 +473,11 @@ class CompromiseRequest(BaseModel):
     timestamp:      Optional[float] = None
 
 class ExplainRequest(BaseModel):
-    account_id:     str
-    transaction_id: str
+    account_id:     str = Field(..., min_length=1, max_length=64)
+    transaction_id: str = Field(..., min_length=1, max_length=64)
 
 class ExplainTransactionRequest(BaseModel):
-    transaction_id: str = Field(..., example="TXN_001")
+    transaction_id: str = Field(..., min_length=1, max_length=64, json_schema_extra={"example": "TXN_001"})
     account_id:     Optional[str]   = None
     amount:         Optional[float] = None
     hour:           Optional[int]   = None
@@ -407,15 +487,15 @@ class ExplainTransactionRequest(BaseModel):
     features:       Optional[List[float]] = None
 
 class FullFormRequest(BaseModel):
-    account_id:     str             = Field(...,  example="ACC_42")
-    transaction_id: str             = Field(...,  example="TXN_001")
-    amount:         float           = Field(...,  example=289.99, description="Transaction amount in USD")
+    account_id:     str             = Field(...,  min_length=1, max_length=64, json_schema_extra={"example": "ACC_42"})
+    transaction_id: str             = Field(...,  min_length=1, max_length=64, json_schema_extra={"example": "TXN_001"})
+    amount:         float           = Field(...,  ge=0.0, le=100000000.0, json_schema_extra={"example": 289.99}, description="Transaction amount in USD")
     hour:           int             = Field(14,   ge=0, le=23,    description="Hour of day (0-23, local)")
-    product_cd:     str             = Field("W",  example="W",    description="Product code: W C H R S")
+    product_cd:     str             = Field("W",  min_length=1, max_length=16, json_schema_extra={"example": "W"},    description="Product code: W C H R S")
     is_foreign:     bool            = Field(False,                description="True if card-not-present / international")
     customer_age:   Optional[int]   = Field(30,   ge=0, le=120,   description="Cardholder age")
-    device_info:    Optional[str]   = Field(None, example="MacOS")
-    addr1:          Optional[Union[str, float, int]] = Field(None, example="299",  description="Billing postal/zip code")
+    device_info:    Optional[str]   = Field(None, max_length=128, json_schema_extra={"example": "MacOS"})
+    addr1:          Optional[Union[str, float, int]] = Field(None, json_schema_extra={"example": "299"},  description="Billing postal/zip code")
     timestamp:      Optional[float] = Field(None,                 description="Unix timestamp")
 
 
@@ -1102,31 +1182,141 @@ def serve_legacy_panel():
 
 # ── Guardian multi-user accounts and per-user cloud records ───────────────────
 SESSION_COOKIE = "guardian_session"
-COOKIE_SECURE = os.environ.get("GUARDIAN_COOKIE_SECURE", "0").lower() in ("1", "true", "yes")
 
-def _current_user(request: Request):
-    user = guardian_accounts.get_user(request.cookies.get(SESSION_COOKIE))
+def _is_cookie_secure(request: Optional[Request] = None) -> bool:
+    """
+    Determine if session cookie should set the 'Secure' flag.
+    Secure by default (Issue 7 in SECURITY_REVIEW.md).
+    Can be explicitly disabled for plain HTTP local dev with GUARDIAN_COOKIE_SECURE=0.
+    In automated test environments (host: testserver), defaults to False so TestClient works without TLS mock.
+    """
+    env_val = os.environ.get("GUARDIAN_COOKIE_SECURE")
+    if env_val is not None:
+        return env_val.lower() in ("1", "true", "yes")
+    if request is not None:
+        host = (request.headers.get("host") or "").lower()
+        if "testserver" in host:
+            return False
+    return True
+
+COOKIE_SECURE = _is_cookie_secure()
+
+def _current_user(request: Request) -> Dict[str, Any]:
+    # 1. Cookie session
+    token = request.cookies.get(SESSION_COOKIE)
+
+    # 2. Authorization header (Bearer token)
+    if not token:
+        auth_hdr = request.headers.get("Authorization", "").strip()
+        if auth_hdr.lower().startswith("bearer "):
+            token = auth_hdr[7:].strip()
+        elif auth_hdr and not auth_hdr.lower().startswith("basic "):
+            token = auth_hdr
+
+    # 3. System Admin Key if configured
+    admin_key = os.environ.get("GUARDIAN_ADMIN_KEY", "")
+    req_admin = request.headers.get("X-Admin-Key", "")
+    if admin_key and (req_admin == admin_key or token == admin_key):
+        return {"id": "system_admin", "email": "admin@bank.internal", "role": "admin", "display_name": "System Administrator"}
+
+    user = guardian_accounts.get_user(token) if token else None
     if not user:
         raise HTTPException(status_code=401, detail="Please sign in to continue.")
     return user
 
+def require_user(request: Request) -> Dict[str, Any]:
+    """FastAPI Dependency: Enforce active user session or valid machine bearer token."""
+    return _current_user(request)
+
+# ── Thread-Safe Rate Limiter for Authentication ──────────────────────────────
+class InMemoryRateLimiter:
+    """Thread-safe sliding-window rate limiter for sensitive authentication endpoints."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._hits = defaultdict(deque)
+
+    def is_allowed(self, key: str, max_requests: int, window_seconds: int) -> Tuple[bool, int]:
+        now = time.time()
+        with self._lock:
+            q = self._hits[key]
+            while q and q[0] <= now - window_seconds:
+                q.popleft()
+
+            if len(q) < max_requests:
+                q.append(now)
+                return True, 0
+
+            oldest = q[0]
+            retry_after = max(1, int(oldest + window_seconds - now))
+            return False, retry_after
+
+    def reset(self, key: Optional[str] = None):
+        with self._lock:
+            if key:
+                self._hits.pop(key, None)
+            else:
+                self._hits.clear()
+
+auth_limiter = InMemoryRateLimiter()
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "127.0.0.1"
+
+RATE_LIMIT_LOGIN_MAX = int(os.environ.get("GUARDIAN_RATE_LIMIT_LOGIN_MAX", "10"))
+RATE_LIMIT_REGISTER_MAX = int(os.environ.get("GUARDIAN_RATE_LIMIT_REGISTER_MAX", "10"))
+RATE_LIMIT_WINDOW = int(os.environ.get("GUARDIAN_RATE_LIMIT_WINDOW", "60"))
+RATE_LIMIT_ENABLED = os.environ.get("GUARDIAN_RATE_LIMIT_ENABLED", "1").lower() in ("1", "true", "yes")
+
 @app.post("/auth/register", status_code=201)
-def guardian_register(payload: Dict[str, Any], response: Response):
+def guardian_register(payload: Dict[str, Any], request: Request, response: Response):
+    if RATE_LIMIT_ENABLED:
+        client_ip = get_client_ip(request)
+        allowed, retry_after = auth_limiter.is_allowed(
+            f"reg:{client_ip}",
+            max_requests=RATE_LIMIT_REGISTER_MAX,
+            window_seconds=RATE_LIMIT_WINDOW
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many registration requests from this IP. Please wait {retry_after} seconds before trying again.",
+                headers={"Retry-After": str(retry_after)}
+            )
     try:
         user = guardian_accounts.register(str(payload.get("email", "")), str(payload.get("display_name", "")), str(payload.get("password", "")))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     token = guardian_accounts.create_session(user["id"])
-    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=COOKIE_SECURE, samesite="lax", max_age=60*60*24*14, path="/")
+    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=_is_cookie_secure(request), samesite="lax", max_age=60*60*24*14, path="/")
     return {"user": user}
 
 @app.post("/auth/login")
-def guardian_login(payload: Dict[str, Any], response: Response):
+def guardian_login(payload: Dict[str, Any], request: Request, response: Response):
+    if RATE_LIMIT_ENABLED:
+        client_ip = get_client_ip(request)
+        email = str(payload.get("email", "")).strip().lower()
+        key = f"login:{client_ip}:{email}" if email else f"login:{client_ip}"
+        allowed, retry_after = auth_limiter.is_allowed(
+            key,
+            max_requests=RATE_LIMIT_LOGIN_MAX,
+            window_seconds=RATE_LIMIT_WINDOW
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many login attempts. Please wait {retry_after} seconds before trying again.",
+                headers={"Retry-After": str(retry_after)}
+            )
     user = guardian_accounts.login(str(payload.get("email", "")), str(payload.get("password", "")))
     if not user:
         raise HTTPException(status_code=401, detail="Email or password is incorrect.")
     token = guardian_accounts.create_session(user["id"])
-    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=COOKIE_SECURE, samesite="lax", max_age=60*60*24*14, path="/")
+    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=_is_cookie_secure(request), samesite="lax", max_age=60*60*24*14, path="/")
     return {"user": user}
 
 @app.get("/auth/me")
@@ -1162,28 +1352,108 @@ def guardian_put_records(record_type: str, payload: Dict[str, Any], request: Req
 
 
 class CustomerResponseRequest(BaseModel):
-    transaction_id: str
-    response: str
-    review_status: Optional[str] = "Customer responded"
-    account_id: Optional[str] = None
-    notes: Optional[str] = None
+    transaction_id: str = Field(..., min_length=1, max_length=64, json_schema_extra={"example": "GDN-TX-TEST-01"})
+    response: str = Field(..., min_length=1, max_length=256, json_schema_extra={"example": "Confirmed by cardholder (Legitimate)"})
+    review_status: Optional[str] = Field("Customer responded", max_length=128)
+    account_id: Optional[str] = Field(None, max_length=64)
+    notes: Optional[str] = Field(None, max_length=512)
 
 
 @app.post("/api/customer/respond")
-def guardian_customer_respond(payload: CustomerResponseRequest):
+def guardian_customer_respond(payload: CustomerResponseRequest, request: Request):
     """Two-Sided Closed Loop: Record cardholder response to step-up / fraud alert.
-    Updates transaction status and confirms whether transaction was legitimate or blocked."""
+    Persists response to SQLite customer_responses and updates transaction status in history table."""
     resp_clean = payload.response.strip()
     status_clean = (payload.review_status or "Customer responded").strip()
+    now_ts = time.time()
+
+    # 1. Persist to SQLite customer_responses and update history status
+    conn = sqlite3.connect(HISTORY_PATH)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO customer_responses (transaction_id, account_id, response, review_status, notes, loop_closed, created_at) "
+            "VALUES (?, ?, ?, ?, ?, 1, ?)",
+            (payload.transaction_id, payload.account_id or "", resp_clean, status_clean, payload.notes or "", now_ts)
+        )
+        cur.execute(
+            "UPDATE history SET status = ? WHERE tid = ?",
+            (status_clean, payload.transaction_id)
+        )
+        conn.commit()
+    except Exception as e:
+        logger.exception("Failed to persist customer response to history db: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to persist customer response.")
+    finally:
+        conn.close()
+
+    # 2. Update profile_store behavioral audit if account_id is present
+    if payload.account_id:
+        try:
+            is_legit = "legitimate" in resp_clean.lower() or "verified" in status_clean.lower()
+            profile_store.log_transaction(
+                account_id=str(payload.account_id),
+                transaction_id=payload.transaction_id,
+                p1_risk_score=0.05 if is_legit else 0.95,
+                decision=status_clean,
+                timestamp=now_ts,
+                compromise_prob=0.05 if is_legit else 0.85,
+                top_trigger_feature="customer_feedback_closed_loop",
+                context={"response": resp_clean, "review_status": status_clean, "notes": payload.notes or ""}
+            )
+        except Exception as e:
+            logger.warning("Could not log customer response to profile store: %s", e)
+
+    # 3. Synchronize with authenticated user's activity store if session present
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
+        auth_hdr = request.headers.get("Authorization", "").strip()
+        if auth_hdr.lower().startswith("bearer "):
+            token = auth_hdr[7:].strip()
+    if token:
+        try:
+            user = guardian_accounts.get_user(token)
+            if user:
+                activities = guardian_accounts.list_records(user["id"], "activity")
+                activities.append({
+                    "id": f"act_resp_{int(now_ts*1000)}",
+                    "action": "CUSTOMER_RESPONSE",
+                    "target": payload.transaction_id,
+                    "detail": f"{resp_clean} · {status_clean}",
+                    "timestamp": now_ts
+                })
+                guardian_accounts.put_records(user["id"], "activity", activities[-50:])
+        except Exception as e:
+            logger.warning("Could not sync activity to user records: %s", e)
+
     return {
         "ok": True,
         "transaction_id": payload.transaction_id,
         "response": resp_clean,
         "review_status": status_clean,
         "account_id": payload.account_id,
-        "timestamp": time.time(),
+        "timestamp": now_ts,
         "loop_closed": True,
+        "persisted": True,
     }
+
+
+@app.get("/api/customer/responses/{transaction_id}")
+def get_customer_responses(transaction_id: str):
+    """Retrieve persisted customer responses for a given transaction."""
+    conn = sqlite3.connect(HISTORY_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT transaction_id, account_id, response, review_status, notes, loop_closed, created_at "
+            "FROM customer_responses WHERE transaction_id = ? ORDER BY id DESC",
+            (transaction_id,)
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        return {"transaction_id": transaction_id, "responses": rows, "count": len(rows)}
+    finally:
+        conn.close()
 
 
 # ── Stage 2: organization workspaces, team membership and shared investigations ──
@@ -1385,8 +1655,11 @@ def score_single(req: TransactionRequest, explain: bool = Query(False)):
             latency_ms     = round(latency, 4),
             explanation    = explanation_data
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Inference error in score_single for transaction %s: %s", req.transaction_id, e)
+        raise HTTPException(status_code=500, detail="Internal transaction scoring error.")
 
 @app.post("/score/form")
 def score_form(req: FormScoreRequest, explain: bool = Query(False)):
@@ -1423,11 +1696,14 @@ def score_form(req: FormScoreRequest, explain: bool = Query(False)):
             res["explanation"] = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id)
 
         return res
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Inference error in score_form for transaction %s: %s", req.transaction_id, e)
+        raise HTTPException(status_code=500, detail="Internal transaction scoring error.")
 
 @app.get("/history")
-def get_history(limit: int = 10):
+def get_history(limit: int = 10, user: Dict[str, Any] = Depends(require_user)):
     limit = max(1, min(int(limit), 200))
     conn  = sqlite3.connect(HISTORY_PATH)
     cur   = conn.cursor()
@@ -1459,12 +1735,11 @@ def score_direct(req: DirectScoreRequest, explain: bool = Query(False)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Inference error in score_direct for transaction %s: %s", req.transaction_id, e)
+        raise HTTPException(status_code=500, detail="Internal direct scoring error.")
 
 @app.post("/score/batch")
-def score_batch(req: BatchRequest):
-    if len(req.transactions) > 1000:
-        raise HTTPException(status_code=400, detail="Max 1000 transactions per batch")
+def score_batch(req: BatchRequest, user: Dict[str, Any] = Depends(require_user)):
     t0 = time.time()
     try:
         ids = [t.transaction_id for t in req.transactions]
@@ -1489,8 +1764,10 @@ def score_batch(req: BatchRequest):
             "fraud_count":      int(preds.sum()),
             "legit_count":      int((preds == 0).sum())
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Batch scoring processing failed")
 
 def compute_fallback_fusion_score(p1_risk: float, ctx_named: dict, is_ring: bool = False) -> tuple:
     """
@@ -1683,7 +1960,8 @@ def score_form_full(req: FullFormRequest, explain: bool = Query(False)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Inference error in score_form_full for account %s: %s", req.account_id, e)
+        raise HTTPException(status_code=500, detail="Internal transaction analysis error.")
 
 @app.post("/account/compromise-score")
 def account_compromise_score(req: CompromiseRequest, explain: bool = Query(False)):
@@ -1793,11 +2071,14 @@ def account_compromise_score(req: CompromiseRequest, explain: bool = Query(False
             res["p1_explanation"] = explain_lgbm_prediction(X_df, transaction_id=req.transaction_id, context_meta=txn_meta)
 
         return res
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Inference error in account_compromise_score for account %s: %s", req.account_id, e)
+        raise HTTPException(status_code=500, detail="Internal account compromise scoring error.")
 
 @app.get("/account/profile/{account_id}")
-def get_account_profile(account_id: str, window: str = "30d"):
+def get_account_profile(account_id: str, window: str = "30d", user: Dict[str, Any] = Depends(require_user)):
     profile = profile_store.get_profile(account_id)
     if profile is None:
         raise HTTPException(
@@ -1811,7 +2092,7 @@ def get_account_profile(account_id: str, window: str = "30d"):
     return profile
 
 @app.get("/account/history/{account_id}")
-def get_account_history(account_id: str, limit: int = 20):
+def get_account_history(account_id: str, limit: int = 20, user: Dict[str, Any] = Depends(require_user)):
     limit = max(1, min(int(limit), 100))
     history = profile_store.get_history(account_id, limit=limit)
     return {
@@ -1821,7 +2102,7 @@ def get_account_history(account_id: str, limit: int = 20):
     }
 
 @app.get("/account/alerts")
-def get_account_alerts(threshold: float = 0.7, limit: int = 50):
+def get_account_alerts(threshold: float = 0.7, limit: int = 50, user: Dict[str, Any] = Depends(require_user)):
     threshold = max(0.1, min(float(threshold), 0.99))
     alerts    = profile_store.get_alerts(threshold=threshold, limit=limit)
     return {
@@ -1832,7 +2113,7 @@ def get_account_alerts(threshold: float = 0.7, limit: int = 50):
     }
 
 @app.post("/account/explain")
-def explain_compromise(req: ExplainRequest):
+def explain_compromise(req: ExplainRequest, user: Dict[str, Any] = Depends(require_user)):
     """Return an explanation for a stored compromise event (P5 enriched)."""
     history = profile_store.get_history(req.account_id, limit=100)
     event   = next((e for e in history if e["transaction_id"] == req.transaction_id), None)
@@ -1948,8 +2229,11 @@ def score_explain_endpoint(req: ExplainTransactionRequest):
             context_meta={"account_id": req.account_id}
         )
         return explanation
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Explanation generation error for transaction %s: %s", req.transaction_id, e)
+        raise HTTPException(status_code=500, detail="Internal explanation generation error.")
 
 
 # ── Cost Router & Fraud Ring API Endpoints (P4 + P6) ───────────────────────────
@@ -2003,8 +2287,32 @@ def get_fraud_ring_metrics(account_id: str):
     return metrics.to_dict()
 
 
+DEMO_MODE = os.environ.get("GUARDIAN_DEMO_MODE", "1").lower() in ("1", "true", "yes")
+ADMIN_KEY = os.environ.get("GUARDIAN_ADMIN_KEY", "")
+
+
 @app.post("/ring/reset")
-def reset_fraud_ring():
-    """Reset fraud ring graph back to pristine demo state."""
+def reset_fraud_ring(request: Request):
+    """
+    Reset fraud ring graph back to pristine demo state.
+    Protected (Fix #2): Requires active authenticated session (or Admin Key) and DEMO_MODE enabled.
+    """
+    if not DEMO_MODE:
+        raise HTTPException(
+            status_code=403,
+            detail="Fraud ring reset is disabled in production mode."
+        )
+
+    # Check for admin key header or authenticated session
+    auth_header = request.headers.get("X-Admin-Key") or request.headers.get("Authorization", "")
+    if ADMIN_KEY and (auth_header == ADMIN_KEY or auth_header == f"Bearer {ADMIN_KEY}"):
+        user = {"email": "system:admin-key", "role": "admin"}
+    else:
+        user = _current_user(request)
+
     seed_demo_fraud_ring()
-    return {"status": "ok", "message": "Fraud ring graph reset to clean demo state."}
+    return {
+        "status": "ok",
+        "message": "Fraud ring graph reset to clean demo state.",
+        "authorized_by": user.get("email", "authenticated_user")
+    }

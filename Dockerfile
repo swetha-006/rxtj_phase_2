@@ -9,12 +9,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
+# Install python dependencies (pinned runtime dependencies only)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create application non-root user and state directories
+RUN useradd -m -u 1000 app \
+    && mkdir -p /app/state /app/data \
+    && chown -R app:app /app
+
 # Copy application files
 COPY . .
+RUN chown -R app:app /app
+
+USER app
 
 # Expose FastAPI application port
 EXPOSE 8000

@@ -21,6 +21,15 @@ def test_customer_response_approve():
     assert data["response"] == "Confirmed by cardholder (Legitimate)"
     assert data["review_status"] == "Customer Verified"
     assert data["loop_closed"] is True
+    assert data["persisted"] is True
+
+    # Verify response is persisted in SQLite and retrievable
+    res_check = client.get("/api/customer/responses/GDN-TX-TEST-01")
+    assert res_check.status_code == 200
+    res_data = res_check.json()
+    assert res_data["count"] >= 1
+    assert res_data["responses"][0]["response"] == "Confirmed by cardholder (Legitimate)"
+    assert res_data["responses"][0]["review_status"] == "Customer Verified"
 
 def test_customer_response_freeze():
     payload = {
@@ -35,3 +44,11 @@ def test_customer_response_freeze():
     assert data["ok"] is True
     assert data["review_status"] == "Card Frozen"
     assert data["loop_closed"] is True
+    assert data["persisted"] is True
+
+    # Verify response is persisted in SQLite and retrievable
+    res_check = client.get("/api/customer/responses/GDN-TX-TEST-02")
+    assert res_check.status_code == 200
+    res_data = res_check.json()
+    assert res_data["count"] >= 1
+    assert res_data["responses"][0]["response"] == "Rejected by cardholder (Fraud Confirmed)"

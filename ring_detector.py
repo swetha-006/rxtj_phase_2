@@ -22,6 +22,8 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Set, Tuple, Any, Union
 import time
 import math
+import os
+import sqlite3
 import threading
 import logging
 import networkx as nx
@@ -63,7 +65,7 @@ class FraudRingMetrics:
 class FraudRingDetector:
     """
     Real-time fraud ring detection engine maintaining an in-memory
-    bipartite graph of transaction entities.
+    bipartite graph of transaction entities with optional SQLite persistence.
     """
 
     def __init__(
@@ -72,11 +74,13 @@ class FraudRingDetector:
         min_ring_size_alert: int = 3,         # >=3 linked accounts triggers alert
         new_account_max_txn: int = 3,         # Accounts with <=3 transactions considered 'new'
         max_graph_nodes: int = 150_000,       # Memory bound
+        db_path: Optional[str] = None,        # SQLite persistent backing store (Issue 11 fix)
     ):
         self.window_seconds = float(window_seconds)
         self.min_ring_size_alert = int(min_ring_size_alert)
         self.new_account_max_txn = int(new_account_max_txn)
         self.max_graph_nodes = int(max_graph_nodes)
+        self.db_path = db_path
 
         self.graph = nx.Graph()
         self._lock = threading.RLock()
@@ -87,14 +91,110 @@ class FraudRingDetector:
         self._component_tx_timestamps: Dict[str, List[float]] = {}
         self._latest_timestamp: float = 0.0
 
-    def reset(self) -> None:
-        """Reset in-memory graph and temporal component stores."""
+        if self.db_path:
+            self._init_db()
+
+    def _init_db(self) -> None:
+        """Initialize SQLite schema for persistent fraud ring transactions."""
+        if not self.db_path:
+            return
+        os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
+        try:
+            with conn:
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS ring_transactions ("
+                    "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "  account_id TEXT NOT NULL,"
+                    "  device_info TEXT,"
+                    "  addr1 TEXT,"
+                    "  timestamp REAL NOT NULL,"
+                    "  txn_seq INTEGER"
+                    ")"
+                )
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_ring_tx_acc ON ring_transactions(account_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_ring_tx_dev ON ring_transactions(device_info)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_ring_tx_addr ON ring_transactions(addr1)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_ring_tx_ts ON ring_transactions(timestamp)")
+        finally:
+            conn.close()
+
+    def reset(self, clear_db: bool = False) -> None:
+        """Reset in-memory graph and temporal component stores (optionally clearing SQLite store)."""
         with self._lock:
             self.graph.clear()
             self._account_tx_counts.clear()
             self._account_first_seen.clear()
             self._component_tx_timestamps.clear()
             self._latest_timestamp = 0.0
+
+            if clear_db and self.db_path and os.path.exists(self.db_path):
+                try:
+                    conn = sqlite3.connect(self.db_path, timeout=10.0)
+                    try:
+                        with conn:
+                            conn.execute("DELETE FROM ring_transactions")
+                    finally:
+                        conn.close()
+                except Exception as e:
+                    logger.warning(f"Failed to clear ring_transactions from DB: {e}")
+
+    def load_from_db(self, since_timestamp: Optional[float] = None) -> int:
+        """
+        Rebuild in-memory bipartite graph from SQLite persistent transaction store.
+        Allows multiple Uvicorn workers and worker restarts to share identical graph state.
+        """
+        if not self.db_path or not os.path.exists(self.db_path):
+            return 0
+        loaded = 0
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
+        try:
+            if since_timestamp is not None:
+                cursor = conn.execute(
+                    "SELECT account_id, device_info, addr1, timestamp, txn_seq "
+                    "FROM ring_transactions WHERE timestamp >= ? ORDER BY timestamp ASC",
+                    (since_timestamp,)
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT account_id, device_info, addr1, timestamp, txn_seq "
+                    "FROM ring_transactions ORDER BY timestamp ASC"
+                )
+            rows = cursor.fetchall()
+            with self._lock:
+                for acct, dev, addr, ts, seq in rows:
+                    self._add_to_graph_internal(acct, dev, addr, ts, seq)
+                    loaded += 1
+        except Exception as e:
+            logger.warning(f"Error loading ring state from SQLite: {e}")
+        finally:
+            conn.close()
+        return loaded
+
+    def _persist_transaction(
+        self,
+        account_id: str,
+        device_info: Optional[str],
+        addr1: Optional[str],
+        timestamp: float,
+        txn_seq: Optional[int],
+    ) -> None:
+        """Persist a single transaction event into SQLite store."""
+        if not self.db_path:
+            return
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=10.0)
+            try:
+                with conn:
+                    conn.execute(
+                        "INSERT INTO ring_transactions (account_id, device_info, addr1, timestamp, txn_seq) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (account_id, device_info, addr1, timestamp, txn_seq),
+                    )
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to persist ring transaction to SQLite: {e}")
 
     @staticmethod
     def _sanitize_id(val: Any) -> Optional[str]:
@@ -120,6 +220,54 @@ class FraudRingDetector:
     def _node_addr(self, addr: str) -> str:
         return f"addr:{addr}"
 
+    def _add_to_graph_internal(
+        self,
+        clean_acct: str,
+        clean_dev: Optional[str],
+        clean_addr: Optional[str],
+        ts: float,
+        txn_seq: Optional[int] = None,
+    ) -> str:
+        """Internal helper to insert account, device, and address nodes/edges into graph."""
+        if ts > self._latest_timestamp:
+            self._latest_timestamp = ts
+
+        card_node = self._node_card(clean_acct)
+
+        # Update account lifecycle state
+        prev_count = self._account_tx_counts.get(clean_acct, 0)
+        self._account_tx_counts[clean_acct] = prev_count + 1
+        if clean_acct not in self._account_first_seen:
+            self._account_first_seen[clean_acct] = ts
+
+        # Add account node with attributes
+        if not self.graph.has_node(card_node):
+            self.graph.add_node(
+                card_node,
+                node_type="card",
+                entity_id=clean_acct,
+                first_seen=ts,
+                last_seen=ts,
+            )
+        else:
+            self.graph.nodes[card_node]["last_seen"] = ts
+
+        # Link Device (avoid broad generic OS linking without addr or tight time)
+        if clean_dev:
+            dev_node = self._node_dev(clean_dev)
+            if not self.graph.has_node(dev_node):
+                self.graph.add_node(dev_node, node_type="device", entity_id=clean_dev, first_seen=ts)
+            self.graph.add_edge(card_node, dev_node, timestamp=ts, edge_type="device")
+
+        # Link Address (geographical anchor)
+        if clean_addr:
+            addr_node = self._node_addr(clean_addr)
+            if not self.graph.has_node(addr_node):
+                self.graph.add_node(addr_node, node_type="addr", entity_id=clean_addr, first_seen=ts)
+            self.graph.add_edge(card_node, addr_node, timestamp=ts, edge_type="address")
+
+        return card_node
+
     def add_transaction(
         self,
         account_id: Union[str, int],
@@ -127,6 +275,7 @@ class FraudRingDetector:
         addr1: Optional[Union[str, float, int]] = None,
         timestamp: Optional[float] = None,
         txn_seq: Optional[int] = None,
+        persist: bool = True,
     ) -> FraudRingMetrics:
         """
         Record a transaction event into the graph and return current ring metrics.
@@ -140,47 +289,11 @@ class FraudRingDetector:
         clean_addr = self._sanitize_id(addr1)
         ts = float(timestamp if timestamp is not None else time.time())
 
+        if persist and self.db_path:
+            self._persist_transaction(clean_acct, clean_dev, clean_addr, ts, txn_seq)
+
         with self._lock:
-            if ts > self._latest_timestamp:
-                self._latest_timestamp = ts
-
-            card_node = self._node_card(clean_acct)
-
-            # Update account lifecycle state
-            prev_count = self._account_tx_counts.get(clean_acct, 0)
-            self._account_tx_counts[clean_acct] = prev_count + 1
-            if clean_acct not in self._account_first_seen:
-                self._account_first_seen[clean_acct] = ts
-
-            # Add account node with attributes
-            if not self.graph.has_node(card_node):
-                self.graph.add_node(
-                    card_node,
-                    node_type="card",
-                    entity_id=clean_acct,
-                    first_seen=ts,
-                    last_seen=ts,
-                )
-            else:
-                self.graph.nodes[card_node]["last_seen"] = ts
-
-            # Link Device (avoid broad generic OS linking without addr or tight time)
-            if clean_dev:
-                dev_node = self._node_dev(clean_dev)
-                if not self.graph.has_node(dev_node):
-                    self.graph.add_node(dev_node, node_type="device", entity_id=clean_dev, first_seen=ts)
-                
-                # Check for existing edge or add new
-                self.graph.add_edge(card_node, dev_node, timestamp=ts, edge_type="device")
-
-            # Link Address (geographical anchor)
-            if clean_addr:
-                addr_node = self._node_addr(clean_addr)
-                if not self.graph.has_node(addr_node):
-                    self.graph.add_node(addr_node, node_type="addr", entity_id=clean_addr, first_seen=ts)
-                self.graph.add_edge(card_node, addr_node, timestamp=ts, edge_type="address")
-
-            # Calculate and return metrics for this transaction's component
+            card_node = self._add_to_graph_internal(clean_acct, clean_dev, clean_addr, ts, txn_seq)
             return self._extract_metrics(clean_acct, card_node, ts)
 
     def _extract_metrics(self, account_id: str, card_node: str, current_ts: float) -> FraudRingMetrics:
@@ -385,6 +498,7 @@ class FraudRingDetector:
                 addr1=row.addr1,
                 timestamp=float(row.TransactionDT),
                 txn_seq=int(row.txn_seq) if hasattr(row, "txn_seq") else 0,
+                persist=False,
             )
             loaded_count += 1
 

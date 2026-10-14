@@ -1,0 +1,15 @@
+# ==============================================================================
+# RXT-J+ Guardian — Development, Testing & Security Auditing Dependencies
+# ==============================================================================
+
+-r requirements.txt
+
+# Testing & API client
+pytest==9.1.1
+httpx==0.28.1
+
+# Research notebooks & visualization
+matplotlib>=3.8.0
+
+# CI Dependency vulnerability scanner (Issue 13 recommendation)
+pip-audit>=2.7.0
