@@ -35,6 +35,16 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_records_user_type ON user_records(user_id, record_type, updated_at DESC);
         CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
         ''')
+        # Seed default permanent demo account if not exists
+        demo_email = os.environ.get('GUARDIAN_DEMO_EMAIL', 'demo@guardian.ai').strip().lower()
+        row = c.execute('SELECT id FROM users WHERE email=?', (demo_email,)).fetchone()
+        if row is None:
+            demo_pass = os.environ.get('GUARDIAN_DEMO_PASSWORD', 'GuardianDemo2026!')
+            demo_name = os.environ.get('GUARDIAN_DEMO_NAME', 'Demo Lead Analyst')
+            salt = secrets.token_bytes(16).hex()
+            uid = 'usr_' + secrets.token_urlsafe(14)
+            c.execute('INSERT INTO users VALUES(?,?,?,?,?,?)',
+                      (uid, demo_email, demo_name, _hash_password(demo_pass, salt), salt, time.time()))
 
 def _hash_password(password, salt):
     return hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), ITERATIONS).hex()
